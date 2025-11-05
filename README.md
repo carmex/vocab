@@ -1,5 +1,8 @@
 # Vocabulary Quiz Application
 
+## 🚀 Live Demo
+Try the application live: **[https://vocab.crmx.pw/](https://vocab.crmx.pw/)**
+
 A modern Angular-based vocabulary learning application designed to help users build and improve their vocabulary through an interactive quiz system. The app features a comprehensive word database, progress tracking, and customizable learning settings.
 
 ## Overview
