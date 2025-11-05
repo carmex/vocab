@@ -61,11 +61,11 @@
       mode="determinate"
       [value]="timerProgress"
       [color]="isCorrect ? 'primary' : 'warn'"
-      *ngIf="!isPaused"
+      *ngIf="!isPaused && autoAdvanceEnabled"
     ></mat-progress-bar>
 
     <div class="feedback-buttons">
-      <button mat-flat-button (click)="onPause()" *ngIf="!isPaused">Pause</button>
+      <button mat-flat-button (click)="onPause()" *ngIf="!isPaused && autoAdvanceEnabled">Pause</button>
       <button mat-flat-button color="primary" (click)="onNext()">Next</button>
     </div>
   </div>

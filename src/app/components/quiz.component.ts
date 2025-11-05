@@ -49,6 +49,11 @@ export class QuizComponent implements OnInit, OnDestroy {
   private currentTimerId = 0;
   private feedbackTimer: any = null;
 
+  // Getter for auto-advance setting
+  get autoAdvanceEnabled(): boolean {
+    return this.settingsService.getSettings().autoAdvance;
+  }
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -80,7 +85,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     const answered$ = (this.quizMode === 'main')
       ? this.stateService.currentPassAnswered$
       : this.stateService.reviewPassAnswered$;
-      
+       
     const missed$ = (this.quizMode === 'main')
       ? this.stateService.sessionMissedMain$
       : this.stateService.sessionMissedReview$;
@@ -114,7 +119,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     
     // Clear any existing feedback timer
     if (this.feedbackTimer) {
-      clearTimeout(this.feedbackTimer);
+      clearInterval(this.feedbackTimer);
       this.feedbackTimer = null;
     }
 
@@ -234,7 +239,7 @@ private completeFeedbackTimer(timerId: number) {
     
     // Clear any existing feedback timer
     if (this.feedbackTimer) {
-      clearTimeout(this.feedbackTimer);
+      clearInterval(this.feedbackTimer);
       this.feedbackTimer = null;
     }
   }
