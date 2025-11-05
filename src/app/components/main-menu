@@ -1,0 +1,37 @@
+.menu-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  gap: 15px;
+  max-width: 500px;
+  margin: 40px auto;
+}
+
+.menu-button {
+  width: 100%;
+  min-height: 60px;
+  font-size: 1.2rem;
+  border-radius: 12px;
+}
+
+.green {
+  background-color: #4CAF50; 
+  color: white;
+}
+
+.yellow {
+  background-color: #FFEB3B; 
+  color: #333;
+}
+
+.blue {
+  background-color: #2196F3;
+  color: white;
+}
+
+.gray {
+  background-color: #9E9E9E; 
+  color: white;
+}

@@ -1,0 +1,72 @@
+<div class="quiz-container" *ngIf="currentQuestion">
+  <div class="navigation-header">
+    <button mat-icon-button (click)="onBackToMenu()" class="back-button" aria-label="Back to menu">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <button mat-icon-button (click)="onOpenSettings()" class="settings-button" aria-label="Settings">
+      <mat-icon>settings</mat-icon>
+    </button>
+  </div>
+
+  <div class="progress-bar-container">
+    <mat-progress-bar
+      mode="determinate"
+      [value]="passProgressPercent | async"
+    ></mat-progress-bar>
+    <div class="progress-label">{{ passProgressCount | async }}</div>
+  </div>
+
+  <div class="progress-bar-container red">
+    <mat-progress-bar
+      mode="determinate"
+      color="warn"
+      [value]="missedProgressPercent | async"
+    ></mat-progress-bar>
+    <div class="progress-label">{{ missedProgressCount | async }}</div>
+  </div>
+
+  <div class="word-display">
+    {{ currentQuestion.wordToQuiz.word }}
+  </div>
+
+  <div class="answer-options">
+    <button
+      *ngFor="let option of currentQuestion.options"
+      mat-raised-button
+      class="answer-button"
+      (click)="!feedbackVisible && onAnswer(option)"
+      [ngClass]="{
+        'correct': feedbackVisible && option === currentQuestion.correctAnswer,
+        'incorrect': feedbackVisible && option === selectedAnswer && option !== currentQuestion.correctAnswer
+      }"
+    >
+      {{ option }}
+    </button>
+  </div>
+
+  <!-- Add to Missed Words button - visible on next question screen when previous answer was correct -->
+  <div class="add-to-missed-container" *ngIf="!feedbackVisible && previousWord && previousAnswerCorrect">
+    <button
+      mat-stroked-button
+      class="add-to-missed-button"
+      (click)="addToMissedWords()"
+      color="accent"
+    >
+      Add {{ previousWord.wordToQuiz.word }} to Missed Words
+    </button>
+  </div>
+
+  <div class="feedback-controls" *ngIf="feedbackVisible">
+    <mat-progress-bar
+      mode="determinate"
+      [value]="timerProgress"
+      [color]="isCorrect ? 'primary' : 'warn'"
+      *ngIf="!isPaused"
+    ></mat-progress-bar>
+
+    <div class="feedback-buttons">
+      <button mat-flat-button (click)="onPause()" *ngIf="!isPaused">Pause</button>
+      <button mat-flat-button color="primary" (click)="onNext()">Next</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,138 @@
+.quiz-container {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.navigation-header {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  
+  .back-button {
+    color: #666;
+  }
+  
+  .settings-button {
+    color: #666;
+  }
+}
+
+.progress-bar-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 20px;
+  
+  &.red {
+    margin-bottom: 30px;
+  }
+
+  .mat-progress-bar {
+    height: 30px;
+    border-radius: 8px;
+  }
+
+  .progress-label {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 30px;
+    font-weight: bold;
+    color: #333;
+    font-size: 0.9rem;
+  }
+}
+
+.word-display {
+  font-size: 2.5rem;
+  font-weight: bold;
+  text-align: center;
+  margin: 30px 0;
+}
+
+.answer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.answer-button {
+  width: 100%;
+  min-height: 50px;
+  height: auto;
+  border-radius: 12px;
+  padding: 12px;
+  white-space: normal;
+  line-height: 1.4;
+  font-size: 1rem;
+  text-align: left;
+  justify-content: flex-start;
+  overflow: hidden;
+
+  // Feedback Colors
+  &.correct {
+    background-color: #4CAF50 !important;
+    color: white !important;
+  }
+  &.incorrect {
+    background-color: #F44336 !important;
+    color: white !important;
+  }
+}
+
+.add-to-missed-container {
+  margin: 80px 0 25px 0;
+  padding: 20px;
+  border-top: 2px dashed #ddd;
+  border-bottom: 2px dashed #ddd;
+  text-align: center;
+  
+  .add-to-missed-button {
+    border-radius: 25px;
+    padding: 12px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    min-width: 280px;
+    background-color: transparent;
+    border: 2px solid #FF9800;
+    color: #FF9800;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background-color: #FF9800;
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
+    }
+    
+    &:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+    }
+  }
+}
+
+.feedback-controls {
+  margin-top: 30px;
+  .mat-progress-bar {
+    height: 10px;
+    border-radius: 5px;
+  }
+  .feedback-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    gap: 10px;
+
+    button {
+      flex-grow: 1;
+    }
+  }
+}

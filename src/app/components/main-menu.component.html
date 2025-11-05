@@ -1,0 +1,36 @@
+<div class="menu-container">
+  <button *ngIf="(hasQuizInProgress$ | async) === false; else continueQuiz" mat-raised-button class="menu-button green" routerLink="/quiz/main">
+    Start Quiz
+  </button>
+  <ng-template #continueQuiz>
+    <button mat-raised-button class="menu-button green" routerLink="/quiz/main">
+      Continue Quiz
+    </button>
+  </ng-template>
+
+  <ng-container *ngIf="hasMissedWords$ | async">
+    <button *ngIf="(hasReviewInProgress$ | async) === false; else continueReview" mat-raised-button class="menu-button yellow" routerLink="/quiz/review">
+      Review Missed Words
+    </button>
+    <ng-template #continueReview>
+      <button mat-raised-button class="menu-button yellow" routerLink="/quiz/review">
+        Continue Missed Words
+      </button>
+    </ng-template>
+  </ng-container>
+
+  <button mat-raised-button class="menu-button blue" (click)="importInput.click()">
+    Import Progress
+  </button>
+  <button *ngIf="isReturningUser$ | async" mat-raised-button class="menu-button gray" (click)="onExport()">
+    Export Progress
+  </button>
+
+  <input
+    type="file"
+    hidden
+    #importInput
+    accept=".json"
+    (change)="onFileSelected($event)"
+  />
+</div>
