@@ -11,6 +11,8 @@ export class SpeechService {
 
     // Whisper / Enhanced Speech properties
     private worker: Worker | null = null;
+    private ttsWorker: Worker | null = null;
+    private ttsReady = false;
     private audioContext: AudioContext | null = null;
     private mediaStream: MediaStream | null = null;
     private audioProcessor: ScriptProcessorNode | null = null;
@@ -95,7 +97,22 @@ export class SpeechService {
      * Speak the given text using Text-to-Speech
      */
     speak(text: string): Promise<void> {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
+            const settings = this.settingsService.getSettings();
+
+            // 1. Enhanced TTS
+            if (settings.enhancedTTS) {
+                try {
+                    await this.speakWithEnhanced(text, settings.ttsVoice);
+                    resolve();
+                    return;
+                } catch (e) {
+                    console.warn('Enhanced TTS failed, falling back to native', e);
+                    // Fall through to native
+                }
+            }
+
+            // 2. Native TTS
             if (!this.synth) {
                 reject(new Error('TTS not supported'));
                 return;
@@ -134,6 +151,77 @@ export class SpeechService {
             utterance.onerror = (event) => reject(event.error);
 
             this.synth.speak(utterance);
+        });
+    }
+
+    preloadTTS() {
+        this.initTTSWorker();
+    }
+
+    private initTTSWorker() {
+        if (!this.ttsWorker && typeof Worker !== 'undefined') {
+            this.ttsWorker = new Worker(new URL('../workers/tts.worker', import.meta.url));
+            this.ttsWorker.onmessage = (event) => {
+                const { type, data } = event.data;
+                if (type === 'progress') {
+                    this.ngZone.run(() => this.modelLoadingSubject.next(data));
+                } else if (type === 'ready') {
+                    this.ttsReady = true;
+                    this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'done', progress: 100 }));
+                }
+            };
+            // Trigger load immediately to prepare
+            this.ttsWorker.postMessage({ type: 'load' });
+        }
+    }
+
+    private speakWithEnhanced(text: string, voiceId: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.initTTSWorker();
+
+            const handler = (event: MessageEvent) => {
+                const { type, audio, sampling_rate, error } = event.data;
+                if (type === 'result') {
+                    cleanup();
+                    this.playAudio(audio, sampling_rate).then(resolve).catch(reject);
+                } else if (type === 'error') {
+                    cleanup();
+                    reject(error);
+                }
+            };
+
+            const cleanup = () => {
+                this.ttsWorker?.removeEventListener('message', handler);
+            };
+
+            this.ttsWorker!.addEventListener('message', handler);
+
+            // Ensure text ends with punctuation to prevent model hallucination ("echo")
+            const cleanText = text.trim();
+            const safeText = /[.!?]$/.test(cleanText) ? cleanText : `${cleanText}.`;
+
+            this.ttsWorker!.postMessage({ type: 'speak', text: safeText, voiceId });
+        });
+    }
+
+    private async playAudio(audio: Float32Array, sampleRate: number) {
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        if (this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
+        }
+
+        const buffer = this.audioContext.createBuffer(1, audio.length, sampleRate);
+        buffer.copyToChannel(audio as any, 0);
+
+        const source = this.audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.audioContext.destination);
+
+        return new Promise<void>((resolve) => {
+            source.onended = () => resolve();
+            source.start();
         });
     }
 

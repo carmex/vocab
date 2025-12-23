@@ -110,9 +110,14 @@ type QuizMode = 'read' | 'listen';
           </div>
         </ng-container>
 
-        <!-- LISTEN MODE: Hear word, pick from options -->
         <ng-container *ngIf="quizMode === 'listen'">
-          <div class="listen-display" *ngIf="currentWord && !showingFeedback">
+          <!-- Loading overlay when TTS is initializing -->
+          <div class="tts-loading" *ngIf="isSpeaking">
+            <mat-icon class="loading-icon spinning">volume_up</mat-icon>
+            <span>Preparing voice...</span>
+          </div>
+
+          <div class="listen-display" *ngIf="currentWord && !showingFeedback && !isSpeaking">
             <button mat-fab extended color="primary" (click)="speakCurrentWord()" class="speak-btn">
               <mat-icon>volume_up</mat-icon>
               Play Word
@@ -263,6 +268,28 @@ type QuizMode = 'read' | 'listen';
       justify-content: center;
       min-height: 180px;
       gap: 20px;
+    }
+    .tts-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 180px;
+      gap: 15px;
+      color: #1976d2;
+      font-size: 1.2rem;
+    }
+    .tts-loading .loading-icon {
+      font-size: 64px;
+      width: 64px;
+      height: 64px;
+    }
+    .tts-loading .spinning {
+      animation: spin 1.5s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
     .speak-btn {
       font-size: 1.1rem;
@@ -453,6 +480,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   // State
   isListening = false;
   isProcessing = false;
+  isSpeaking = false;
   showingFeedback = false;
   lastAnswerCorrect = false;
   recognizedText = '';
@@ -579,11 +607,16 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   async speakCurrentWord() {
-    if (!this.currentWord) return;
+    if (!this.currentWord || this.isSpeaking) return;
+    this.isSpeaking = true;
+    this.cdr.detectChanges();
     try {
       await this.speechService.speak(this.currentWord.word);
     } catch (err) {
       console.error('TTS error:', err);
+    } finally {
+      this.isSpeaking = false;
+      this.cdr.detectChanges();
     }
   }
 

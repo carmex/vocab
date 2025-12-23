@@ -6,6 +6,8 @@ export interface AppSettings {
   correctAnswerTimer: number;
   incorrectAnswerTimer: number;
   darkMode: boolean;
+  enhancedTTS: boolean;
+  ttsVoice: string;
 }
 
 @Injectable({
@@ -17,7 +19,9 @@ export class SettingsService {
     autoAdvance: true,
     correctAnswerTimer: 1,
     incorrectAnswerTimer: 5,
-    darkMode: false
+    darkMode: false,
+    enhancedTTS: false,
+    ttsVoice: 'cmu_us_slt_arctic-wav-arctic_a0001'
   };
 
   constructor(private supabase: SupabaseService) { }

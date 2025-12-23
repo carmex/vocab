@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -20,6 +22,7 @@ import { TopNavComponent } from './top-nav/top-nav.component';
     CommonModule,
     FormsModule,
     MatCheckboxModule,
+    MatProgressBarModule,
     MatSlideToggleModule,
     MatSelectModule,
     MatFormFieldModule,
@@ -82,6 +85,34 @@ import { TopNavComponent } from './top-nav/top-nav.component';
           </div>
         </div>
       </div>
+
+      <div class="settings-section">
+        <h3>Speech Settings</h3>
+        
+        <div class="setting-item">
+          <mat-slide-toggle [(ngModel)]="enhancedTTS" (ngModelChange)="autoSave()" color="primary">
+            Enhanced Text-to-Speech
+          </mat-slide-toggle>
+          <p class="setting-description">Use high-quality AI voices (download required)</p>
+
+          <div *ngIf="loadingProgress > 0 && loadingProgress < 100" class="progress-bar-container">
+            <mat-progress-bar mode="determinate" [value]="loadingProgress"></mat-progress-bar>
+            <span class="progress-text">Initializing Voice Engine... {{ loadingProgress | number:'1.0-0' }}%</span>
+          </div>
+        </div>
+
+        <div class="setting-item" *ngIf="enhancedTTS">
+             <mat-form-field appearance="fill" style="width: 100%">
+               <mat-label>Voice</mat-label>
+               <mat-select [(ngModel)]="ttsVoice" (ngModelChange)="autoSave()">
+                 <mat-option value="cmu_us_slt_arctic-wav-arctic_a0001">American Female 1</mat-option>
+                 <mat-option value="cmu_us_clb_arctic-wav-arctic_a0001">American Female 2</mat-option>
+                 <mat-option value="cmu_us_bdl_arctic-wav-arctic_a0001">American Male</mat-option>
+                 <mat-option value="cmu_us_awb_arctic-wav-arctic_a0001">Scottish Male</mat-option>
+               </mat-select>
+             </mat-form-field>
+        </div>
+      </div>
       
 
 
@@ -138,6 +169,22 @@ import { TopNavComponent } from './top-nav/top-nav.component';
         margin-left: 32px;
         margin-top: 5px;
       }
+
+      .progress-bar-container {
+        margin-top: 10px;
+        margin-left: 32px;
+        padding: 10px;
+        background: #f0f0f0;
+        border-radius: 4px;
+
+        .progress-text {
+          display: block;
+          margin-top: 5px;
+          font-size: 0.85rem;
+          color: #666;
+          text-align: center;
+        }
+      }
     }
 
     .timer-settings {
@@ -174,13 +221,17 @@ import { TopNavComponent } from './top-nav/top-nav.component';
     }
   `]
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
   // Settings properties
   autoAdvance = true;
   correctAnswerTimer = 1;
   incorrectAnswerTimer = 5;
   darkMode = false;
+  enhancedTTS = false;
+  ttsVoice = 'cmu_us_slt_arctic-wav-arctic_a0001';
   loading = false;
+  loadingProgress = 0;
+  private progressSub?: Subscription;
 
   constructor(
     private settingsService: SettingsService,
@@ -193,6 +244,16 @@ export class SettingsComponent implements OnInit {
     await this.settingsService.loadSettings(); // Ensure we have latest
     this.loadLocalSettings();
     this.loading = false;
+
+    this.progressSub = this.speechService.getModelLoadingProgress().subscribe(data => {
+      this.loadingProgress = data.progress || 0;
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.progressSub) {
+      this.progressSub.unsubscribe();
+    }
   }
 
   onBackToQuiz() {
@@ -204,11 +265,17 @@ export class SettingsComponent implements OnInit {
       autoAdvance: this.autoAdvance,
       correctAnswerTimer: this.correctAnswerTimer,
       incorrectAnswerTimer: this.incorrectAnswerTimer,
-      darkMode: this.darkMode
+      darkMode: this.darkMode,
+      enhancedTTS: this.enhancedTTS,
+      ttsVoice: this.ttsVoice
     };
 
     // Silent save
     await this.settingsService.saveSettings(settings);
+
+    if (this.enhancedTTS) {
+      this.speechService.preloadTTS();
+    }
   }
 
   onReset() {
@@ -217,6 +284,8 @@ export class SettingsComponent implements OnInit {
     this.correctAnswerTimer = defaultSettings.correctAnswerTimer;
     this.incorrectAnswerTimer = defaultSettings.incorrectAnswerTimer;
     this.darkMode = defaultSettings.darkMode;
+    this.enhancedTTS = defaultSettings.enhancedTTS;
+    this.ttsVoice = defaultSettings.ttsVoice;
     this.autoSave(); // Save defaults immediately
   }
 
@@ -226,5 +295,7 @@ export class SettingsComponent implements OnInit {
     this.correctAnswerTimer = settings.correctAnswerTimer;
     this.incorrectAnswerTimer = settings.incorrectAnswerTimer;
     this.darkMode = settings.darkMode;
+    this.enhancedTTS = settings.enhancedTTS;
+    this.ttsVoice = settings.ttsVoice;
   }
 }
