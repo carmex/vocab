@@ -12,6 +12,7 @@ const routes: Routes = [
   { path: 'list/new', loadComponent: () => import('./components/list-editor/list-editor.component').then(m => m.ListEditorComponent), canActivate: [AuthGuard] },
   { path: 'list/:id/edit', loadComponent: () => import('./components/list-editor/list-editor.component').then(m => m.ListEditorComponent), canActivate: [AuthGuard] },
   { path: 'quiz/:listId/:mode', loadComponent: () => import('./components/quiz.component').then(m => m.QuizComponent) },
+  { path: 'sight-words-quiz/:listId', loadComponent: () => import('./components/sight-words-quiz/sight-words-quiz.component').then(m => m.SightWordsQuizComponent) },
   { path: 'settings', loadComponent: () => import('./components/settings.component').then(m => m.SettingsComponent) },
   { path: 'login', loadComponent: () => import('./components/auth/login.component').then(m => m.LoginComponent) },
   { path: 'signup', loadComponent: () => import('./components/auth/signup.component').then(m => m.SignupComponent) },

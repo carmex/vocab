@@ -4,6 +4,9 @@ import { AuthService } from '../../services/auth.service';
 import { Observable, of } from 'rxjs';
 import { catchError, filter, switchMap } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
+import { ListTypeDialogComponent } from '../dialogs/list-type-dialog/list-type-dialog.component';
+import { ListType } from '../../models/list-type.enum';
 
 @Component({
     selector: 'app-dashboard',
@@ -17,7 +20,8 @@ export class DashboardComponent implements OnInit {
     constructor(
         private listService: ListService,
         private router: Router,
-        public auth: AuthService
+        public auth: AuthService,
+        private dialog: MatDialog
     ) {
         // Wait for auth to be ready before fetching lists
         this.myLists$ = this.auth.user$.pipe(
@@ -34,7 +38,15 @@ export class DashboardComponent implements OnInit {
     }
 
     onCreateList() {
-        this.router.navigate(['/list/new']);
+        const dialogRef = this.dialog.open(ListTypeDialogComponent, {
+            width: '400px'
+        });
+
+        dialogRef.afterClosed().subscribe((result: ListType | undefined) => {
+            if (result) {
+                this.router.navigate(['/list/new'], { queryParams: { type: result } });
+            }
+        });
     }
 
     onStudy(listId: string) {

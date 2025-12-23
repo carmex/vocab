@@ -9,6 +9,7 @@ import { QuizService } from '../services/quiz.service';
 import { SettingsService } from '../services/settings.service';
 import { TopNavComponent } from './top-nav/top-nav.component';
 import { TwemojiPipe } from '../pipes/twemoji.pipe';
+import { ListType } from '../models/list-type.enum';
 
 @Component({
   selector: 'app-quiz',
@@ -21,6 +22,7 @@ export class QuizComponent implements OnInit, OnDestroy {
   quizMode: 'main' | 'review' = 'main';
   listId: string = '';
   currentQuestion: QuizQuestion | null = null;
+  isImageQuiz = false;
 
   // Feedback UI State
   feedbackVisible = false;
@@ -57,7 +59,15 @@ export class QuizComponent implements OnInit, OnDestroy {
     }
 
     try {
-      await this.quizService.startQuiz(this.listId, this.quizMode);
+      const { listType } = await this.quizService.startQuiz(this.listId, this.quizMode);
+
+      // Redirect sight words to dedicated quiz
+      if (listType === ListType.SIGHT_WORDS) {
+        this.router.navigate(['/sight-words-quiz', this.listId]);
+        return;
+      }
+
+      this.isImageQuiz = listType === ListType.IMAGE_DEFINITION;
       this.updateProgress();
       this.displayNextQuestion();
     } catch (err) {

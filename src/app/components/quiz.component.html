@@ -11,7 +11,13 @@
   </div>
 
   <div class="word-display" *ngIf="currentQuestion">
-    <span [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
+    <!-- Image/Definition Quiz: Show image -->
+    <img *ngIf="isImageQuiz && currentQuestion.wordToQuiz.imageUrl" 
+         [src]="currentQuestion.wordToQuiz.imageUrl" 
+         alt="Quiz image"
+         class="quiz-image">
+    <!-- Word/Definition Quiz: Show text -->
+    <span *ngIf="!isImageQuiz" [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
   </div>
 
   <div class="answer-options" *ngIf="currentQuestion">

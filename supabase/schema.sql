@@ -10,6 +10,7 @@ create table if not exists word_lists (
   description text,
   creator_id uuid references auth.users(id) not null,
   is_public boolean default false,
+  list_type text default 'word_definition' check (list_type in ('word_definition', 'image_definition', 'sight_words')),
   created_at timestamp with time zone default now()
 );
 
@@ -18,7 +19,8 @@ create table if not exists list_words (
   id uuid primary key default uuid_generate_v4(),
   list_id uuid references word_lists(id) on delete cascade not null,
   word text not null,
-  definition text not null
+  definition text,
+  image_url text
 );
 create index if not exists idx_list_words_list_id on list_words(list_id);
 
@@ -190,7 +192,8 @@ create policy "Users can insert/update their own quiz progress"
 create or replace function create_new_list(
   p_name text,
   p_description text,
-  p_is_public boolean default false
+  p_is_public boolean default false,
+  p_list_type text default 'word_definition'
 )
 returns uuid
 language plpgsql
@@ -200,8 +203,8 @@ declare
   v_list_id uuid;
 begin
   -- Insert into word_lists
-  insert into word_lists (name, description, creator_id, is_public)
-  values (p_name, p_description, auth.uid(), p_is_public)
+  insert into word_lists (name, description, creator_id, is_public, list_type)
+  values (p_name, p_description, auth.uid(), p_is_public, p_list_type)
   returning id into v_list_id;
 
   -- Insert into list_shares for the creator

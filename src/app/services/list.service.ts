@@ -3,6 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { Observable, from, forkJoin, of } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
+import { ListType } from '../models/list-type.enum';
 
 export interface WordList {
     id: string;
@@ -10,6 +11,7 @@ export interface WordList {
     description: string;
     creator_id: string;
     is_public: boolean;
+    list_type: string;
     created_at: string;
 }
 
@@ -148,35 +150,24 @@ export class ListService {
     /**
      * Creates a new list using the RPC `create_new_list`.
      */
-    createList(name: string, description: string, isPublic: boolean): Observable<string> {
-        console.log('ListService.createList called with:', { name, description, isPublic });
+    createList(name: string, description: string, isPublic: boolean, listType: ListType = ListType.WORD_DEFINITION): Observable<string> {
+        console.log('ListService.createList called with:', { name, description, isPublic, listType });
         const rpc = this.supabase.client
             .rpc('create_new_list', {
                 p_name: name,
-                p_description: description
+                p_description: description,
+                p_is_public: isPublic,
+                p_list_type: listType
             });
 
         return from(rpc).pipe(
-            switchMap(({ data, error }) => {
+            map(({ data, error }) => {
                 console.log('create_new_list RPC response:', { data, error });
                 if (error) {
                     console.error('create_new_list RPC error:', error);
                     throw error;
                 }
-                const listId = data as string;
-                console.log('List created with ID:', listId);
-
-                // The RPC doesn't support p_is_public, so we update it separately if needed
-                if (isPublic) {
-                    console.log('Updating list to be public...');
-                    return this.updateList(listId, name, description, isPublic).pipe(
-                        map(() => {
-                            console.log('List made public successfully');
-                            return listId;
-                        })
-                    );
-                }
-                return of(listId);
+                return data as string;
             })
         );
     }
@@ -200,26 +191,34 @@ export class ListService {
     /**
      * Syncs words for a list: inserts new, updates existing, deletes removed.
      */
-    syncWords(listId: string, words: { id?: string, word: string, definition: string }[], deletedWordIds: string[]): Observable<void> {
+    syncWords(listId: string, words: { id?: string, word: string, definition: string, imageUrl?: string }[], deletedWordIds: string[]): Observable<void> {
         // 1. Delete removed words
         const deletePromise = deletedWordIds.length > 0
             ? this.supabase.client.from('list_words').delete().in('id', deletedWordIds)
             : Promise.resolve({ error: null });
 
         // 2. Upsert words (Supabase upsert works if ID is present)
-        // However, standard upsert might not work easily if we want to mix inserts (no ID) and updates (ID).
         // Strategy: Split into inserts and updates.
-        const toInsert = words.filter(w => !w.id).map(w => ({ list_id: listId, word: w.word, definition: w.definition }));
+        const toInsert = words.filter(w => !w.id).map(w => ({
+            list_id: listId,
+            word: w.word,
+            definition: w.definition || null,
+            image_url: w.imageUrl || null
+        }));
         const toUpdate = words.filter(w => w.id);
 
         const insertPromise = toInsert.length > 0
             ? this.supabase.client.from('list_words').insert(toInsert)
             : Promise.resolve({ error: null });
 
-        // For updates, we can't easily do a bulk update with different values for different rows in one query without upsert.
-        // But upsert requires all columns.
-        // Let's try upsert with the ID.
-        const upsertRows = toUpdate.map(w => ({ id: w.id, list_id: listId, word: w.word, definition: w.definition }));
+        // For updates, use upsert with the ID.
+        const upsertRows = toUpdate.map(w => ({
+            id: w.id,
+            list_id: listId,
+            word: w.word,
+            definition: w.definition || null,
+            image_url: w.imageUrl || null
+        }));
         const updatePromise = upsertRows.length > 0
             ? this.supabase.client.from('list_words').upsert(upsertRows)
             : Promise.resolve({ error: null });
@@ -291,11 +290,12 @@ export class ListService {
     /**
      * Adds multiple words to a list.
      */
-    addWords(listId: string, words: { word: string, definition: string }[]): Observable<void> {
+    addWords(listId: string, words: { word: string, definition: string, imageUrl?: string }[]): Observable<void> {
         const rows = words.map(w => ({
             list_id: listId,
             word: w.word,
-            definition: w.definition
+            definition: w.definition || null,
+            image_url: w.imageUrl || null
         }));
 
         const query = this.supabase.client

@@ -18,11 +18,15 @@ import { SupabaseService } from '../../services/supabase.service';
 import { environment } from '../../../environments/environment';
 import { TopNavComponent } from '../top-nav/top-nav.component';
 import { TwemojiPipe } from '../../pipes/twemoji.pipe';
+import { ListType } from '../../models/list-type.enum';
 
 export interface WordRow {
   id?: string;
   word: string;
   definition: string;
+  imageUrl?: string;
+  imageFile?: File;
+  imagePreview?: string;
 }
 
 @Component({
@@ -49,13 +53,17 @@ export interface WordRow {
     <div class="editor-container">
       <app-top-nav backLink="/dashboard"></app-top-nav>
       <h1>{{ isEditMode ? 'Edit List' : 'Create New List' }}</h1>
+      <div class="list-type-badge" *ngIf="!isEditMode">
+        <mat-icon>{{ getTypeIcon() }}</mat-icon>
+        <span>{{ getTypeName() }}</span>
+      </div>
       
       <mat-card class="editor-card">
         <mat-card-content>
           <div class="list-details">
             <mat-form-field appearance="fill" class="full-width">
               <mat-label>List Name</mat-label>
-              <input matInput [(ngModel)]="name" placeholder="e.g. Spanish Verbs" required>
+              <input matInput [(ngModel)]="name" [placeholder]="getNamePlaceholder()" required>
             </mat-form-field>
 
             <mat-form-field appearance="fill" class="full-width">
@@ -75,12 +83,12 @@ export interface WordRow {
           </div>
 
           <div class="words-header-container">
-            <h3>Words</h3>
+            <h3>{{ listType === ListType.SIGHT_WORDS ? 'Words' : 'Items' }}</h3>
             <mat-checkbox [(ngModel)]="isCompactMode" color="primary">Compact Mode</mat-checkbox>
           </div>
           <div class="words-list-container">
-            <cdk-virtual-scroll-viewport [itemSize]="isCompactMode ? 50 : 280" class="words-viewport">
-              <div *cdkVirtualFor="let row of words; let i = index" class="word-row-wrapper" [style.height.px]="isCompactMode ? 50 : 280">
+            <cdk-virtual-scroll-viewport [itemSize]="getItemSize()" class="words-viewport">
+              <div *cdkVirtualFor="let row of words; let i = index" class="word-row-wrapper" [style.height.px]="getItemSize()">
                 
                 <!-- Compact View -->
                 <div class="compact-row" *ngIf="isCompactMode">
@@ -92,50 +100,100 @@ export interface WordRow {
                 <div class="word-card" *ngIf="!isCompactMode">
                   <div class="card-header">
                     <span class="card-number">#{{ i + 1 }}</span>
-                    <button mat-icon-button color="warn" (click)="removeWord(i)" *ngIf="words.length > 1 || isEditMode" matTooltip="Delete Word">
+                    <button mat-icon-button color="warn" (click)="removeWord(i)" *ngIf="words.length > 1 || isEditMode" matTooltip="Delete Item">
                       <mat-icon>delete</mat-icon>
                     </button>
                   </div>
                   <div class="card-content">
-                    <mat-form-field appearance="outline" class="word-input">
-                      <mat-label>Word</mat-label>
-                      <input matInput [(ngModel)]="row.word" required>
-                      <mat-hint *ngIf="hasEmoji(row.word)" align="start">
-                        <span class="emoji-preview" [innerHTML]="row.word | twemoji"></span>
-                      </mat-hint>
-                    </mat-form-field>
+                    <!-- Word/Definition Type -->
+                    <ng-container *ngIf="listType === ListType.WORD_DEFINITION">
+                      <mat-form-field appearance="outline" class="word-input">
+                        <mat-label>Word</mat-label>
+                        <input matInput [(ngModel)]="row.word" required>
+                        <mat-hint *ngIf="hasEmoji(row.word)" align="start">
+                          <span class="emoji-preview" [innerHTML]="row.word | twemoji"></span>
+                        </mat-hint>
+                      </mat-form-field>
 
-                    <mat-form-field appearance="outline" class="def-input">
-                      <mat-label>Definition</mat-label>
-                      <input matInput [(ngModel)]="row.definition" required>
-                      <mat-hint *ngIf="hasEmoji(row.definition)" align="start">
-                        <span class="emoji-preview" [innerHTML]="row.definition | twemoji"></span>
-                      </mat-hint>
-                    </mat-form-field>
-                  </div>
+                      <mat-form-field appearance="outline" class="def-input">
+                        <mat-label>Definition</mat-label>
+                        <input matInput [(ngModel)]="row.definition" required>
+                        <mat-hint *ngIf="hasEmoji(row.definition)" align="start">
+                          <span class="emoji-preview" [innerHTML]="row.definition | twemoji"></span>
+                        </mat-hint>
+                      </mat-form-field>
+                    </ng-container>
+
+                    <!-- Image/Definition Type -->
+                    <ng-container *ngIf="listType === ListType.IMAGE_DEFINITION">
+                      <div class="image-upload-section">
+                        <div class="image-preview" *ngIf="row.imagePreview || row.imageUrl">
+                          <img [src]="row.imagePreview || row.imageUrl" alt="Item image">
+                        </div>
+                        <div class="image-placeholder" *ngIf="!row.imagePreview && !row.imageUrl" (click)="triggerImageUpload(i)">
+                          <mat-icon>add_photo_alternate</mat-icon>
+                          <span>Click to add image</span>
+                        </div>
+                        <input #itemImageInput type="file" (change)="onItemImageSelected($event, i)" style="display: none" accept="image/*">
+                        <button mat-stroked-button (click)="triggerImageUpload(i)" class="change-image-btn" *ngIf="row.imagePreview || row.imageUrl">
+                          Change Image
+                        </button>
+                      </div>
+
+                      <mat-form-field appearance="outline" class="def-input">
+                        <mat-label>Answer</mat-label>
+                        <input matInput [(ngModel)]="row.definition" required placeholder="e.g. Texas">
+                      </mat-form-field>
+                    </ng-container>
+
+                    <!-- Sight Words Type -->
+                    <ng-container *ngIf="listType === ListType.SIGHT_WORDS">
+                      <mat-form-field appearance="outline" class="word-input full-width-input">
+                        <mat-label>Word</mat-label>
+                        <input matInput [(ngModel)]="row.word" required placeholder="e.g. the">
+                      </mat-form-field>
+                    </ng-container>
                   </div>
                 </div>
+              </div>
             </cdk-virtual-scroll-viewport>
+          </div>
+
+          <!-- Bulk Paste for Sight Words -->
+          <div class="bulk-paste-section" *ngIf="listType === ListType.SIGHT_WORDS">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Bulk Add Words (comma-separated)</mat-label>
+              <textarea matInput 
+                        [(ngModel)]="bulkWordsText" 
+                        placeholder="the, and, is, a, to, in, it, you, that, he"
+                        rows="3"></textarea>
+              <mat-hint>Enter words separated by commas, then click "Add Words"</mat-hint>
+            </mat-form-field>
+            <button mat-stroked-button color="primary" (click)="onBulkAddWords()" [disabled]="!bulkWordsText.trim()">
+              <mat-icon>playlist_add</mat-icon> Add Words
+            </button>
           </div>
 
           <div class="actions">
             <button mat-stroked-button (click)="addWord()">
-              <mat-icon>add</mat-icon> Add Word
+              <mat-icon>add</mat-icon> Add {{ listType === ListType.SIGHT_WORDS ? 'Word' : 'Item' }}
             </button>
-            <button mat-stroked-button (click)="fileInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage">
+            <button mat-stroked-button (click)="fileInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage" *ngIf="listType !== ListType.IMAGE_DEFINITION">
               <mat-icon>upload_file</mat-icon> {{ isImporting ? 'Importing...' : 'Import JSON' }}
             </button>
             <input #fileInput type="file" (change)="onFileSelected($event)" style="display: none" accept=".json">
 
-            <button mat-stroked-button (click)="imageInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage">
-              <mat-icon>photo_library</mat-icon> {{ isProcessingImage ? 'Processing...' : 'Gallery' }}
-            </button>
-            <input #imageInput type="file" (change)="onImageSelected($event)" style="display: none" accept="image/*">
+            <ng-container *ngIf="listType === ListType.WORD_DEFINITION">
+              <button mat-stroked-button (click)="imageInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage">
+                <mat-icon>photo_library</mat-icon> {{ isProcessingImage ? 'Processing...' : 'Gallery' }}
+              </button>
+              <input #imageInput type="file" (change)="onImageSelected($event)" style="display: none" accept="image/*">
 
-            <button mat-stroked-button (click)="cameraInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage">
-              <mat-icon>camera_alt</mat-icon> {{ isProcessingImage ? 'Processing...' : 'Camera' }}
-            </button>
-            <input #cameraInput type="file" (change)="onImageSelected($event)" style="display: none" accept="image/*" capture="environment">
+              <button mat-stroked-button (click)="cameraInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage">
+                <mat-icon>camera_alt</mat-icon> {{ isProcessingImage ? 'Processing...' : 'Camera' }}
+              </button>
+              <input #cameraInput type="file" (change)="onImageSelected($event)" style="display: none" accept="image/*" capture="environment">
+            </ng-container>
           </div>
 
           <div class="import-progress" *ngIf="isImporting">
@@ -157,6 +215,9 @@ export interface WordRow {
         </mat-card-actions>
       </mat-card>
     </div>
+
+    <!-- Hidden file inputs for per-item image uploads -->
+    <input #hiddenImageInput type="file" (change)="onItemImageSelected($event, currentImageUploadIndex)" style="display: none" accept="image/*">
   `,
   styles: [`
     .editor-container {
@@ -174,8 +235,21 @@ export interface WordRow {
     .toggle-container {
       margin-bottom: 20px;
     }
+    .list-type-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #e3f2fd;
+      padding: 8px 16px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      width: fit-content;
+    }
+    .list-type-badge mat-icon {
+      color: #1976d2;
+    }
     .words-list-container {
-      height: 640px; /* Fixed height for virtual scroll */
+      height: 640px;
       border: 1px solid #eee;
       border-radius: 4px;
       margin-bottom: 10px;
@@ -188,7 +262,6 @@ export interface WordRow {
     .word-row-wrapper {
       padding: 10px;
       box-sizing: border-box;
-      height: 280px; /* Match itemSize */
     }
     .word-card {
       background: white;
@@ -224,9 +297,15 @@ export interface WordRow {
     .word-input, .def-input {
       width: 100%;
     }
+    .full-width-input {
+      width: 100%;
+    }
     .actions {
       margin-top: 20px;
       margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     .import-progress {
       margin-top: 20px;
@@ -236,8 +315,6 @@ export interface WordRow {
       display: block;
       margin-top: 5px;
       font-size: 0.9rem;
-      color: #666;
-      text-align: center;
       color: #666;
       text-align: center;
     }
@@ -278,13 +355,78 @@ export interface WordRow {
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .image-upload-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .image-preview {
+      width: 100%;
+      max-height: 120px;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+    .image-preview img {
+      width: 100%;
+      height: 120px;
+      object-fit: contain;
+      background: #f5f5f5;
+    }
+    .image-placeholder {
+      width: 100%;
+      height: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .image-placeholder:hover {
+      background: #eee;
+    }
+    .image-placeholder mat-icon {
+      font-size: 36px;
+      width: 36px;
+      height: 36px;
+      color: #999;
+    }
+    .image-placeholder span {
+      color: #999;
+      font-size: 0.85rem;
+      margin-top: 5px;
+    }
+    .change-image-btn {
+      font-size: 0.85rem;
+    }
+    .bulk-paste-section {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #e3f2fd;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .bulk-paste-section button {
+      align-self: flex-start;
+    }
   `]
 })
 export class ListEditorComponent implements OnInit {
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
+  @ViewChild('hiddenImageInput') hiddenImageInput!: any;
+
   listId: string | null = null;
   isEditMode = false;
   isCompactMode = false;
+  listType: ListType = ListType.WORD_DEFINITION;
+  ListType = ListType; // Expose enum to template
 
   name = '';
   description = '';
@@ -299,6 +441,8 @@ export class ListEditorComponent implements OnInit {
 
   isUploading = false;
   isProcessingImage = false;
+  currentImageUploadIndex = 0;
+  bulkWordsText = '';
 
   constructor(
     private listService: ListService,
@@ -309,6 +453,15 @@ export class ListEditorComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
+    // Check for list type from query params (new list)
+    this.route.queryParamMap.subscribe(queryParams => {
+      const type = queryParams.get('type');
+      if (type && Object.values(ListType).includes(type as ListType)) {
+        this.listType = type as ListType;
+      }
+    });
+
+    // Check for existing list ID (edit mode)
     this.route.paramMap.subscribe((params: any) => {
       const id = params.get('id');
       if (id) {
@@ -324,21 +477,90 @@ export class ListEditorComponent implements OnInit {
       this.name = details.metadata.name;
       this.description = details.metadata.description;
       this.isPublic = details.metadata.is_public;
+      this.listType = details.metadata.list_type || ListType.WORD_DEFINITION;
     });
 
     this.listService.getWords(id).subscribe((words: any[]) => {
-      this.words = words.map((w: any) => ({ id: w.id, word: w.word, definition: w.definition }));
+      this.words = words.map((w: any) => ({
+        id: w.id,
+        word: w.word,
+        definition: w.definition || '',
+        imageUrl: w.image_url || ''
+      }));
       if (this.words.length === 0) {
         this.words.push({ word: '', definition: '' });
       }
     });
   }
 
-  addWord() {
-    // Create a new array reference to trigger change detection
-    this.words = [...this.words, { word: '', definition: '' }];
+  getTypeIcon(): string {
+    switch (this.listType) {
+      case ListType.WORD_DEFINITION: return 'text_fields';
+      case ListType.IMAGE_DEFINITION: return 'image';
+      case ListType.SIGHT_WORDS: return 'record_voice_over';
+      default: return 'text_fields';
+    }
+  }
 
-    // Scroll to the bottom after the view updates
+  getTypeName(): string {
+    switch (this.listType) {
+      case ListType.WORD_DEFINITION: return 'Word / Definition';
+      case ListType.IMAGE_DEFINITION: return 'Image / Definition';
+      case ListType.SIGHT_WORDS: return 'Sight Words';
+      default: return 'Word / Definition';
+    }
+  }
+
+  getNamePlaceholder(): string {
+    switch (this.listType) {
+      case ListType.WORD_DEFINITION: return 'e.g. Spanish Verbs';
+      case ListType.IMAGE_DEFINITION: return 'e.g. US State Shapes';
+      case ListType.SIGHT_WORDS: return 'e.g. Kindergarten Sight Words';
+      default: return 'e.g. Spanish Verbs';
+    }
+  }
+
+  getItemSize(): number {
+    if (this.isCompactMode) return 50;
+    switch (this.listType) {
+      case ListType.IMAGE_DEFINITION: return 320;
+      case ListType.SIGHT_WORDS: return 150;
+      default: return 280;
+    }
+  }
+
+  addWord() {
+    this.words = [...this.words, { word: '', definition: '' }];
+    setTimeout(() => {
+      if (this.viewport) {
+        this.viewport.scrollToIndex(this.words.length - 1, 'smooth');
+      }
+    }, 100);
+  }
+
+  onBulkAddWords() {
+    if (!this.bulkWordsText.trim()) return;
+
+    // Parse comma-separated words
+    const newWords = this.bulkWordsText
+      .split(',')
+      .map(w => w.trim())
+      .filter(w => w.length > 0)
+      .map(w => ({ word: w, definition: '' }));
+
+    if (newWords.length === 0) return;
+
+    // If the only existing word is empty, replace it
+    if (this.words.length === 1 && !this.words[0].word.trim()) {
+      this.words = newWords;
+    } else {
+      this.words = [...this.words, ...newWords];
+    }
+
+    // Clear the bulk input
+    this.bulkWordsText = '';
+
+    // Scroll to show the new words
     setTimeout(() => {
       if (this.viewport) {
         this.viewport.scrollToIndex(this.words.length - 1, 'smooth');
@@ -347,21 +569,28 @@ export class ListEditorComponent implements OnInit {
   }
 
   removeWord(index: number) {
-    if (index < 0 || index >= this.words.length) {
-      return;
-    }
+    if (index < 0 || index >= this.words.length) return;
     const word = this.words[index];
     if (word && word.id) {
       this.deletedWordIds.push(word.id);
     }
     this.words.splice(index, 1);
-    // Trigger change detection for virtual scroll
     this.words = [...this.words];
   }
 
   isValid(): boolean {
-    return this.name.trim().length > 0 &&
-      this.words.every(w => w.word.trim().length > 0 && w.definition.trim().length > 0);
+    if (this.name.trim().length === 0) return false;
+
+    switch (this.listType) {
+      case ListType.WORD_DEFINITION:
+        return this.words.every(w => w.word.trim().length > 0 && w.definition.trim().length > 0);
+      case ListType.IMAGE_DEFINITION:
+        return this.words.every(w => (w.imageUrl || w.imageFile) && w.definition.trim().length > 0);
+      case ListType.SIGHT_WORDS:
+        return this.words.every(w => w.word.trim().length > 0);
+      default:
+        return false;
+    }
   }
 
   onCancel() {
@@ -369,59 +598,103 @@ export class ListEditorComponent implements OnInit {
   }
 
   async onSave() {
-    console.log('onSave called');
-    if (!this.isValid()) {
-      console.log('Form invalid');
-      return;
-    }
+    if (!this.isValid()) return;
     this.saving = true;
-    console.log('Saving started, isEditMode:', this.isEditMode);
 
     try {
+      // Upload any pending images first
+      if (this.listType === ListType.IMAGE_DEFINITION) {
+        await this.uploadPendingImages();
+      }
+
       if (this.isEditMode && this.listId) {
-        console.log('Updating existing list:', this.listId);
-        // Update existing list
         await this.listService.updateList(this.listId, this.name, this.description, this.isPublic).toPromise();
-        await this.listService.syncWords(this.listId, this.words, this.deletedWordIds).toPromise();
-        console.log('Update complete');
+        await this.listService.syncWords(this.listId, this.words.map(w => ({
+          id: w.id,
+          word: w.word,
+          definition: w.definition,
+          imageUrl: w.imageUrl
+        })), this.deletedWordIds).toPromise();
         this.router.navigate(['/dashboard']);
       } else {
-        console.log('Creating new list');
-        // Create new list
-        const listId = await this.listService.createList(this.name, this.description, this.isPublic).toPromise();
-        console.log('List created with ID:', listId);
-
+        const listId = await this.listService.createList(this.name, this.description, this.isPublic, this.listType).toPromise();
         if (listId) {
-          // Use Worker for adding words if we have a lot (e.g. > 50), otherwise normal service
-          console.log('Word count:', this.words.length);
           if (this.words.length > 50 && typeof Worker !== 'undefined') {
-            console.log('Offloading to worker');
             this.uploadWordsWithWorker(listId, this.words);
           } else {
-            console.log('Using standard service upload');
-            await this.listService.addWords(listId, this.words).toPromise();
-            console.log('Standard upload complete');
+            await this.listService.addWords(listId, this.words.map(w => ({
+              word: w.word,
+              definition: w.definition,
+              imageUrl: w.imageUrl
+            }))).toPromise();
             this.router.navigate(['/dashboard']);
           }
-        } else {
-          console.error('No list ID returned');
         }
       }
     } catch (err) {
-      console.error('Error in onSave:', err);
       this.handleError(err);
     }
   }
 
+  private async uploadPendingImages() {
+    const wordsWithPendingImages = this.words.filter(w => w.imageFile);
+
+    for (const word of wordsWithPendingImages) {
+      if (word.imageFile) {
+        const imageUrl = await this.uploadImage(word.imageFile);
+        word.imageUrl = imageUrl;
+        word.imageFile = undefined;
+        word.imagePreview = undefined;
+      }
+    }
+  }
+
+  private async uploadImage(file: File): Promise<string> {
+    const fileName = `${Date.now()}-${file.name}`;
+    const filePath = `vocab-images/${fileName}`;
+
+    const { data, error } = await this.supabaseService.client.storage
+      .from('vocab')
+      .upload(filePath, file);
+
+    if (error) throw error;
+
+    const { data: urlData } = this.supabaseService.client.storage
+      .from('vocab')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  }
+
+  triggerImageUpload(index: number) {
+    this.currentImageUploadIndex = index;
+    const fileInputs = document.querySelectorAll('input[type="file"][accept="image/*"]');
+    const input = fileInputs[fileInputs.length - 1] as HTMLInputElement;
+    if (input) input.click();
+  }
+
+  onItemImageSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      this.words[index].imagePreview = e.target.result;
+      this.words[index].imageFile = file;
+      this.words = [...this.words];
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  }
+
   private async uploadWordsWithWorker(listId: string, words: WordRow[]) {
-    console.log('Starting worker upload for list:', listId);
     this.isUploading = true;
     this.uploadProgress = 0;
 
     try {
       const { data: { session } } = await this.supabaseService.client.auth.getSession();
       const token = session?.access_token;
-      console.log('Session token retrieved:', !!token);
 
       if (!token) {
         this.handleError('No active session found for upload.');
@@ -430,21 +703,16 @@ export class ListEditorComponent implements OnInit {
         return;
       }
 
-      console.log('Initializing worker...');
       const worker = new Worker(new URL('../../workers/list-upload.worker', import.meta.url));
-      console.log('Worker initialized');
 
       worker.onmessage = ({ data }) => {
-        console.log('Worker message:', data.type);
         if (data.type === 'progress') {
           this.uploadProgress = data.value;
         } else if (data.type === 'result') {
-          console.log('Worker finished successfully');
           worker.terminate();
           this.isUploading = false;
           this.router.navigate(['/dashboard']);
         } else if (data.type === 'error') {
-          console.error('Worker reported error:', data.message);
           worker.terminate();
           this.isUploading = false;
           this.handleError(data.message);
@@ -452,21 +720,18 @@ export class ListEditorComponent implements OnInit {
       };
 
       worker.onerror = (err) => {
-        console.error('Worker error event:', err);
         this.isUploading = false;
         this.handleError('Worker initialization failed');
       };
 
-      console.log('Posting message to worker');
       worker.postMessage({
         supabaseUrl: environment.supabase.url,
         supabaseKey: environment.supabase.key,
         authToken: token,
         listId: listId,
-        words: words
+        words: words.map(w => ({ word: w.word, definition: w.definition, imageUrl: w.imageUrl }))
       });
     } catch (err) {
-      console.error('Error in uploadWordsWithWorker:', err);
       this.isUploading = false;
       this.handleError(err);
     }
@@ -481,7 +746,6 @@ export class ListEditorComponent implements OnInit {
       const reader = new FileReader();
       reader.onload = (e: any) => {
         if (typeof Worker !== 'undefined') {
-          // Create a new worker
           const worker = new Worker(new URL('../../workers/json-import.worker', import.meta.url));
 
           worker.onmessage = ({ data }) => {
@@ -500,8 +764,6 @@ export class ListEditorComponent implements OnInit {
 
           worker.postMessage(e.target.result);
         } else {
-          // Fallback for environments without Web Workers
-          console.warn('Web Workers not supported, falling back to main thread.');
           try {
             const json = JSON.parse(e.target.result);
             if (Array.isArray(json)) {
@@ -520,8 +782,6 @@ export class ListEditorComponent implements OnInit {
         }
       };
       reader.readAsText(file);
-
-      // Reset input
       event.target.value = '';
     }
   }
@@ -557,13 +817,11 @@ export class ListEditorComponent implements OnInit {
       alert('Failed to process image: ' + (err.message || 'Unknown error'));
     } finally {
       this.isProcessingImage = false;
-      // Reset input
       event.target.value = '';
     }
   }
 
   private handleImportResult(newWords: WordRow[]) {
-    // If the list only has one empty row, replace it. Otherwise append.
     if (this.words.length === 1 && !this.words[0].word && !this.words[0].definition) {
       this.words = newWords;
     } else {
@@ -583,7 +841,6 @@ export class ListEditorComponent implements OnInit {
 
   hasEmoji(text: string): boolean {
     if (!text) return false;
-    // Regex for checking if text contains emoji (Extended Pictographic or Regional Indicators for flags)
     return /(\p{Extended_Pictographic}|\p{Regional_Indicator})/u.test(text);
   }
 }

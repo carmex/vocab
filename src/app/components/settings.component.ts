@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { SettingsService, AppSettings } from '../services/settings.service';
+import { SpeechService } from '../services/speech.service'; // Added
 import { AlertDialogComponent } from './dialogs/alert-dialog/alert-dialog.component';
 import { TopNavComponent } from './top-nav/top-nav.component';
 
@@ -81,6 +82,8 @@ import { TopNavComponent } from './top-nav/top-nav.component';
           </div>
         </div>
       </div>
+      
+
 
       <div class="settings-actions">
         <button mat-button (click)="onReset()">
@@ -181,6 +184,7 @@ export class SettingsComponent implements OnInit {
 
   constructor(
     private settingsService: SettingsService,
+    private speechService: SpeechService,
     private dialog: MatDialog
   ) { }
 

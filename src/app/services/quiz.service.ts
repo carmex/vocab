@@ -1,11 +1,13 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { QuizQuestion } from '../models/quiz-question.interface';
+import { ListType } from '../models/list-type.enum';
 
 interface ListWord {
   id: string;
   word: string;
   definition: string;
+  image_url?: string;
 }
 
 interface QuizProgress {
@@ -24,6 +26,7 @@ export class QuizService {
 
   // Current Session State
   public currentListId: string = '';
+  public currentListType: ListType = ListType.WORD_DEFINITION;
   public currentMode: 'main' | 'review' = 'main';
   public totalWordsInPass: number = 0;
   public answeredCount: number = 0;
@@ -31,12 +34,22 @@ export class QuizService {
 
   constructor(private supabase: SupabaseService) { }
 
-  async startQuiz(listId: string, mode: 'main' | 'review'): Promise<void> {
+  async startQuiz(listId: string, mode: 'main' | 'review'): Promise<{ listType: ListType }> {
     console.log(`Starting quiz: list=${listId}, mode=${mode}`);
     this.currentListId = listId;
     this.currentMode = mode;
     this.answeredCount = 0;
     this.correctCount = 0;
+
+    // Fetch list type first
+    const { data: listData, error: listError } = await this.supabase.client
+      .from('word_lists')
+      .select('list_type')
+      .eq('id', listId)
+      .single();
+
+    if (listError) throw listError;
+    this.currentListType = (listData?.list_type as ListType) || ListType.WORD_DEFINITION;
 
     // 1. Fetch all words for the list
     const { data: words, error: wordsError } = await this.supabase.client
@@ -85,6 +98,8 @@ export class QuizService {
     console.log(`Quiz queue length: ${this.quizQueue.length}`);
     this.totalWordsInPass = this.quizQueue.length + answeredIds.length;
     this.shuffleArray(this.quizQueue);
+
+    return { listType: this.currentListType };
   }
 
   getNextQuestion(): QuizQuestion | null {
@@ -101,8 +116,9 @@ export class QuizService {
         word: currentWord.word,
         definition: currentWord.definition,
         type: '',
-        id: currentWord.id
-      }, // Adapter to match interface
+        id: currentWord.id,
+        imageUrl: currentWord.image_url
+      },
       options,
       correctAnswer: currentWord.definition
     };
