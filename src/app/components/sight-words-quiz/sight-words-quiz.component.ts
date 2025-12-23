@@ -152,10 +152,21 @@ type QuizMode = 'read' | 'listen';
             </mat-card-content>
           </mat-card>
 
-          <button mat-fab extended color="primary" (click)="nextWord()" class="next-btn">
-            <mat-icon>arrow_forward</mat-icon>
-            Next Word
-          </button>
+          <!-- Auto-advance timer bar -->
+          <div class="timer-container" *ngIf="timerProgress > 0">
+            <mat-progress-bar mode="determinate" [value]="timerProgress" color="accent"></mat-progress-bar>
+          </div>
+
+          <div class="feedback-actions">
+            <button mat-fab extended color="warn" (click)="onPause()" *ngIf="timerProgress > 0 && !isPaused" class="action-btn">
+              <mat-icon>pause</mat-icon>
+              Pause
+            </button>
+            <button mat-fab extended color="primary" (click)="nextWord()" class="next-btn">
+              <mat-icon>arrow_forward</mat-icon>
+              Next Word
+            </button>
+          </div>
         </div>
       </ng-container>
 
@@ -375,6 +386,18 @@ type QuizMode = 'read' | 'listen';
     .next-btn {
       min-width: 160px;
     }
+    .timer-container {
+      width: 100%;
+      max-width: 400px;
+      margin-top: 15px;
+    }
+    .feedback-actions {
+      display: flex;
+      gap: 15px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
     .quiz-complete {
       flex: 1;
       display: flex;
@@ -489,6 +512,13 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   downloadProgress: number | null = null;
   downloadStatus = '';
 
+  // Timer State (auto-advance)
+  timerProgress = 0;
+  isPaused = false;
+  private timerInterval: any = null;
+  private remainingTime = 0;
+  private totalTime = 0;
+
 
   constructor(
     private route: ActivatedRoute,
@@ -539,6 +569,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.speechService.stopListening();
+    if (this.timerInterval) clearInterval(this.timerInterval);
   }
 
   async loadWords() {
@@ -703,6 +734,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     this.showingFeedback = true;
     this.updateProgress();
     this.saveProgress(this.currentWord!.id, true);
+    this.startAutoAdvanceTimer();
   }
 
   async handleIncorrect(recognized: string) {
@@ -720,6 +752,8 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
         console.error('TTS error:', err);
       }
     }
+
+    this.startAutoAdvanceTimer();
   }
 
   onManualCorrect() {
@@ -731,7 +765,38 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   nextWord() {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.timerProgress = 0;
+    this.isPaused = false;
     this.displayNextWord();
+  }
+
+  private startAutoAdvanceTimer() {
+    const settings = this.settingsService.getSettings();
+    if (!settings.autoAdvance) return;
+
+    this.totalTime = this.lastAnswerCorrect
+      ? settings.correctAnswerTimer * 1000
+      : settings.incorrectAnswerTimer * 1000;
+    this.remainingTime = this.totalTime;
+    this.isPaused = false;
+
+    const step = 100;
+    if (this.timerInterval) clearInterval(this.timerInterval);
+
+    this.timerInterval = setInterval(() => {
+      this.remainingTime -= step;
+      this.timerProgress = (this.remainingTime / this.totalTime) * 100;
+
+      if (this.remainingTime <= 0) {
+        this.nextWord();
+      }
+    }, step);
+  }
+
+  onPause() {
+    this.isPaused = true;
+    if (this.timerInterval) clearInterval(this.timerInterval);
   }
 
   async saveProgress(wordId: string, isCorrect: boolean) {
