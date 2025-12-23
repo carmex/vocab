@@ -32,7 +32,9 @@ Deno.serve(async (req) => {
             )
         }
 
-        console.log(`Processing file: ${file.name} (${file.size} bytes)`)
+        // Get mode (default: vocab for word/definition pairs)
+        const mode = formData.get('mode')?.toString() || 'vocab'
+        console.log(`Processing file: ${file.name} (${file.size} bytes) in mode: ${mode}`)
 
         // 4. Convert image to Base64
         const arrayBuffer = await file.arrayBuffer()
@@ -42,35 +44,50 @@ Deno.serve(async (req) => {
         // 5. Initialize Gemini
         const genAI = new GoogleGenerativeAI(apiKey)
 
-        // Define the schema using SchemaType enum for Deno compatibility
-        const vocabSchema = {
-            type: SchemaType.ARRAY,
-            items: {
-                type: SchemaType.OBJECT,
-                properties: {
-                    word: { type: SchemaType.STRING },
-                    definition: { type: SchemaType.STRING }
-                },
-                required: ["word", "definition"]
+        let model
+        let prompt
+
+        if (mode === 'sightwords') {
+            // Sight words mode: no schema, plain text output
+            model = genAI.getGenerativeModel({
+                model: MODEL_NAME,
+                generationConfig: {
+                    temperature: 0.1
+                }
+            })
+            prompt =
+                "Analyze the provided image and extract all sight words or vocabulary words. " +
+                "Return ONLY a comma-separated list of the words, nothing else. " +
+                "Do not include definitions, numbers, or any other text. " +
+                "Example output: the, and, is, was, are, you"
+        } else {
+            // Vocab mode: JSON schema for word/definition pairs
+            const vocabSchema = {
+                type: SchemaType.ARRAY,
+                items: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                        word: { type: SchemaType.STRING },
+                        definition: { type: SchemaType.STRING }
+                    },
+                    required: ["word", "definition"]
+                }
             }
+            model = genAI.getGenerativeModel({
+                model: MODEL_NAME,
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: vocabSchema,
+                    temperature: 0.1
+                }
+            })
+            prompt =
+                "Analyze the provided image and extract all vocabulary word and definition pairs. " +
+                "Text must be transcribed exactly as it appears. " +
+                "Ignore handwriting that is not clearly a word/definition pair."
         }
 
-        const model = genAI.getGenerativeModel({
-            model: MODEL_NAME,
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: vocabSchema,
-                temperature: 0.1
-            }
-        })
-
-        // 6. Create the prompt
-        const prompt =
-            "Analyze the provided image and extract all vocabulary word and definition pairs. " +
-            "Text must be transcribed exactly as it appears. " +
-            "Ignore handwriting that is not clearly a word/definition pair."
-
-        // 7. Send request to Gemini with inline image data
+        // 6. Send request to Gemini with inline image data
         console.log(`Sending request to Gemini (${MODEL_NAME})`)
 
         const result = await model.generateContent([
@@ -90,24 +107,33 @@ Deno.serve(async (req) => {
             throw new Error('No content received from Gemini')
         }
 
-        // 8. Parse JSON response (Gemini with responseSchema returns clean JSON)
-        let vocabItems
-        try {
-            vocabItems = JSON.parse(content)
-        } catch (e) {
-            console.error('Failed to parse JSON:', content)
+        // 7. Handle response based on mode
+        if (mode === 'sightwords') {
+            // Return plain text comma-separated list
+            console.log(`Extracted sight words: ${content}`)
             return new Response(
-                JSON.stringify({ error: 'Failed to parse Gemini response', raw: content }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+                JSON.stringify({ words: content.trim() }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+            )
+        } else {
+            // Parse JSON response for vocab mode
+            let vocabItems
+            try {
+                vocabItems = JSON.parse(content)
+            } catch (e) {
+                console.error('Failed to parse JSON:', content)
+                return new Response(
+                    JSON.stringify({ error: 'Failed to parse Gemini response', raw: content }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+                )
+            }
+
+            console.log(`Extracted ${vocabItems.length} vocabulary items`)
+            return new Response(
+                JSON.stringify(vocabItems),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
             )
         }
-
-        // 9. Return Success
-        console.log(`Extracted ${vocabItems.length} vocabulary items`)
-        return new Response(
-            JSON.stringify(vocabItems),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        )
 
     } catch (error) {
         console.error('Error:', error)

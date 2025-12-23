@@ -63,7 +63,7 @@ export class QuizComponent implements OnInit, OnDestroy {
 
       // Redirect sight words to dedicated quiz
       if (listType === ListType.SIGHT_WORDS) {
-        this.router.navigate(['/sight-words-quiz', this.listId]);
+        this.router.navigate(['/sight-words-quiz', this.listId], { queryParams: { mode: this.quizMode } });
         return;
       }
 

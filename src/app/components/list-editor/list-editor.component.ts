@@ -97,7 +97,9 @@ export interface WordRow {
                 </div>
 
                 <!-- Full Card View -->
-                <div class="word-card" *ngIf="!isCompactMode">
+                <div class="word-card" *ngIf="!isCompactMode"
+                     [attr.tabindex]="listType === ListType.IMAGE_DEFINITION ? 0 : null"
+                     (paste)="listType === ListType.IMAGE_DEFINITION ? onImagePaste($event, i) : null">
                   <div class="card-header">
                     <span class="card-number">#{{ i + 1 }}</span>
                     <button mat-icon-button color="warn" (click)="removeWord(i)" *ngIf="words.length > 1 || isEditMode" matTooltip="Delete Item">
@@ -127,12 +129,16 @@ export interface WordRow {
                     <!-- Image/Definition Type -->
                     <ng-container *ngIf="listType === ListType.IMAGE_DEFINITION">
                       <div class="image-upload-section">
-                        <div class="image-preview" *ngIf="row.imagePreview || row.imageUrl">
+                        <div class="image-preview" *ngIf="row.imagePreview || row.imageUrl" 
+                             (click)="triggerImageUpload(i)"
+                             matTooltip="Click to change or paste (Ctrl+V) a new image">
                           <img [src]="row.imagePreview || row.imageUrl" alt="Item image">
                         </div>
-                        <div class="image-placeholder" *ngIf="!row.imagePreview && !row.imageUrl" (click)="triggerImageUpload(i)">
+                        <div class="image-placeholder" 
+                             *ngIf="!row.imagePreview && !row.imageUrl" 
+                             (click)="triggerImageUpload(i)">
                           <mat-icon>add_photo_alternate</mat-icon>
-                          <span>Click to add image</span>
+                          <span>Click or paste (Ctrl+V)</span>
                         </div>
                         <input #itemImageInput type="file" (change)="onItemImageSelected($event, i)" style="display: none" accept="image/*">
                         <button mat-stroked-button (click)="triggerImageUpload(i)" class="change-image-btn" *ngIf="row.imagePreview || row.imageUrl">
@@ -183,7 +189,7 @@ export interface WordRow {
             </button>
             <input #fileInput type="file" (change)="onFileSelected($event)" style="display: none" accept=".json">
 
-            <ng-container *ngIf="listType === ListType.WORD_DEFINITION">
+            <ng-container *ngIf="listType === ListType.WORD_DEFINITION || listType === ListType.SIGHT_WORDS">
               <button mat-stroked-button (click)="imageInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage">
                 <mat-icon>photo_library</mat-icon> {{ isProcessingImage ? 'Processing...' : 'Gallery' }}
               </button>
@@ -272,6 +278,11 @@ export interface WordRow {
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
+      outline: none;
+    }
+    .word-card:focus {
+      border-color: #1976d2;
+      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
     }
     .card-header {
       display: flex;
@@ -385,10 +396,23 @@ export interface WordRow {
       border: 2px dashed #ccc;
       border-radius: 8px;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.2s, border-color 0.2s;
+      outline: none;
     }
     .image-placeholder:hover {
       background: #eee;
+    }
+    .image-placeholder:focus {
+      border-color: #1976d2;
+      background: #e3f2fd;
+    }
+    .image-preview {
+      cursor: pointer;
+      outline: none;
+    }
+    .image-preview:focus {
+      outline: 2px solid #1976d2;
+      outline-offset: 2px;
     }
     .image-placeholder mat-icon {
       font-size: 36px;
@@ -523,7 +547,7 @@ export class ListEditorComponent implements OnInit {
   getItemSize(): number {
     if (this.isCompactMode) return 50;
     switch (this.listType) {
-      case ListType.IMAGE_DEFINITION: return 320;
+      case ListType.IMAGE_DEFINITION: return 340;
       case ListType.SIGHT_WORDS: return 150;
       default: return 280;
     }
@@ -688,6 +712,30 @@ export class ListEditorComponent implements OnInit {
     event.target.value = '';
   }
 
+  onImagePaste(event: ClipboardEvent, index: number) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          // Create preview
+          const reader = new FileReader();
+          reader.onload = (e: any) => {
+            this.words[index].imagePreview = e.target.result;
+            this.words[index].imageFile = file;
+            this.words = [...this.words];
+          };
+          reader.readAsDataURL(file);
+        }
+        return;
+      }
+    }
+  }
+
   private async uploadWordsWithWorker(listId: string, words: WordRow[]) {
     this.isUploading = true;
     this.uploadProgress = 0;
@@ -793,8 +841,16 @@ export class ListEditorComponent implements OnInit {
     this.isProcessingImage = true;
 
     try {
+      // Compress image to prevent edge function memory limits
+      const compressedFile = await this.compressImage(file, 1280, 0.8);
+      console.log(`Compressed image: ${file.size} -> ${compressedFile.size} bytes`);
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', compressedFile);
+
+      // Pass mode based on list type
+      const mode = this.listType === ListType.SIGHT_WORDS ? 'sightwords' : 'vocab';
+      formData.append('mode', mode);
 
       const { data, error } = await this.supabaseService.client.functions.invoke('image-to-vocab', {
         body: formData,
@@ -802,14 +858,26 @@ export class ListEditorComponent implements OnInit {
 
       if (error) throw error;
 
-      if (Array.isArray(data)) {
-        const newWords = data.map((item: any) => ({
-          word: item.word || '',
-          definition: item.definition || ''
-        }));
-        this.handleImportResult(newWords);
+      if (this.listType === ListType.SIGHT_WORDS) {
+        // Sight words: populate bulk words textarea
+        if (data?.words) {
+          this.bulkWordsText = data.words;
+          // Auto-trigger bulk add
+          this.onBulkAddWords();
+        } else {
+          alert('No words found in the image.');
+        }
       } else {
-        alert('No words found in the image or invalid response format.');
+        // Vocab mode: existing behavior
+        if (Array.isArray(data)) {
+          const newWords = data.map((item: any) => ({
+            word: item.word || '',
+            definition: item.definition || ''
+          }));
+          this.handleImportResult(newWords);
+        } else {
+          alert('No words found in the image or invalid response format.');
+        }
       }
 
     } catch (err: any) {
@@ -842,5 +910,49 @@ export class ListEditorComponent implements OnInit {
   hasEmoji(text: string): boolean {
     if (!text) return false;
     return /(\p{Extended_Pictographic}|\p{Regional_Indicator})/u.test(text);
+  }
+
+  private compressImage(file: File, maxSize: number, quality: number): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+
+        // Scale down if larger than maxSize
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              resolve(compressedFile);
+            } else {
+              reject(new Error('Failed to compress image'));
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
   }
 }

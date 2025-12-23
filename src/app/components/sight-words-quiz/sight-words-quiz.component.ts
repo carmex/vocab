@@ -486,6 +486,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   // Mode
   quizMode: QuizMode = 'read';
   selectedMode: QuizMode = 'read';
+  passMode: 'main' | 'review' = 'main';
   quizStarted = false;
 
   // Listen mode options
@@ -532,6 +533,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     this.listId = this.route.snapshot.paramMap.get('listId') || '';
+    this.passMode = (this.route.snapshot.queryParamMap.get('mode') as 'main' | 'review') || 'main';
 
     if (!this.listId) {
       this.router.navigate(['/dashboard']);
@@ -573,7 +575,8 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   async loadWords() {
-    const { data, error } = await this.supabase.client
+    // First, load all words for the list
+    const { data: allWords, error } = await this.supabase.client
       .from('list_words')
       .select('id, word')
       .eq('list_id', this.listId);
@@ -583,8 +586,28 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.words = data || [];
+    let wordsToQuiz = allWords || [];
+
+    // If review mode, filter to only missed words
+    if (this.passMode === 'review') {
+      const { data: missed } = await this.supabase.client
+        .from('user_missed_words')
+        .select('word_id')
+        .eq('list_id', this.listId);
+
+      const missedIds = missed?.map((m: any) => m.word_id) || [];
+      console.log(`[SightWordsQuiz] Review mode: found ${missedIds.length} missed words`);
+      wordsToQuiz = wordsToQuiz.filter(w => missedIds.includes(w.id));
+    }
+
+    this.words = wordsToQuiz;
     this.totalWords = this.words.length;
+
+    // If no words to review, redirect back
+    if (this.totalWords === 0) {
+      console.log('[SightWordsQuiz] No words to quiz, redirecting to dashboard');
+      this.router.navigate(['/dashboard']);
+    }
   }
 
   startWithMode(mode: QuizMode) {
@@ -803,7 +826,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     try {
       await this.supabase.client.rpc('update_quiz_progress', {
         p_list_id: this.listId,
-        p_pass_type: 'main',
+        p_pass_type: this.passMode,
         p_word_id: wordId,
         p_is_correct: isCorrect
       });
@@ -813,14 +836,46 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   async finishQuiz() {
+    // If review mode, clear the correctly answered words from missed list
+    if (this.passMode === 'review') {
+      await this.clearCorrectedMissedWords();
+    }
+
     try {
       await this.supabase.client.rpc('finish_quiz_pass', {
         p_list_id: this.listId,
-        p_pass_type: 'main',
+        p_pass_type: this.passMode,
         p_clear_missed: false
       });
     } catch (err) {
       console.error('Error finishing quiz:', err);
+    }
+  }
+
+  private async clearCorrectedMissedWords() {
+    // Fetch current progress to identify corrected words
+    const { data: progress } = await this.supabase.client
+      .from('quiz_progress')
+      .select('state')
+      .eq('list_id', this.listId)
+      .eq('pass_type', 'review')
+      .maybeSingle();
+
+    if (!progress) return;
+
+    const answeredIds = (progress.state as any)?.answered_ids || [];
+    const incorrectIds = (progress.state as any)?.incorrect_ids || [];
+
+    // Correctly answered words in this pass
+    const correctedIds = answeredIds.filter((id: string) => !incorrectIds.includes(id));
+
+    if (correctedIds.length > 0) {
+      console.log(`[SightWordsQuiz] Clearing ${correctedIds.length} corrected words from missed list`);
+      await this.supabase.client
+        .from('user_missed_words')
+        .delete()
+        .eq('list_id', this.listId)
+        .in('word_id', correctedIds);
     }
   }
 
