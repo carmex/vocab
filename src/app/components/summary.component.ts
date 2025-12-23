@@ -1,53 +1,55 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
-import { filter, map } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
-import { QuizSummary } from '../models/quiz-summary.interface';
-import { StateService } from '../services/state.service';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { QuizService } from '../services/quiz.service';
 
 @Component({
   selector: 'app-summary',
   standalone: true,
-  imports: [CommonModule, MatButtonModule],
+  imports: [CommonModule, MatButtonModule, MatProgressSpinnerModule],
   templateUrl: './summary.component.html',
   styleUrls: ['./summary.component.scss']
 })
 export class SummaryComponent implements OnInit {
-  summary$: Observable<QuizSummary>;
-  showReviewActions$: Observable<boolean>;
+  loading = false;
+  correctCount = 0;
+  totalCount = 0;
+  isReview = false;
 
-  constructor(private stateService: StateService, private router: Router) {
-    this.summary$ = this.stateService.lastSummary$.pipe(
-      filter((s): s is QuizSummary => s !== null)
-    );
-
-    this.showReviewActions$ = this.summary$.pipe(
-      map(s => s.quizMode === 'review' && s.correct > 0)
-    );
-  }
+  constructor(
+    private quizService: QuizService,
+    private router: Router
+  ) { }
 
   ngOnInit(): void {
-    // If user reloads this page, summary will be null, send to menu
-    if (this.stateService.lastSummary$.getValue() === null) {
-      this.router.navigate(['/menu']);
+    this.correctCount = this.quizService.correctCount;
+    this.totalCount = this.quizService.answeredCount;
+    this.isReview = this.quizService.currentMode === 'review';
+  }
+
+  async onFinish() {
+    this.loading = true;
+    try {
+      await this.quizService.finishPass(false); // Don't clear missed words
+      this.router.navigate(['/dashboard']);
+    } catch (err) {
+      console.error(err);
+      alert('Error finishing pass');
+      this.loading = false;
     }
   }
 
-  onClearCorrected() {
-    this.stateService.clearCorrectedFromCumulative();
-    this.router.navigate(['/menu']);
-  }
-
-  onLeaveUnchanged() {
-    // Lists were already cleared on last answer, just need to clear review session
-    this.stateService.clearReviewPass();
-    this.router.navigate(['/menu']);
-  }
-
-  onFinish() {
-    // Main quiz list was already cleared on last answer
-    this.router.navigate(['/menu']);
+  async onClearCorrected() {
+    this.loading = true;
+    try {
+      await this.quizService.finishPass(true); // Clear missed words
+      this.router.navigate(['/dashboard']);
+    } catch (err) {
+      console.error(err);
+      alert('Error clearing corrected words');
+      this.loading = false;
+    }
   }
 }

@@ -3,10 +3,32 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  width: 100%;
   gap: 15px;
-  max-width: 500px;
-  margin: 40px auto;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.app-title {
+  font-size: 3.5rem;
+  font-weight: 900;
+  margin: 20px 0 30px 0;
+  background: linear-gradient(45deg, #FF4081, #3F51B5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+  padding: 0 40px;
+  box-sizing: border-box;
 }
 
 .menu-button {

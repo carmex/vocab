@@ -1,5 +1,9 @@
 import { Component } from '@angular/core';
 import { StateService } from '../services/state.service';
+import { AuthService } from '../services/auth.service';
+import { Router } from '@angular/router';
+import { Observable } from 'rxjs';
+import { User } from '@supabase/supabase-js';
 
 @Component({
   selector: 'app-main-menu',
@@ -8,32 +12,22 @@ import { StateService } from '../services/state.service';
   standalone: false
 })
 export class MainMenuComponent {
-  hasQuizInProgress$;
-  hasMissedWords$;
-  hasReviewInProgress$;
-  isReturningUser$;
+  hasQuizInProgress$: Observable<boolean>;
+  hasMissedWords$: Observable<boolean>;
+  hasReviewInProgress$: Observable<boolean>;
+  isReturningUser$: Observable<boolean>;
+  currentUser$: Observable<User | null>;
 
-  constructor(private stateService: StateService) {
+  constructor(
+    private stateService: StateService,
+    public auth: AuthService,
+    private router: Router
+  ) {
+    this.currentUser$ = this.auth.user$;
     // Initialize observables after service injection
     this.hasQuizInProgress$ = this.stateService.hasQuizInProgress$;
     this.hasMissedWords$ = this.stateService.hasMissedWords$;
     this.hasReviewInProgress$ = this.stateService.hasReviewInProgress$;
     this.isReturningUser$ = this.stateService.isReturningUser$;
-  }
-
-  onExport() {
-    this.stateService.exportState();
-  }
-  
-  onFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      this.stateService.importState(file);
-      
-      // Reset the input value so the (change) event fires even if
-      // the same file is selected again
-      input.value = '';
-    }
   }
 }

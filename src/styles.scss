@@ -1,5 +1,126 @@
 /* You can add global styles to this file, and also import other style files */
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: Roboto, "Helvetica Neue", sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+
+    /* Material Card Overrides */
+    .mat-mdc-card {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+    }
+
+    .mat-mdc-card-title,
+    .mat-mdc-card-subtitle {
+        color: #e0e0e0 !important;
+    }
+
+    /* Settings Section Overrides */
+    .settings-section {
+        background-color: #1e1e1e !important;
+        border-color: #333 !important;
+
+        h3 {
+            color: #e0e0e0 !important;
+        }
+    }
+
+    .setting-description {
+        color: #b0b0b0 !important;
+    }
+
+    /* Top Nav Overrides */
+    .top-nav {
+        background-color: #121212 !important;
+        color: #e0e0e0 !important;
+    }
+
+    /* Input/Select Overrides */
+    .mat-mdc-form-field {
+        .mat-mdc-form-field-input-control {
+            color: #e0e0e0 !important;
+        }
+
+        .mat-mdc-select-value {
+            color: #e0e0e0 !important;
+        }
+
+        .mat-mdc-select-arrow {
+            color: #e0e0e0 !important;
+        }
+    }
+
+    /* Dialog Overrides */
+    .mat-mdc-dialog-container {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+    }
+
+    /* Menu Overrides */
+    .mat-mdc-menu-panel {
+        background-color: #1e1e1e !important;
+
+        .mat-mdc-menu-item {
+            color: #e0e0e0 !important;
+
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.08) !important;
+            }
+        }
+    }
+
+    /* Checkbox & Slide Toggle Overrides */
+    .mat-mdc-checkbox,
+    .mat-mdc-slide-toggle {
+        label {
+            color: #e0e0e0 !important;
+        }
+    }
+
+    /* Button Overrides */
+    .mat-mdc-button {
+        color: #e0e0e0 !important;
+    }
+
+    /* Quiz Answer Button Override */
+    .answer-button {
+        background-color: #333 !important;
+        color: #e0e0e0 !important;
+
+        &:hover {
+            background-color: #444 !important;
+        }
+
+        /* Keep feedback colors */
+        &.correct {
+            background-color: #388E3C !important; // Darker green
+            color: white !important;
+        }
+
+        &.incorrect {
+            background-color: #D32F2F !important; // Darker red
+            color: white !important;
+        }
+    }
+}
+
+/* Twemoji Styles */
+img.emoji {
+    height: 1em;
+    width: 1em;
+    margin: 0 .05em 0 .1em;
+    vertical-align: -0.1em;
+}

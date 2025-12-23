@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import { SettingsService } from './services/settings.service';
 
 @Component({
   selector: 'app-root',
@@ -6,6 +7,12 @@ import { Component } from '@angular/core';
   standalone: false,
   styleUrl: './app.component.scss'
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   title = 'vocab';
+
+  constructor(private settingsService: SettingsService) { }
+
+  ngOnInit() {
+    this.settingsService.loadSettings();
+  }
 }

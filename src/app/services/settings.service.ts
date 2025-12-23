@@ -1,9 +1,11 @@
 import { Injectable } from '@angular/core';
+import { SupabaseService } from './supabase.service';
 
 export interface AppSettings {
   autoAdvance: boolean;
   correctAnswerTimer: number;
   incorrectAnswerTimer: number;
+  darkMode: boolean;
 }
 
 @Injectable({
@@ -14,50 +16,81 @@ export class SettingsService {
   private readonly DEFAULT_SETTINGS: AppSettings = {
     autoAdvance: true,
     correctAnswerTimer: 1,
-    incorrectAnswerTimer: 5
+    incorrectAnswerTimer: 5,
+    darkMode: false
   };
 
-  constructor() { }
+  constructor(private supabase: SupabaseService) { }
 
-  // Get settings from localStorage or return defaults
-  getSettings(): AppSettings {
+  async loadSettings(): Promise<AppSettings> {
+    let settings: AppSettings = { ...this.DEFAULT_SETTINGS };
+
     try {
-      const storedSettings = localStorage.getItem(this.SETTINGS_KEY);
-      if (storedSettings) {
-        return { ...this.DEFAULT_SETTINGS, ...JSON.parse(storedSettings) };
+      const { data, error } = await this.supabase.client.rpc('get_user_settings', {});
+      if (!error && data) {
+        this.saveToLocal(data);
+        settings = { ...this.DEFAULT_SETTINGS, ...data };
+      } else {
+        const localSettings = this.getFromLocal();
+        if (localSettings) {
+          settings = localSettings;
+        }
       }
-    } catch (error) {
-      console.error('Error loading settings from localStorage:', error);
+    } catch (err) {
+      console.warn('Error fetching settings from cloud, falling back to local', err);
+      const localSettings = this.getFromLocal();
+      if (localSettings) {
+        settings = localSettings;
+      }
     }
-    return { ...this.DEFAULT_SETTINGS };
+
+    this.applyTheme(settings.darkMode);
+    return settings;
   }
 
-  // Save settings to localStorage
-  saveSettings(settings: AppSettings): void {
+  getSettings(): AppSettings {
+    return this.getFromLocal() || { ...this.DEFAULT_SETTINGS };
+  }
+
+  async saveSettings(settings: AppSettings): Promise<void> {
+    this.saveToLocal(settings);
+    this.applyTheme(settings.darkMode);
     try {
-      localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
-      console.log('Settings saved to localStorage:', settings);
-    } catch (error) {
-      console.error('Error saving settings to localStorage:', error);
+      await this.supabase.client.rpc('upsert_settings', { p_settings: settings });
+    } catch (err) {
+      console.error('Error saving settings to cloud', err);
     }
   }
 
-  // Reset to default settings
   getDefaultSettings(): AppSettings {
     return { ...this.DEFAULT_SETTINGS };
   }
 
-  // Check if settings exist in localStorage
-  hasStoredSettings(): boolean {
-    return localStorage.getItem(this.SETTINGS_KEY) !== null;
+  private getFromLocal(): AppSettings | null {
+    try {
+      const stored = localStorage.getItem(this.SETTINGS_KEY);
+      if (stored) {
+        return { ...this.DEFAULT_SETTINGS, ...JSON.parse(stored) };
+      }
+    } catch (e) {
+      console.error('Error reading local settings', e);
+    }
+    return null;
   }
 
-  // Clear stored settings (for reset functionality)
-  clearStoredSettings(): void {
+  private saveToLocal(settings: AppSettings): void {
     try {
-      localStorage.removeItem(this.SETTINGS_KEY);
-    } catch (error) {
-      console.error('Error clearing settings from localStorage:', error);
+      localStorage.setItem(this.SETTINGS_KEY, JSON.stringify(settings));
+    } catch (e) {
+      console.error('Error saving local settings', e);
+    }
+  }
+
+  private applyTheme(isDark: boolean): void {
+    if (isDark) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
     }
   }
 }

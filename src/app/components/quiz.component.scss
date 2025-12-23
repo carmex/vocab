@@ -7,54 +7,54 @@
 }
 
 .navigation-header {
-  margin-bottom: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  
+  margin: 15px 0;
+
   .back-button {
-    color: #666;
-  }
-  
-  .settings-button {
     color: #666;
   }
 }
 
-.progress-bar-container {
+.progress-section {
   position: relative;
   width: 100%;
-  margin-bottom: 20px;
-  
-  &.red {
-    margin-bottom: 30px;
-  }
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 
   .mat-progress-bar {
-    height: 30px;
-    border-radius: 8px;
+    height: 10px;
+    border-radius: 5px;
   }
 
-  .progress-label {
-    position: absolute;
-    width: 100%;
-    top: 0;
-    left: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 30px;
+  .progress-label,
+  .missed-label {
+    text-align: center;
     font-weight: bold;
     color: #333;
     font-size: 0.9rem;
+    margin-bottom: 5px;
   }
+
+  // Override color for missed progress bar
+  .missed-progress {
+    --mdc-linear-progress-active-indicator-color: #F44336; // Red
+    --mdc-linear-progress-track-color: #FFCDD2; // Light Red
+  }
+}
+
+.stats-row {
+  display: none; // Hide old stats row
 }
 
 .word-display {
   font-size: 2.5rem;
   font-weight: bold;
   text-align: center;
-  margin: 30px 0;
+  margin: 15px 0;
 }
 
 .answer-options {
@@ -81,6 +81,7 @@
     background-color: #4CAF50 !important;
     color: white !important;
   }
+
   &.incorrect {
     background-color: #F44336 !important;
     color: white !important;
@@ -93,7 +94,7 @@
   border-top: 2px dashed #ddd;
   border-bottom: 2px dashed #ddd;
   text-align: center;
-  
+
   .add-to-missed-button {
     border-radius: 25px;
     padding: 12px 24px;
@@ -104,14 +105,14 @@
     border: 2px solid #FF9800;
     color: #FF9800;
     transition: all 0.3s ease;
-    
+
     &:hover {
       background-color: #FF9800;
       color: white;
       transform: translateY(-1px);
       box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
     }
-    
+
     &:active {
       transform: translateY(0);
       box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
@@ -121,10 +122,12 @@
 
 .feedback-controls {
   margin-top: 30px;
+
   .mat-progress-bar {
     height: 10px;
     border-radius: 5px;
   }
+
   .feedback-buttons {
     display: flex;
     justify-content: space-between;

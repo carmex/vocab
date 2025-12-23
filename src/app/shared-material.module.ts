@@ -6,6 +6,10 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatInputModule } from '@angular/material/input';
 
 @NgModule({
   imports: [
@@ -15,7 +19,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
     MatCheckboxModule,
     MatSlideToggleModule,
     MatSelectModule,
-    MatFormFieldModule
+    MatFormFieldModule,
+    MatCardModule,
+    MatIconModule,
+    MatTooltipModule,
+    MatInputModule
   ],
   exports: [
     MatButtonModule,
@@ -24,7 +32,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
     MatCheckboxModule,
     MatSlideToggleModule,
     MatSelectModule,
-    MatFormFieldModule
+    MatFormFieldModule,
+    MatCardModule,
+    MatIconModule,
+    MatTooltipModule,
+    MatInputModule
   ]
 })
 export class SharedMaterialModule { }

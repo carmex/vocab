@@ -1,31 +1,24 @@
-<div class="summary-container" *ngIf="summary$ | async as summary">
-  <h1>Quiz Complete!</h1>
-  
-  <div class="stats">
-    <div>Total Words: <span>{{ summary.total }}</span></div>
-    <div>Correct: <span class="correct">{{ summary.correct }}</span></div>
-    <div>Missed: <span class="missed">{{ summary.missed }}</span></div>
-    <div class="score">Final Score: <span>{{ summary.score | number:'1.0-0' }}%</span></div>
-  </div>
-  
-  <div class="actions">
-    <button *ngIf="summary.quizMode === 'main'" mat-raised-button color="primary" (click)="onFinish()">
-      Finish
-    </button>
-    
-    <ng-container *ngIf="showReviewActions$ | async; else noReviewActions">
-      <button mat-raised-button color="primary" (click)="onClearCorrected()">
-        Clear Corrected Words
-      </button>
-      <button mat-raised-button (click)="onLeaveUnchanged()">
-        Leave List Unchanged
-      </button>
-    </ng-container>
+<div class="summary-container" *ngIf="!loading; else spinner">
+  <h1>Pass Complete!</h1>
 
-    <ng-template #noReviewActions>
-      <button *ngIf="summary.quizMode === 'review'" mat-raised-button color="primary" (click)="onLeaveUnchanged()">
-        Finish
-      </button>
-    </ng-template>
+  <div class="stats">
+    <h2>{{ correctCount }} / {{ totalCount }} Correct</h2>
+  </div>
+
+  <div class="actions">
+    <button mat-raised-button color="primary" (click)="onFinish()">
+      Finish & Return to Dashboard
+    </button>
+
+    <button *ngIf="isReview && correctCount > 0" mat-stroked-button color="accent" (click)="onClearCorrected()">
+      Clear Corrected Words from Missed List
+    </button>
   </div>
 </div>
+
+<ng-template #spinner>
+  <div class="spinner-container">
+    <mat-spinner></mat-spinner>
+    <p>Saving progress...</p>
+  </div>
+</ng-template>

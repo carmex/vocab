@@ -7,10 +7,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialogModule } from '@angular/material/dialog';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { SettingsService, AppSettings } from '../services/settings.service';
-import { AlertDialogComponent } from '../components/dialogs/alert-dialog/alert-dialog.component';
+import { AlertDialogComponent } from './dialogs/alert-dialog/alert-dialog.component';
+import { TopNavComponent } from './top-nav/top-nav.component';
 
 @Component({
   selector: 'app-settings',
@@ -25,22 +25,29 @@ import { AlertDialogComponent } from '../components/dialogs/alert-dialog/alert-d
     MatIconModule,
     MatButtonModule,
     MatDialogModule,
-    AlertDialogComponent
+    TopNavComponent
   ],
   template: `
     <div class="settings-container">
-      <div class="settings-header">
-        <button mat-icon-button (click)="onBackToQuiz()" class="back-button" aria-label="Back to quiz">
-          <mat-icon>arrow_back</mat-icon>
-        </button>
-        <h2>Settings</h2>
+      <app-top-nav (back)="onBackToQuiz()"></app-top-nav>
+      <h2>Settings</h2>
+
+      <div class="settings-section">
+        <h3>Appearance</h3>
+        
+        <div class="setting-item">
+          <mat-slide-toggle [(ngModel)]="darkMode" (ngModelChange)="autoSave()" color="primary">
+            Dark Mode
+          </mat-slide-toggle>
+          <p class="setting-description">Switch between light and dark themes</p>
+        </div>
       </div>
 
       <div class="settings-section">
         <h3>Quiz Behavior</h3>
         
         <div class="setting-item">
-          <mat-checkbox [(ngModel)]="autoAdvance" color="primary">
+          <mat-checkbox [(ngModel)]="autoAdvance" (ngModelChange)="autoSave()" color="primary">
             Auto-advance to next question
           </mat-checkbox>
           <p class="setting-description">Automatically move to the next question after answering</p>
@@ -50,7 +57,7 @@ import { AlertDialogComponent } from '../components/dialogs/alert-dialog/alert-d
           <div class="timer-setting-item">
             <mat-form-field appearance="fill" class="timer-setting">
               <mat-label>Correct Answer Timer (seconds)</mat-label>
-              <mat-select [(ngModel)]="correctAnswerTimer" [disabled]="!autoAdvance">
+              <mat-select [(ngModel)]="correctAnswerTimer" (ngModelChange)="autoSave()" [disabled]="!autoAdvance">
                 <mat-option [value]="1">1 second</mat-option>
                 <mat-option [value]="2">2 seconds</mat-option>
                 <mat-option [value]="3">3 seconds</mat-option>
@@ -63,7 +70,7 @@ import { AlertDialogComponent } from '../components/dialogs/alert-dialog/alert-d
           <div class="timer-setting-item">
             <mat-form-field appearance="fill" class="timer-setting">
               <mat-label>Incorrect Answer Timer (seconds)</mat-label>
-              <mat-select [(ngModel)]="incorrectAnswerTimer" [disabled]="!autoAdvance">
+              <mat-select [(ngModel)]="incorrectAnswerTimer" (ngModelChange)="autoSave()" [disabled]="!autoAdvance">
                 <mat-option [value]="3">3 seconds</mat-option>
                 <mat-option [value]="5">5 seconds</mat-option>
                 <mat-option [value]="7">7 seconds</mat-option>
@@ -76,9 +83,6 @@ import { AlertDialogComponent } from '../components/dialogs/alert-dialog/alert-d
       </div>
 
       <div class="settings-actions">
-        <button mat-raised-button color="primary" (click)="onSave()">
-          Save Settings
-        </button>
         <button mat-button (click)="onReset()">
           Reset to Default
         </button>
@@ -87,25 +91,14 @@ import { AlertDialogComponent } from '../components/dialogs/alert-dialog/alert-d
   `,
   styles: [`
     .settings-container {
-      padding: 20px;
+      padding: 10px;
       max-width: 600px;
       margin: 0 auto;
     }
 
-    .settings-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 30px;
-      
-      .back-button {
-        margin-right: 10px;
-        color: #666;
-      }
-      
-      h2 {
-        margin: 0;
-        flex: 1;
-      }
+    h2 {
+      margin-top: 20px;
+      margin-bottom: 20px;
     }
 
     .settings-section {
@@ -183,36 +176,35 @@ export class SettingsComponent implements OnInit {
   autoAdvance = true;
   correctAnswerTimer = 1;
   incorrectAnswerTimer = 5;
+  darkMode = false;
+  loading = false;
 
   constructor(
     private settingsService: SettingsService,
     private dialog: MatDialog
   ) { }
 
-  ngOnInit(): void {
-    this.loadSettings();
+  async ngOnInit(): Promise<void> {
+    this.loading = true;
+    await this.settingsService.loadSettings(); // Ensure we have latest
+    this.loadLocalSettings();
+    this.loading = false;
   }
 
   onBackToQuiz() {
     window.history.back();
   }
 
-  onSave() {
+  async autoSave() {
     const settings: AppSettings = {
       autoAdvance: this.autoAdvance,
       correctAnswerTimer: this.correctAnswerTimer,
-      incorrectAnswerTimer: this.incorrectAnswerTimer
+      incorrectAnswerTimer: this.incorrectAnswerTimer,
+      darkMode: this.darkMode
     };
 
-    this.settingsService.saveSettings(settings);
-    
-    this.dialog.open(AlertDialogComponent, {
-      width: '400px',
-      data: {
-        title: 'Settings Saved',
-        message: 'Your settings have been saved successfully!'
-      }
-    });
+    // Silent save
+    await this.settingsService.saveSettings(settings);
   }
 
   onReset() {
@@ -220,12 +212,15 @@ export class SettingsComponent implements OnInit {
     this.autoAdvance = defaultSettings.autoAdvance;
     this.correctAnswerTimer = defaultSettings.correctAnswerTimer;
     this.incorrectAnswerTimer = defaultSettings.incorrectAnswerTimer;
+    this.darkMode = defaultSettings.darkMode;
+    this.autoSave(); // Save defaults immediately
   }
 
-  private loadSettings(): void {
+  private loadLocalSettings(): void {
     const settings = this.settingsService.getSettings();
     this.autoAdvance = settings.autoAdvance;
     this.correctAnswerTimer = settings.correctAnswerTimer;
     this.incorrectAnswerTimer = settings.incorrectAnswerTimer;
+    this.darkMode = settings.darkMode;
   }
 }

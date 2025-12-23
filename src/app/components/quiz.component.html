@@ -1,72 +1,40 @@
-<div class="quiz-container" *ngIf="currentQuestion">
-  <div class="navigation-header">
-    <button mat-icon-button (click)="onBackToMenu()" class="back-button" aria-label="Back to menu">
-      <mat-icon>arrow_back</mat-icon>
-    </button>
-    <button mat-icon-button (click)="onOpenSettings()" class="settings-button" aria-label="Settings">
-      <mat-icon>settings</mat-icon>
-    </button>
+<div class="quiz-container">
+  <app-top-nav (back)="onExit()" (settings)="onSettings()"></app-top-nav>
+
+  <div class="progress-section">
+    <mat-progress-bar mode="determinate" [value]="progressPercent" class="quiz-progress"></mat-progress-bar>
+    <div class="progress-label">{{ progressLabel }}</div>
+
+    <mat-progress-bar mode="determinate" [value]="missedPercent" class="missed-progress"
+      color="warn"></mat-progress-bar>
+    <div class="missed-label">{{ missedLabel }}</div>
   </div>
 
-  <div class="progress-bar-container">
-    <mat-progress-bar
-      mode="determinate"
-      [value]="passProgressPercent | async"
-    ></mat-progress-bar>
-    <div class="progress-label">{{ passProgressCount | async }}</div>
+  <div class="word-display" *ngIf="currentQuestion">
+    <span [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
   </div>
 
-  <div class="progress-bar-container red">
-    <mat-progress-bar
-      mode="determinate"
-      color="warn"
-      [value]="missedProgressPercent | async"
-    ></mat-progress-bar>
-    <div class="progress-label">{{ missedProgressCount | async }}</div>
-  </div>
-
-  <div class="word-display">
-    {{ currentQuestion.wordToQuiz.word }}
-  </div>
-
-  <div class="answer-options">
-    <button
-      *ngFor="let option of currentQuestion.options"
-      mat-raised-button
-      class="answer-button"
-      (click)="!feedbackVisible && onAnswer(option)"
-      [ngClass]="{
-        'correct': feedbackVisible && option === currentQuestion.correctAnswer,
-        'incorrect': feedbackVisible && option === selectedAnswer && option !== currentQuestion.correctAnswer
-      }"
-    >
-      {{ option }}
-    </button>
-  </div>
-
-  <!-- Add to Missed Words button - visible on next question screen when previous answer was correct -->
-  <div class="add-to-missed-container" *ngIf="!feedbackVisible && previousWord && previousAnswerCorrect">
-    <button
-      mat-stroked-button
-      class="add-to-missed-button"
-      (click)="addToMissedWords()"
-      color="accent"
-    >
-      Add {{ previousWord.wordToQuiz.word }} to Missed Words
+  <div class="answer-options" *ngIf="currentQuestion">
+    <button *ngFor="let option of currentQuestion.options" mat-raised-button class="answer-button"
+      (click)="!feedbackVisible && onAnswer(option)" [ngClass]="{
+            'correct': feedbackVisible && option === currentQuestion.correctAnswer,
+            'incorrect': feedbackVisible && option === selectedAnswer && option !== currentQuestion.correctAnswer
+          }">
+      <span [innerHTML]="option | twemoji"></span>
     </button>
   </div>
 
   <div class="feedback-controls" *ngIf="feedbackVisible">
-    <mat-progress-bar
-      mode="determinate"
-      [value]="timerProgress"
-      [color]="isCorrect ? 'primary' : 'warn'"
-      *ngIf="!isPaused && autoAdvanceEnabled"
-    ></mat-progress-bar>
+    <mat-progress-bar *ngIf="!isPaused && timerProgress > 0" mode="determinate" [value]="timerProgress"
+      class="timer-progress"></mat-progress-bar>
 
     <div class="feedback-buttons">
-      <button mat-flat-button (click)="onPause()" *ngIf="!isPaused && autoAdvanceEnabled">Pause</button>
-      <button mat-flat-button color="primary" (click)="onNext()">Next</button>
+      <button mat-stroked-button color="primary" *ngIf="!isPaused && timerProgress > 0" (click)="onPause()">
+        <mat-icon>pause</mat-icon> Pause
+      </button>
+      <button mat-flat-button color="primary" (click)="onNext()">
+        Next <mat-icon>arrow_forward</mat-icon>
+      </button>
     </div>
   </div>
 </div>

@@ -1,0 +1,60 @@
+<div class="dashboard-container">
+  <app-top-nav backLink="/menu"></app-top-nav>
+
+  <div class="lists-grid" *ngIf="(myLists$ | async) as lists">
+    <div class="empty-state" *ngIf="lists.length === 0">
+      <mat-icon class="empty-icon">library_books</mat-icon>
+      <h2>No lists yet?</h2>
+      <p>Create one with the + button below, or...</p>
+
+      <button mat-raised-button color="accent" (click)="onMarketplace()">
+        <mat-icon>storefront</mat-icon> Browse Marketplace
+      </button>
+
+      <div class="login-nudge" *ngIf="auth.isAnonymous">
+        <p>Using a guest account? <br> Log in to save your progress across devices!</p>
+        <button mat-stroked-button color="primary" (click)="onLogin()">
+          Log In / Sign Up
+        </button>
+      </div>
+    </div>
+
+    <mat-card *ngFor="let share of lists" class="list-card" (click)="onStudy(share.word_list_id)">
+      <mat-card-header>
+        <mat-card-title>{{ share.word_lists?.name }}</mat-card-title>
+        <mat-card-subtitle>{{ share.word_lists?.description }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="share.quiz_progress && share.word_lists?.list_words?.[0]?.count as totalCount"
+          class="progress-section">
+          <div class="progress-info">
+            <mat-progress-bar mode="determinate"
+              [value]="(share.quiz_progress.state.answered_ids.length / totalCount) * 100">
+            </mat-progress-bar>
+            <span class="progress-text">{{ (share.quiz_progress.state.answered_ids.length / totalCount) | percent }}
+              Complete</span>
+          </div>
+        </div>
+
+        <div class="missed-info" *ngIf="share.missed_word_count && share.missed_word_count > 0">
+          <mat-icon inline>warning</mat-icon> {{ share.missed_word_count }} Missed {{ share.missed_word_count === 1 ?
+          'Word' : 'Words' }}
+        </div>
+      </mat-card-content>
+      <mat-card-actions align="end">
+        <button mat-icon-button *ngIf="share.word_lists?.creator_id === (auth.user$ | async)?.id"
+          (click)="$event.stopPropagation(); onEdit(share.word_list_id)" matTooltip="Edit List">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button color="accent" *ngIf="share.missed_word_count && share.missed_word_count > 0"
+          (click)="$event.stopPropagation(); onReview(share.word_list_id)" matTooltip="Review Missed Words">
+          <mat-icon>rate_review</mat-icon>
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+
+  <button mat-fab color="primary" class="fab-add" (click)="onCreateList()">
+    <mat-icon>add</mat-icon>
+  </button>
+</div>
