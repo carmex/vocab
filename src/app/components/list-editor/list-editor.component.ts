@@ -10,6 +10,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSelectModule } from '@angular/material/select';
 import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { AuthService } from '../../services/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -45,6 +46,7 @@ export interface WordRow {
     MatProgressBarModule,
     MatProgressBarModule,
     MatCheckboxModule,
+    MatSelectModule,
     ScrollingModule,
     TopNavComponent,
     TwemojiPipe
@@ -80,6 +82,15 @@ export interface WordRow {
                 Make Public (Visible in Marketplace)
               </mat-slide-toggle>
             </div>
+
+            <mat-form-field appearance="fill" class="language-select">
+              <mat-label>Language</mat-label>
+              <mat-select [(ngModel)]="language">
+                <mat-option value="en">English</mat-option>
+                <mat-option value="es">Spanish</mat-option>
+              </mat-select>
+              <mat-hint>For speech recognition and pronunciation</mat-hint>
+            </mat-form-field>
           </div>
 
           <div class="words-header-container">
@@ -239,6 +250,10 @@ export interface WordRow {
       margin-bottom: 10px;
     }
     .toggle-container {
+      margin-bottom: 20px;
+    }
+    .language-select {
+      width: 200px;
       margin-bottom: 20px;
     }
     .list-type-badge {
@@ -440,6 +455,71 @@ export interface WordRow {
     .bulk-paste-section button {
       align-self: flex-start;
     }
+
+    /* Dark Mode Overrides */
+    :host-context(body.dark-mode) {
+      .list-type-badge {
+        background: #1e3a5f;
+        color: #e0e0e0;
+      }
+      .list-type-badge mat-icon {
+        color: #64b5f6;
+      }
+      .words-list-container {
+        background-color: #1a1a1a;
+        border-color: #333;
+      }
+      .word-card {
+        background: #252525;
+        border-color: #444;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+      .word-card:focus {
+        border-color: #64b5f6;
+        box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.3);
+      }
+      .card-header {
+        background-color: #2a2a2a;
+        border-bottom-color: #333;
+      }
+      .card-number {
+        color: #999;
+      }
+      .compact-row {
+        background: #252525;
+        border-bottom-color: #333;
+      }
+      .compact-number {
+        color: #999;
+      }
+      .progress-text {
+        color: #b0b0b0;
+      }
+      .image-preview {
+        border-color: #444;
+      }
+      .image-preview img {
+        background: #2a2a2a;
+      }
+      .image-placeholder {
+        background: #2a2a2a;
+        border-color: #555;
+      }
+      .image-placeholder:hover {
+        background: #333;
+      }
+      .image-placeholder:focus {
+        border-color: #64b5f6;
+        background: #1e3a5f;
+      }
+      .image-placeholder mat-icon,
+      .image-placeholder span {
+        color: #888;
+      }
+      .bulk-paste-section {
+        background: #1e3a5f;
+      }
+    }
   `]
 })
 export class ListEditorComponent implements OnInit {
@@ -455,6 +535,7 @@ export class ListEditorComponent implements OnInit {
   name = '';
   description = '';
   isPublic = false;
+  language = 'en';
   words: WordRow[] = [{ word: '', definition: '' }];
   deletedWordIds: string[] = [];
 
@@ -502,6 +583,7 @@ export class ListEditorComponent implements OnInit {
       this.description = details.metadata.description;
       this.isPublic = details.metadata.is_public;
       this.listType = details.metadata.list_type || ListType.WORD_DEFINITION;
+      this.language = details.metadata.language || 'en';
     });
 
     this.listService.getWords(id).subscribe((words: any[]) => {
@@ -632,7 +714,7 @@ export class ListEditorComponent implements OnInit {
       }
 
       if (this.isEditMode && this.listId) {
-        await this.listService.updateList(this.listId, this.name, this.description, this.isPublic).toPromise();
+        await this.listService.updateList(this.listId, this.name, this.description, this.isPublic, this.language).toPromise();
         await this.listService.syncWords(this.listId, this.words.map(w => ({
           id: w.id,
           word: w.word,
@@ -641,7 +723,7 @@ export class ListEditorComponent implements OnInit {
         })), this.deletedWordIds).toPromise();
         this.router.navigate(['/dashboard']);
       } else {
-        const listId = await this.listService.createList(this.name, this.description, this.isPublic, this.listType).toPromise();
+        const listId = await this.listService.createList(this.name, this.description, this.isPublic, this.listType, this.language).toPromise();
         if (listId) {
           if (this.words.length > 50 && typeof Worker !== 'undefined') {
             this.uploadWordsWithWorker(listId, this.words);

@@ -27,6 +27,7 @@ export class QuizService {
   // Current Session State
   public currentListId: string = '';
   public currentListType: ListType = ListType.WORD_DEFINITION;
+  public currentLanguage: string = 'en';
   public currentMode: 'main' | 'review' = 'main';
   public totalWordsInPass: number = 0;
   public answeredCount: number = 0;
@@ -41,15 +42,16 @@ export class QuizService {
     this.answeredCount = 0;
     this.correctCount = 0;
 
-    // Fetch list type first
+    // Fetch list type and language first
     const { data: listData, error: listError } = await this.supabase.client
       .from('word_lists')
-      .select('list_type')
+      .select('list_type, language')
       .eq('id', listId)
       .single();
 
     if (listError) throw listError;
     this.currentListType = (listData?.list_type as ListType) || ListType.WORD_DEFINITION;
+    this.currentLanguage = listData?.language || 'en';
 
     // 1. Fetch all words for the list
     const { data: words, error: wordsError } = await this.supabase.client

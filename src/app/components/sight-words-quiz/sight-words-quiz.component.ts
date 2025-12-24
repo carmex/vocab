@@ -487,6 +487,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   quizMode: QuizMode = 'read';
   selectedMode: QuizMode = 'read';
   passMode: 'main' | 'review' = 'main';
+  language: string = 'en';
   quizStarted = false;
 
   // Listen mode options
@@ -575,6 +576,15 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   async loadWords() {
+    // Fetch list metadata including language
+    const { data: listData } = await this.supabase.client
+      .from('word_lists')
+      .select('language')
+      .eq('id', this.listId)
+      .single();
+
+    this.language = listData?.language || 'en';
+
     // First, load all words for the list
     const { data: allWords, error } = await this.supabase.client
       .from('list_words')
@@ -665,7 +675,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     this.isSpeaking = true;
     this.cdr.detectChanges();
     try {
-      await this.speechService.speak(this.currentWord.word);
+      await this.speechService.speak(this.currentWord.word, this.language);
     } catch (err) {
       console.error('TTS error:', err);
     } finally {
@@ -691,8 +701,8 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
 
     this.isListening = true;
 
-    // Pass the target word for early matching on interim results
-    this.speechService.listen(this.currentWord.word).subscribe({
+    // Pass the target word and language for recognition
+    this.speechService.listen(this.currentWord.word, this.language).subscribe({
       next: (result) => {
         // Run inside Angular zone to trigger change detection
         this.ngZone.run(() => {
@@ -742,7 +752,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     if (!this.currentWord) return;
 
     try {
-      await this.speechService.speak(this.currentWord.word);
+      await this.speechService.speak(this.currentWord.word, this.language);
     } catch (err) {
       console.error('TTS error:', err);
     }
@@ -770,7 +780,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     // Speak the correct word
     if (this.currentWord) {
       try {
-        await this.speechService.speak(this.currentWord.word);
+        await this.speechService.speak(this.currentWord.word, this.language);
       } catch (err) {
         console.error('TTS error:', err);
       }

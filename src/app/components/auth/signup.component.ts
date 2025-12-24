@@ -154,6 +154,25 @@ import { TopNavComponent } from '../top-nav/top-nav.component';
       font-size: 0.9rem;
       margin: 0;
     }
+
+    /* Dark Mode Overrides */
+    :host-context(body.dark-mode) {
+      .divider {
+        color: #999;
+
+        &::before, &::after {
+          border-bottom-color: #444;
+        }
+      }
+
+      .auth-footer a {
+        color: #7986cb;
+      }
+
+      .error-text {
+        color: #ef5350;
+      }
+    }
   `]
 })
 export class SignupComponent {

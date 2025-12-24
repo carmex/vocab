@@ -96,12 +96,12 @@ export class SpeechService {
     /**
      * Speak the given text using Text-to-Speech
      */
-    speak(text: string): Promise<void> {
+    speak(text: string, language: string = 'en'): Promise<void> {
         return new Promise(async (resolve, reject) => {
             const settings = this.settingsService.getSettings();
 
-            // 1. Enhanced TTS
-            if (settings.enhancedTTS) {
+            // 1. Enhanced TTS (only supports English currently)
+            if (settings.enhancedTTS && language === 'en') {
                 try {
                     await this.speakWithEnhanced(text, settings.ttsVoice);
                     resolve();
@@ -125,26 +125,40 @@ export class SpeechService {
             utterance.rate = 0.9; // Slightly slower for children
             utterance.pitch = 1.0;
             utterance.volume = 1.0;
-            utterance.lang = 'en-US';
 
-            // Try to find a female English voice
+            // Set language based on parameter
+            const langMap: { [key: string]: string } = {
+                'en': 'en-US',
+                'es': 'es-ES'
+            };
+            utterance.lang = langMap[language] || 'en-US';
+
+            // Try to find a good voice for the language
             const voices = this.synth.getVoices();
-            const femaleVoice = voices.find(v =>
-                v.lang.startsWith('en') &&
-                (v.name.toLowerCase().includes('female') ||
-                    v.name.toLowerCase().includes('samantha') ||
-                    v.name.toLowerCase().includes('victoria') ||
-                    v.name.toLowerCase().includes('karen') ||
-                    v.name.toLowerCase().includes('moira') ||
-                    v.name.toLowerCase().includes('fiona') ||
-                    v.name.toLowerCase().includes('zira') ||
-                    v.name.toLowerCase().includes('hazel') ||
-                    v.name.toLowerCase().includes('susan') ||
-                    v.name.toLowerCase().includes('kate'))
-            );
+            let selectedVoice = null;
 
-            if (femaleVoice) {
-                utterance.voice = femaleVoice;
+            if (language === 'es') {
+                // For Spanish, find a Spanish voice
+                selectedVoice = voices.find(v => v.lang.startsWith('es'));
+            } else {
+                // For English, prefer female voices
+                selectedVoice = voices.find(v =>
+                    v.lang.startsWith('en') &&
+                    (v.name.toLowerCase().includes('female') ||
+                        v.name.toLowerCase().includes('samantha') ||
+                        v.name.toLowerCase().includes('victoria') ||
+                        v.name.toLowerCase().includes('karen') ||
+                        v.name.toLowerCase().includes('moira') ||
+                        v.name.toLowerCase().includes('fiona') ||
+                        v.name.toLowerCase().includes('zira') ||
+                        v.name.toLowerCase().includes('hazel') ||
+                        v.name.toLowerCase().includes('susan') ||
+                        v.name.toLowerCase().includes('kate'))
+                );
+            }
+
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
             }
 
             utterance.onend = () => resolve();
@@ -228,15 +242,16 @@ export class SpeechService {
     /**
      * Listen for speech and return the recognized text
      * @param targetWord Optional - if provided, will auto-stop when this word is recognized (even in interim results)
+     * @param language Optional - language code ('en' or 'es'), defaults to 'en'
      */
-    listen(targetWord?: string): Observable<{ result: string; confidence: number } | { error: string } | { status: string }> {
+    listen(targetWord?: string, language: string = 'en'): Observable<{ result: string; confidence: number } | { error: string } | { status: string }> {
         if (this.isNativeSupported()) {
-            return this.listenWithNative(targetWord);
+            return this.listenWithNative(targetWord, language);
         } else {
             if (!this.worker) {
                 this.initWorker();
             }
-            return this.listenWithWhisper();
+            return this.listenWithWhisper(language);
         }
     }
 
@@ -251,7 +266,7 @@ export class SpeechService {
         }
     }
 
-    private listenWithWhisper(): Observable<{ result: string; confidence: number } | { error: string } | { status: string }> {
+    private listenWithWhisper(language: string = 'en'): Observable<{ result: string; confidence: number } | { error: string } | { status: string }> {
         return new Observable(observer => {
             if (!this.worker) {
                 observer.next({ error: 'Worker not initialized' });
@@ -356,8 +371,8 @@ export class SpeechService {
                     }
 
                     // Send to worker
-                    console.log(`[SpeechService] Sending ${finalAudio.length} samples to worker...`);
-                    this.worker?.postMessage({ type: 'process', audio: finalAudio, modelName: modelName });
+                    console.log(`[SpeechService] Sending ${finalAudio.length} samples to worker (lang: ${language})...`);
+                    this.worker?.postMessage({ type: 'process', audio: finalAudio, modelName: modelName, language: language });
 
                     // Stop capturing but wait for worker result
                     this.stopAudioCapture();
@@ -430,7 +445,7 @@ export class SpeechService {
         this.stopAudioCapture();
     }
 
-    private listenWithNative(targetWord?: string): Observable<{ result: string; confidence: number } | { error: string }> {
+    private listenWithNative(targetWord?: string, language: string = 'en'): Observable<{ result: string; confidence: number } | { error: string }> {
         const subject = new Subject<{ result: string; confidence: number } | { error: string }>();
 
         if (!this.recognition) {
@@ -440,6 +455,13 @@ export class SpeechService {
             }, 0);
             return subject.asObservable();
         }
+
+        // Set language for recognition
+        const langMap: { [key: string]: string } = {
+            'en': 'en-US',
+            'es': 'es-ES'
+        };
+        this.recognition.lang = langMap[language] || 'en-US';
 
         // Enable interim results for faster response
         this.recognition.interimResults = true;

@@ -219,6 +219,38 @@ import { TopNavComponent } from './top-nav/top-nav.component';
       padding-top: 20px;
       border-top: 1px solid #e0e0e0;
     }
+
+    /* Dark Mode Overrides */
+    :host-context(body.dark-mode) {
+      .settings-section {
+        background-color: #1e1e1e;
+        border-color: #333;
+
+        h3 {
+          color: #e0e0e0;
+        }
+      }
+
+      .setting-item .setting-description {
+        color: #b0b0b0;
+      }
+
+      .setting-item .progress-bar-container {
+        background: #2a2a2a;
+
+        .progress-text {
+          color: #b0b0b0;
+        }
+      }
+
+      .timer-settings {
+        border-left-color: #444;
+      }
+
+      .settings-actions {
+        border-top-color: #333;
+      }
+    }
   `]
 })
 export class SettingsComponent implements OnInit, OnDestroy {

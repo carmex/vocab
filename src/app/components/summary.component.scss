@@ -14,8 +14,14 @@
     font-weight: bold;
   }
 
-  .correct { color: #4CAF50; }
-  .missed { color: #F44336; }
+  .correct {
+    color: #4CAF50;
+  }
+
+  .missed {
+    color: #F44336;
+  }
+
   .score {
     font-size: 1.8rem;
     margin-top: 20px;
@@ -32,5 +38,12 @@
   button {
     min-height: 50px;
     font-size: 1.1rem;
+  }
+}
+
+/* Dark Mode Overrides */
+:host-context(body.dark-mode) {
+  .stats .score {
+    border-top-color: #444;
   }
 }

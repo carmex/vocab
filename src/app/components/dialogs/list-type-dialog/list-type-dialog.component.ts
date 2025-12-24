@@ -7,16 +7,16 @@ import { MatCardModule } from '@angular/material/card';
 import { ListType } from '../../../models/list-type.enum';
 
 @Component({
-    selector: 'app-list-type-dialog',
-    standalone: true,
-    imports: [
-        CommonModule,
-        MatDialogModule,
-        MatButtonModule,
-        MatIconModule,
-        MatCardModule
-    ],
-    template: `
+  selector: 'app-list-type-dialog',
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatDialogModule,
+    MatButtonModule,
+    MatIconModule,
+    MatCardModule
+  ],
+  template: `
     <h2 mat-dialog-title>Choose List Type</h2>
     <mat-dialog-content>
       <div class="type-grid">
@@ -43,7 +43,7 @@ import { ListType } from '../../../models/list-type.enum';
       <button mat-button mat-dialog-close>Cancel</button>
     </mat-dialog-actions>
   `,
-    styles: [`
+  styles: [`
     .type-grid {
       display: flex;
       flex-direction: column;
@@ -76,14 +76,27 @@ import { ListType } from '../../../models/list-type.enum';
       font-size: 0.85rem;
       color: #666;
     }
+
+    /* Dark Mode Overrides */
+    :host-context(body.dark-mode) {
+      .type-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      }
+      .type-icon {
+        color: #7986cb;
+      }
+      .type-card p {
+        color: #b0b0b0;
+      }
+    }
   `]
 })
 export class ListTypeDialogComponent {
-    ListType = ListType;
+  ListType = ListType;
 
-    constructor(private dialogRef: MatDialogRef<ListTypeDialogComponent>) { }
+  constructor(private dialogRef: MatDialogRef<ListTypeDialogComponent>) { }
 
-    select(type: ListType): void {
-        this.dialogRef.close(type);
-    }
+  select(type: ListType): void {
+    this.dialogRef.close(type);
+  }
 }

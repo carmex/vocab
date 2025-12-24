@@ -61,12 +61,123 @@ body.dark-mode {
         .mat-mdc-select-arrow {
             color: #e0e0e0 !important;
         }
+
+        /* Form field label */
+        .mdc-floating-label {
+            color: #b0b0b0 !important;
+        }
+
+        /* Form field underline */
+        .mdc-line-ripple::before {
+            border-bottom-color: #555 !important;
+        }
+
+        /* Form field outline (for outline appearance) */
+        .mdc-notched-outline__leading,
+        .mdc-notched-outline__notch,
+        .mdc-notched-outline__trailing {
+            border-color: #555 !important;
+        }
+
+        /* Hint text */
+        .mat-mdc-form-field-hint {
+            color: #888 !important;
+        }
+
+        /* Fill appearance background */
+        .mdc-text-field--filled:not(.mdc-text-field--disabled) {
+            background-color: #2a2a2a !important;
+        }
+
+        .mdc-text-field--filled:not(.mdc-text-field--disabled) .mdc-text-field__input {
+            color: #e0e0e0 !important;
+        }
+
+        /* Outline appearance - style the input area without affecting label */
+        .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-text-field__input {
+            background-color: transparent !important;
+        }
+
+        /* Placeholder text - only visible when focused (when label floats up) */
+        input::placeholder,
+        textarea::placeholder {
+            color: transparent !important;
+            transition: color 0.2s ease;
+        }
+
+        /* Show placeholder when field is focused (using :focus-within for reliability) */
+        &:focus-within {
+
+            input::placeholder,
+            textarea::placeholder {
+                color: #888 !important;
+            }
+        }
+    }
+
+    /* Also handle form fields that have floating label already raised (has value) */
+    .mat-mdc-form-field.mat-form-field-should-float:not(:focus-within) {
+
+        input::placeholder,
+        textarea::placeholder {
+            color: #666 !important;
+        }
+    }
+
+    /* Select Panel (dropdown overlay) */
+    .mat-mdc-select-panel {
+        background-color: #2a2a2a !important;
+
+        .mat-mdc-option {
+            color: #e0e0e0 !important;
+
+            &:hover:not(.mdc-list-item--disabled),
+            &:focus:not(.mdc-list-item--disabled) {
+                background-color: rgba(255, 255, 255, 0.08) !important;
+            }
+
+            &.mdc-list-item--selected:not(.mdc-list-item--disabled) {
+                background-color: rgba(99, 102, 241, 0.15) !important;
+            }
+
+            .mdc-list-item__primary-text {
+                color: #e0e0e0 !important;
+            }
+        }
     }
 
     /* Dialog Overrides */
     .mat-mdc-dialog-container {
         background-color: #1e1e1e !important;
         color: #e0e0e0 !important;
+
+        .mat-mdc-dialog-surface {
+            background-color: #1e1e1e !important;
+        }
+
+        .mat-mdc-dialog-title {
+            color: #e0e0e0 !important;
+        }
+
+        .mat-mdc-dialog-content {
+            color: #e0e0e0 !important;
+        }
+    }
+
+    /* Dialog Actions - Fix Cancel button visibility */
+    .mat-mdc-dialog-actions {
+        .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button) {
+            color: #b0b0b0 !important;
+
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.08) !important;
+                color: #e0e0e0 !important;
+            }
+
+            &:focus {
+                background-color: rgba(255, 255, 255, 0.12) !important;
+            }
+        }
     }
 
     /* Menu Overrides */
@@ -79,6 +190,10 @@ body.dark-mode {
             &:hover {
                 background-color: rgba(255, 255, 255, 0.08) !important;
             }
+
+            &[disabled] {
+                color: #888 !important;
+            }
         }
     }
 
@@ -90,9 +205,74 @@ body.dark-mode {
         }
     }
 
+    /* Checkbox icon/checkmark color */
+    .mat-mdc-checkbox {
+        .mdc-checkbox {
+
+            /* Unchecked border */
+            .mdc-checkbox__background {
+                border-color: #888 !important;
+            }
+
+            /* Checked background */
+            &.mdc-checkbox--selected .mdc-checkbox__background,
+            .mdc-checkbox__native-control:checked~.mdc-checkbox__background {
+                background-color: #7986cb !important;
+                border-color: #7986cb !important;
+            }
+        }
+
+        /* Checkmark color */
+        .mdc-checkbox__checkmark {
+            color: #fff !important;
+        }
+
+        .mdc-checkbox__checkmark-path {
+            stroke: #fff !important;
+        }
+    }
+
     /* Button Overrides */
     .mat-mdc-button {
         color: #e0e0e0 !important;
+    }
+
+    /* Raised Button (primary) disabled state */
+    .mat-mdc-raised-button[disabled],
+    .mat-mdc-unelevated-button[disabled] {
+        background-color: #333 !important;
+        color: #777 !important;
+    }
+
+    /* Stroked Button */
+    .mat-mdc-outlined-button:not([disabled]) {
+        border-color: #555 !important;
+        color: #e0e0e0 !important;
+    }
+
+    /* Stroked Button disabled */
+    .mat-mdc-outlined-button[disabled] {
+        border-color: #444 !important;
+        color: #666 !important;
+    }
+
+    /* List Items */
+    .mat-mdc-list-item {
+        color: #e0e0e0 !important;
+
+        .mdc-list-item__primary-text,
+        .mdc-list-item__secondary-text {
+            color: #e0e0e0 !important;
+        }
+
+        .mdc-list-item__secondary-text {
+            color: #b0b0b0 !important;
+        }
+    }
+
+    /* Progress Bar */
+    .mat-mdc-progress-bar {
+        --mdc-linear-progress-track-color: #333 !important;
     }
 
     /* Quiz Answer Button Override */
@@ -114,6 +294,12 @@ body.dark-mode {
             background-color: #D32F2F !important; // Darker red
             color: white !important;
         }
+    }
+
+    /* Tooltip */
+    .mat-mdc-tooltip {
+        --mdc-plain-tooltip-container-color: #333 !important;
+        --mdc-plain-tooltip-supporting-text-color: #e0e0e0 !important;
     }
 }
 

@@ -11,11 +11,14 @@ class WhisperWorker {
     static currentModelName: string | null = null;
 
     static async getInstance(progressCallback: any, modelName: string = 'tiny') {
-        if (this.instance === null || this.currentModelName !== modelName) {
+        // Use multilingual model instead of English-only
+        const fullModelName = `Xenova/whisper-${modelName}`;
+
+        if (this.instance === null || this.currentModelName !== fullModelName) {
             try {
-                this.currentModelName = modelName;
-                console.log(`[WhisperWorker] Loading pipeline (model: ${modelName})...`);
-                this.instance = await pipeline('automatic-speech-recognition', `Xenova/whisper-${modelName}.en`, {
+                this.currentModelName = fullModelName;
+                console.log(`[WhisperWorker] Loading pipeline (model: ${fullModelName})...`);
+                this.instance = await pipeline('automatic-speech-recognition', fullModelName, {
                     progress_callback: progressCallback
                 });
                 console.log('[WhisperWorker] Pipeline loaded');
@@ -29,7 +32,7 @@ class WhisperWorker {
 }
 
 self.addEventListener('message', async (event) => {
-    const { type, audio, modelName } = event.data;
+    const { type, audio, modelName, language } = event.data;
 
     if (type === 'load') {
         try {
@@ -56,10 +59,18 @@ self.addEventListener('message', async (event) => {
             // But we assume 'load' was called or we default to tiny
             const transcriber = await WhisperWorker.getInstance(() => { }, modelName);
 
+            // Map language codes to Whisper language codes
+            const langMap: { [key: string]: string } = {
+                'en': 'english',
+                'es': 'spanish'
+            };
+            const whisperLang = langMap[language] || 'english';
+
             const output = await transcriber(audio, {
                 chunk_length_s: 30,
                 stride_length_s: 5,
-                return_timestamps: false
+                return_timestamps: false,
+                language: whisperLang
             });
 
             self.postMessage({
@@ -74,3 +85,4 @@ self.addEventListener('message', async (event) => {
         }
     }
 });
+

@@ -12,6 +12,7 @@ export interface WordList {
     creator_id: string;
     is_public: boolean;
     list_type: string;
+    language: string;
     created_at: string;
 }
 
@@ -150,14 +151,15 @@ export class ListService {
     /**
      * Creates a new list using the RPC `create_new_list`.
      */
-    createList(name: string, description: string, isPublic: boolean, listType: ListType = ListType.WORD_DEFINITION): Observable<string> {
-        console.log('ListService.createList called with:', { name, description, isPublic, listType });
+    createList(name: string, description: string, isPublic: boolean, listType: ListType = ListType.WORD_DEFINITION, language: string = 'en'): Observable<string> {
+        console.log('ListService.createList called with:', { name, description, isPublic, listType, language });
         const rpc = this.supabase.client
             .rpc('create_new_list', {
                 p_name: name,
                 p_description: description,
                 p_is_public: isPublic,
-                p_list_type: listType
+                p_list_type: listType,
+                p_language: language
             });
 
         return from(rpc).pipe(
@@ -175,10 +177,14 @@ export class ListService {
     /**
      * Updates an existing list's metadata.
      */
-    updateList(listId: string, name: string, description: string, isPublic: boolean): Observable<void> {
+    updateList(listId: string, name: string, description: string, isPublic: boolean, language?: string): Observable<void> {
+        const updateData: any = { name, description, is_public: isPublic };
+        if (language) {
+            updateData.language = language;
+        }
         const query = this.supabase.client
             .from('word_lists')
-            .update({ name, description, is_public: isPublic })
+            .update(updateData)
             .eq('id', listId);
 
         return from(query).pipe(
