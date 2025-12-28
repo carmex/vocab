@@ -77,6 +77,7 @@ import { TopNavComponent } from '../top-nav/top-nav.component';
       max-width: 600px;
       margin: 0 auto;
       padding: 10px;
+      box-sizing: border-box;
     }
 
     .auth-content {

@@ -16,6 +16,7 @@ const routes: Routes = [
   { path: 'settings', loadComponent: () => import('./components/settings.component').then(m => m.SettingsComponent) },
   { path: 'login', loadComponent: () => import('./components/auth/login.component').then(m => m.LoginComponent) },
   { path: 'signup', loadComponent: () => import('./components/auth/signup.component').then(m => m.SignupComponent) },
+  { path: 'share/:code', loadComponent: () => import('./components/share-receiver/share-receiver.component').then(m => m.ShareReceiverComponent) },
   { path: 'summary', loadComponent: () => import('./components/summary.component').then(m => m.SummaryComponent) },
   { path: '**', redirectTo: '/dashboard' }
 ];

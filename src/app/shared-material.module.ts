@@ -11,6 +11,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatInputModule } from '@angular/material/input';
 
+import { MatMenuModule } from '@angular/material/menu';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+
 @NgModule({
   imports: [
     MatButtonModule,
@@ -23,7 +26,9 @@ import { MatInputModule } from '@angular/material/input';
     MatCardModule,
     MatIconModule,
     MatTooltipModule,
-    MatInputModule
+    MatInputModule,
+    MatMenuModule,
+    MatSnackBarModule
   ],
   exports: [
     MatButtonModule,
@@ -36,7 +41,9 @@ import { MatInputModule } from '@angular/material/input';
     MatCardModule,
     MatIconModule,
     MatTooltipModule,
-    MatInputModule
+    MatInputModule,
+    MatMenuModule,
+    MatSnackBarModule
   ]
 })
 export class SharedMaterialModule { }

@@ -42,6 +42,9 @@
         </div>
       </mat-card-content>
       <mat-card-actions align="end">
+        <button mat-icon-button (click)="$event.stopPropagation(); onShare(share.word_list_id, share.word_lists?.name)" matTooltip="Share List">
+           <mat-icon>share</mat-icon>
+        </button>
         <button mat-icon-button *ngIf="share.word_lists?.creator_id === (auth.user$ | async)?.id"
           (click)="$event.stopPropagation(); onEdit(share.word_list_id)" matTooltip="Edit List">
           <mat-icon>edit</mat-icon>
@@ -54,7 +57,17 @@
     </mat-card>
   </div>
 
-  <button mat-fab color="primary" class="fab-add" (click)="onCreateList()">
+  <button mat-fab color="primary" class="fab-add" [matMenuTriggerFor]="fabMenu">
     <mat-icon>add</mat-icon>
   </button>
+  <mat-menu #fabMenu="matMenu" yPosition="above">
+      <button mat-menu-item (click)="onCreateList()">
+          <mat-icon>playlist_add</mat-icon>
+          <span>Create New List</span>
+      </button>
+      <button mat-menu-item (click)="onScanQr()">
+          <mat-icon>qr_code_scanner</mat-icon>
+          <span>Scan QR Code</span>
+      </button>
+  </mat-menu>
 </div>

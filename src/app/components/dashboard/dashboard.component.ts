@@ -7,6 +7,8 @@ import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { ListTypeDialogComponent } from '../dialogs/list-type-dialog/list-type-dialog.component';
 import { ListType } from '../../models/list-type.enum';
+import { ShareDialogComponent } from '../dialogs/share-dialog.component';
+import { QrScannerDialogComponent } from '../dialogs/qr-scanner-dialog.component';
 
 @Component({
     selector: 'app-dashboard',
@@ -67,5 +69,39 @@ export class DashboardComponent implements OnInit {
 
     onLogin() {
         this.router.navigate(['/login']);
+    }
+    onShare(listId: string, listName: string | undefined) {
+        if (!listName) return;
+
+        this.listService.generateShareCode(listId).subscribe({
+            next: (code) => {
+                this.dialog.open(ShareDialogComponent, {
+                    width: '400px',
+                    data: { listName, shareCode: code }
+                });
+            },
+            error: (err) => console.error('Error generating share code:', err)
+        });
+    }
+
+    onScanQr() {
+        const dialogRef = this.dialog.open(QrScannerDialogComponent, {
+            width: '100%',
+            maxWidth: '500px',
+            height: 'auto',
+            panelClass: 'scanner-dialog'
+        });
+
+        dialogRef.afterClosed().subscribe((result: string | undefined) => {
+            if (result) {
+                // Check if it is a valid URL for this app
+                if (result.includes('/share/')) {
+                    const code = result.split('/share/')[1];
+                    this.router.navigate(['/share', code]);
+                } else {
+                    alert('Invalid QR Code');
+                }
+            }
+        });
     }
 }

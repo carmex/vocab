@@ -128,6 +128,7 @@ import { TopNavComponent } from './top-nav/top-nav.component';
       padding: 10px;
       max-width: 600px;
       margin: 0 auto;
+      box-sizing: border-box;
     }
 
     h2 {

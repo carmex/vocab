@@ -328,4 +328,50 @@ export class ListService {
             })
         );
     }
+
+    /**
+     * Generates or retrieves a share code for a list.
+     */
+    generateShareCode(listId: string): Observable<string> {
+        const rpc = this.supabase.client
+            .rpc('generate_share_code', { p_list_id: listId });
+
+        return from(rpc).pipe(
+            map(({ data, error }) => {
+                if (error) throw error;
+                return data as string;
+            })
+        );
+    }
+
+    /**
+     * Gets public or private list metadata by share code.
+     */
+    getListByShareCode(code: string): Observable<WordList> {
+        const rpc = this.supabase.client
+            .rpc('get_list_by_share_code', { p_code: code })
+            .single();
+
+        return from(rpc).pipe(
+            map(({ data, error }) => {
+                if (error) throw error;
+                return data as WordList;
+            })
+        );
+    }
+
+    /**
+     * Subscribes to a list using its share code.
+     */
+    subscribeByShareCode(code: string): Observable<string> {
+        const rpc = this.supabase.client
+            .rpc('subscribe_by_share_code', { p_code: code });
+
+        return from(rpc).pipe(
+            map(({ data, error }) => {
+                if (error) throw error;
+                return data as string; // returns list_id
+            })
+        );
+    }
 }

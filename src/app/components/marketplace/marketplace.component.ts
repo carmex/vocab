@@ -47,6 +47,7 @@ import { TopNavComponent } from '../top-nav/top-nav.component';
       padding: 10px; 
       text-align: center;
       position: relative;
+      box-sizing: border-box;
     }
     .list-grid { 
       display: grid; 

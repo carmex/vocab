@@ -241,6 +241,7 @@ export interface WordRow {
       max-width: 600px;
       margin: 0 auto;
       padding: 10px;
+      box-sizing: border-box;
     }
     .editor-card {
       padding: 20px;

@@ -6,6 +6,12 @@ body {
     height: 100%;
 }
 
+html {
+    /* Always reserve space for scrollbar to prevent layout shifts between routes */
+    scrollbar-gutter: stable;
+    overflow-y: scroll;
+}
+
 body {
     margin: 0;
     font-family: Roboto, "Helvetica Neue", sans-serif;

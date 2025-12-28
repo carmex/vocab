@@ -23,6 +23,8 @@
     "@huggingface/transformers": "^3.8.1",
     "@supabase/supabase-js": "^2.86.0",
     "@types/twemoji": "^13.1.1",
+    "angularx-qrcode": "^21.0.4",
+    "jsqr": "^1.4.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "twemoji": "^14.0.2",
