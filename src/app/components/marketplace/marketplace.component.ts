@@ -49,15 +49,28 @@ import { TopNavComponent } from '../top-nav/top-nav.component';
       position: relative;
       box-sizing: border-box;
     }
-    .list-grid { 
+    .list-grid, .lists-grid { 
       display: grid; 
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
       gap: 20px; 
       margin-top: 20px; 
       text-align: left;
     }
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        color: #555;
+    }
     .list-card { cursor: pointer; transition: transform 0.2s; }
     .list-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .quest-card { border-left: 5px solid #ff4081; }
+    .quest-card.completed { border-left-color: #4caf50; opacity: 0.8; }
+    .done-icon { color: #4caf50; }
+    .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .status-badge.complete { background: #e8f5e9; color: #2e7d32; }
+    .status-badge.todo { background: #fee; color: #c62828; }
     .load-more { margin-top: 30px; text-align: center; }
   `]
 })

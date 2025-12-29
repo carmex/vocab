@@ -6,6 +6,41 @@
   </ng-container>
 
   <ng-template #studentDash>
+    <!-- Quests Section -->
+    <div class="quests-container" *ngIf="(myQuests$ | async) as quests">
+      <div *ngIf="quests.length > 0">
+        <h2 class="section-title">
+          <mat-icon class="section-icon">assignment</mat-icon> Quests
+        </h2>
+        <div class="lists-grid">
+          <mat-card *ngFor="let quest of quests" class="list-card quest-card" [class.completed]="quest.is_completed"
+            (click)="onPlayQuest(quest)">
+            <mat-card-header>
+              <mat-icon mat-card-avatar [class.done-icon]="quest.is_completed">
+                {{ quest.is_completed ? 'check_circle' : 'circle' }}
+              </mat-icon>
+              <mat-card-title>{{ quest.word_lists?.name }}</mat-card-title>
+              <mat-card-subtitle>
+                Due: {{ quest.due_date | date:'mediumDate' }}
+              </mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p *ngIf="quest.instructions" class="quest-instructions">{{ quest.instructions }}</p>
+            </mat-card-content>
+            <mat-card-actions align="end">
+              <span *ngIf="quest.is_completed" class="status-badge complete">Completed</span>
+              <span *ngIf="!quest.is_completed" class="status-badge todo">To Do</span>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+        <mat-divider style="margin: 20px 0;"></mat-divider>
+      </div>
+    </div>
+
+    <h2 class="section-title" *ngIf="(myLists$ | async)?.length">
+      <mat-icon class="section-icon">collections_bookmark</mat-icon> My Lists
+    </h2>
+
     <div class="lists-grid" *ngIf="(myLists$ | async) as lists">
       <div class="empty-state" *ngIf="lists.length === 0">
         <mat-icon class="empty-icon">library_books</mat-icon>
@@ -52,6 +87,14 @@
             matTooltip="Share List">
             <mat-icon>share</mat-icon>
           </button>
+
+          <!-- Assign Button for Teachers -->
+          <button mat-flat-button color="primary" *ngIf="(auth.profile$ | async)?.role === 'teacher'"
+            (click)="$event.stopPropagation(); onAssign(share.word_list_id, share.word_lists?.name)"
+            matTooltip="Assign to Class">
+            Assign
+          </button>
+
           <button mat-icon-button *ngIf="share.word_lists?.creator_id === (auth.user$ | async)?.id"
             (click)="$event.stopPropagation(); onEdit(share.word_list_id)" matTooltip="Edit List">
             <mat-icon>edit</mat-icon>

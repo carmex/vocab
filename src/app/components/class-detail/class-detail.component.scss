@@ -6,79 +6,94 @@
 }
 
 .header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
     margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 
     h1 {
-        margin: 0;
-        font-size: 24px;
+        margin: 0 0 8px 0;
+        font-size: 2rem;
+        color: #333;
     }
 
     .subtitle {
         color: #666;
-        margin-top: 4px;
+        font-size: 1.1rem;
     }
 }
 
 .tab-content {
-    padding: 24px 0;
+    background: white;
+    min-height: 400px;
+    padding: 20px;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .empty-tab {
-    text-align: center;
-    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
     color: #999;
+    text-align: center;
 
     mat-icon {
-        font-size: 48px;
-        height: 48px;
-        width: 48px;
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
         margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    h3 {
+        margin: 0 0 8px 0;
+        font-size: 1.5rem;
+        color: #666;
+    }
+
+    p {
+        margin: 0;
+        max-width: 300px;
     }
 }
 
 .loading-container {
-    padding: 20px;
+    padding: 40px;
 }
 
-// Dark Mode Overrides
-:host-context(body.dark-mode) {
-    .header {
-        h1 {
-            color: #e0e0e0;
-        }
+/* Table Styles */
+.full-width-table {
+    width: 100%;
+}
 
-        .subtitle {
-            color: #b0b0b0;
+.assignment-name {
+    font-weight: 500;
+}
 
-            strong {
-                color: #fff;
-            }
-        }
+.completion-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: #f5f5f5;
+    color: #666;
+    font-size: 0.85rem;
+    font-weight: 500;
+
+    &.full {
+        background: #e8f5e9;
+        color: #2e7d32;
     }
+}
 
-    .empty-tab {
-        color: #777;
+.actions-cell {
+    width: 60px;
+    text-align: right;
+}
 
-        mat-icon {
-            color: #555;
-        }
-    }
-
-    // Fix Tab Text Colors
-    ::ng-deep .mat-mdc-tab-group {
-        .mat-mdc-tab:not(.mdc-tab--active) {
-            .mdc-tab__text-label {
-                color: #b0b0b0 !important;
-            }
-        }
-
-        .mat-mdc-tab.mdc-tab--active {
-            .mdc-tab__text-label {
-                color: #fff !important;
-            }
-        }
-    }
+.overdue {
+    color: #d32f2f;
+    font-weight: 500;
 }

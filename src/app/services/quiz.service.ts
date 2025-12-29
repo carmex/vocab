@@ -78,6 +78,7 @@ export class QuizService {
     // Restore counts
     this.answeredCount = answeredIds.length;
     this.correctCount = answeredIds.length - incorrectIds.length;
+    console.log(`[DEBUG] Restored progress: answered=${this.answeredCount}, correct=${this.correctCount}`);
 
     // 3. Filter Queue
     if (mode === 'main') {
@@ -128,6 +129,7 @@ export class QuizService {
 
   // Optimistic Update
   async submitAnswer(wordId: string, isCorrect: boolean) {
+    console.log(`[DEBUG] submitAnswer: wordId=${wordId}, isCorrect=${isCorrect}`);
     // 1. Remove from queue immediately (Optimistic UI)
     const index = this.quizQueue.findIndex(w => w.id === wordId);
     if (index > -1) {
@@ -137,16 +139,21 @@ export class QuizService {
     if (isCorrect) this.correctCount++;
 
     // 2. Background RPC Call
-    const { error } = await this.supabase.client.rpc('update_quiz_progress', {
+    const payload = {
       p_list_id: this.currentListId,
       p_pass_type: this.currentMode,
       p_word_id: wordId,
       p_is_correct: isCorrect
-    });
+    };
+    console.log('[DEBUG] Calling update_quiz_progress with:', payload);
+
+    const { error } = await this.supabase.client.rpc('update_quiz_progress', payload);
 
     if (error) {
-      console.error('Failed to save progress', error);
+      console.error('[DEBUG] Failed to save progress', error);
       // In a real app, we might revert the UI state or show a toast
+    } else {
+      console.log('[DEBUG] Progress saved successfully');
     }
   }
 

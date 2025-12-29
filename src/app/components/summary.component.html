@@ -1,5 +1,6 @@
 <div class="summary-container" *ngIf="!loading; else spinner">
-  <h1>Pass Complete!</h1>
+  <h1 *ngIf="questCompleted">Quest Complete!</h1>
+  <h1 *ngIf="!questCompleted">Pass Complete!</h1>
 
   <div class="stats">
     <h2>{{ correctCount }} / {{ totalCount }} Correct</h2>

@@ -7,6 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { QuizQuestion } from '../models/quiz-question.interface';
 import { QuizService } from '../services/quiz.service';
 import { SettingsService } from '../services/settings.service';
+import { ClassroomService } from '../services/classroom.service';
+import { AuthService } from '../services/auth.service';
 import { TopNavComponent } from './top-nav/top-nav.component';
 import { TwemojiPipe } from '../pipes/twemoji.pipe';
 import { ListType } from '../models/list-type.enum';
@@ -42,16 +44,21 @@ export class QuizComponent implements OnInit, OnDestroy {
   private remainingTime = 0;
   private totalTime = 0;
 
+  questId: string | null = null;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private quizService: QuizService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private classroomService: ClassroomService,
+    private auth: AuthService
   ) { }
 
   async ngOnInit(): Promise<void> {
     this.listId = this.route.snapshot.paramMap.get('listId') || '';
     this.quizMode = this.route.snapshot.paramMap.get('mode') as 'main' | 'review';
+    this.questId = this.route.snapshot.queryParamMap.get('questId');
 
     if (!this.listId || !this.quizMode) {
       this.router.navigate(['/dashboard']);
@@ -63,7 +70,7 @@ export class QuizComponent implements OnInit, OnDestroy {
 
       // Redirect sight words to dedicated quiz
       if (listType === ListType.SIGHT_WORDS) {
-        this.router.navigate(['/sight-words-quiz', this.listId], { queryParams: { mode: this.quizMode } });
+        this.router.navigate(['/sight-words-quiz', this.listId], { queryParams: { mode: this.quizMode, questId: this.questId } });
         return;
       }
 
@@ -92,7 +99,19 @@ export class QuizComponent implements OnInit, OnDestroy {
 
     if (!this.currentQuestion) {
       // Quiz Over
-      this.router.navigate(['/summary']);
+      if (this.questId) {
+        // Mark quest as complete
+        const userId = this.auth.currentUser?.id;
+        if (userId) {
+          this.classroomService.completeQuest(this.questId, userId).subscribe({
+            next: () => console.log('Quest completed!'),
+            error: (err) => console.error('Error completing quest:', err)
+          });
+        }
+        this.router.navigate(['/summary'], { queryParams: { questCompleted: true } });
+      } else {
+        this.router.navigate(['/summary']);
+      }
     }
   }
 

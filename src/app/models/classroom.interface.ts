@@ -7,6 +7,8 @@ export interface Classroom {
     grade_level?: string;
     code: string;
     created_at: string;
+    // Optional joined fields
+    student_count?: number;
 }
 
 export interface ClassroomStudent {

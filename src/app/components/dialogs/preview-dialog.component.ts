@@ -1,11 +1,14 @@
 import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatListModule } from '@angular/material/list';
 import { ListService } from '../../services/list.service';
 import { Router } from '@angular/router';
 import { TwemojiPipe } from '../../pipes/twemoji.pipe';
+import { AuthService } from '../../services/auth.service';
+import { AssignQuestDialogComponent } from './assign-quest-dialog/assign-quest-dialog.component';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-preview-dialog',
@@ -25,6 +28,12 @@ import { TwemojiPipe } from '../../pipes/twemoji.pipe';
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>Cancel</button>
+      <button mat-stroked-button color="primary" 
+        *ngIf="(auth.profile$ | async)?.role === 'teacher'"
+        (click)="onAssign()"
+        style="margin-right: 8px;">
+        Assign to Class
+      </button>
       <button mat-raised-button color="primary" (click)="onSubscribe()" [disabled]="subscribing">
         {{ subscribing ? 'Adding...' : 'Add to My Lists' }}
       </button>
@@ -43,7 +52,10 @@ export class PreviewDialogComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: { listId: string, listName: string },
     private dialogRef: MatDialogRef<PreviewDialogComponent>,
     private listService: ListService,
-    private router: Router
+    private router: Router,
+    public auth: AuthService,
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) { }
 
   ngOnInit(): void {
@@ -56,7 +68,6 @@ export class PreviewDialogComponent implements OnInit {
     // Let's just use getListDetails for now, but wait, getListDetails DOES NOT return words list, just counts.
     // I need to fetch words!
     // I will use a direct query here or add a method. 
-    // Let's add a quick method to ListService or just query here if I could inject SupabaseService?
     // Better to keep logic in Service. I'll add `getPreviewWords` to ListService in a separate step or just use what I have.
     // Actually, I missed `getPreviewWords` in the plan. I'll add it to ListService now.
 
@@ -80,6 +91,28 @@ export class PreviewDialogComponent implements OnInit {
         console.error(err);
         alert('Failed to subscribe');
         this.subscribing = false;
+      }
+    });
+  }
+
+  onAssign() {
+    this.dialogRef.close(); // Close preview first? Or keep open? User story says "Dashboard" list, but preview is good too.
+    // Better to close preview to avoid stacking dialogs too much, 
+    // OR open on top. Material handles stacking.
+    // Let's close preview if they decide to assign.
+
+    const dialogRef = this.dialog.open(AssignQuestDialogComponent, {
+      width: '500px',
+      data: { listId: this.data.listId, listName: this.data.listName }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.count > 0) {
+        const count = result.studentCount;
+        const msg = count === 1 ? 'Assigned to 1 student!' : `Assigned to ${count} students!`;
+        this.snackBar.open(msg, 'Close', {
+          duration: 3000
+        });
       }
     });
   }

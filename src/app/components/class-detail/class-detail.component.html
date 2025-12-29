@@ -5,7 +5,8 @@
         <div>
             <h1>{{ classroom.name }}</h1>
             <div class="subtitle"><span *ngIf="classroom.grade_level">{{ classroom.grade_level }} • </span>Code:
-                <strong>{{ classroom.code }}</strong></div>
+                <strong>{{ classroom.code }}</strong>
+            </div>
         </div>
     </div>
 
@@ -14,12 +15,71 @@
             <app-roster *ngIf="classroom" [classId]="classroom.id" [classCode]="classroom.code"
                 [className]="classroom.name"></app-roster>
         </mat-tab>
-        <mat-tab label="Assignments">
+        <mat-tab label="Quests">
             <div class="tab-content">
-                <div class="empty-tab">
-                    <mat-icon>assignment</mat-icon>
-                    <h3>Assignments coming soon (Sprint 2)</h3>
+                <div class="assignments-table-container" *ngIf="quests.length > 0; else noQuests">
+                    <table mat-table [dataSource]="quests" class="mat-elevation-z0 full-width-table">
+
+                        <!-- Name Column -->
+                        <ng-container matColumnDef="name">
+                            <th mat-header-cell *matHeaderCellDef> Quest </th>
+                            <td mat-cell *matCellDef="let quest"> {{quest.list_name}} </td>
+                        </ng-container>
+
+                        <!-- Due Date Column -->
+                        <ng-container matColumnDef="dueDate">
+                            <th mat-header-cell *matHeaderCellDef> Due Date </th>
+                            <td mat-cell *matCellDef="let quest">
+                                <span
+                                    [class.overdue]="quest.due_date && (quest.due_date | date:'yyyy-MM-dd')! < (1 | date:'yyyy-MM-dd')!">
+                                    {{quest.due_date | date:'mediumDate'}}
+                                </span>
+                            </td>
+                        </ng-container>
+
+                        <!-- Completed Column -->
+                        <ng-container matColumnDef="completed">
+                            <th mat-header-cell *matHeaderCellDef> Progress </th>
+                            <td mat-cell *matCellDef="let quest">
+                                <span class="completion-badge"
+                                    [class.full]="quest.completion_count === (classroom?.student_count || 0)">
+                                    {{quest.completion_count}} / {{classroom?.student_count || 0}} Done
+                                </span>
+                            </td>
+                        </ng-container>
+
+                        <!-- Actions Column -->
+                        <ng-container matColumnDef="actions">
+                            <th mat-header-cell *matHeaderCellDef> </th>
+                            <td mat-cell *matCellDef="let quest" class="actions-cell">
+                                <button mat-icon-button [matMenuTriggerFor]="menu">
+                                    <mat-icon>more_vert</mat-icon>
+                                </button>
+                                <mat-menu #menu="matMenu">
+                                    <button mat-menu-item (click)="onEditQuest(quest)">
+                                        <mat-icon>edit</mat-icon>
+                                        <span>Edit Due Date</span>
+                                    </button>
+                                    <button mat-menu-item (click)="onDeleteQuest(quest)">
+                                        <mat-icon color="warn">delete</mat-icon>
+                                        <span>Delete Assignment</span>
+                                    </button>
+                                </mat-menu>
+                            </td>
+                        </ng-container>
+
+                        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+                    </table>
                 </div>
+
+                <ng-template #noQuests>
+                    <div class="empty-tab">
+                        <mat-icon>assignment_turned_in</mat-icon>
+                        <h3>No active assignments</h3>
+                        <p>Create a new assignment from the "My Lists" tab.</p>
+                    </div>
+                </ng-template>
             </div>
         </mat-tab>
     </mat-tab-group>

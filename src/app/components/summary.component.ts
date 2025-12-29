@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { QuizService } from '../services/quiz.service';
+import JSConfetti from 'js-confetti';
 
 @Component({
   selector: 'app-summary',
@@ -17,16 +18,43 @@ export class SummaryComponent implements OnInit {
   correctCount = 0;
   totalCount = 0;
   isReview = false;
+  questCompleted = false;
 
   constructor(
     private quizService: QuizService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) { }
 
   ngOnInit(): void {
     this.correctCount = this.quizService.correctCount;
     this.totalCount = this.quizService.answeredCount;
     this.isReview = this.quizService.currentMode === 'review';
+
+    // Check for quest completion
+    this.questCompleted = this.route.snapshot.queryParamMap.get('questCompleted') === 'true';
+    if (this.questCompleted) {
+      this.fireConfetti();
+    }
+  }
+
+  fireConfetti() {
+    // Simple custom confetti
+    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+
+    for (let i = 0; i < 100; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * 100 + 'vw';
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
+
+      document.body.appendChild(confetti);
+
+      setTimeout(() => {
+        confetti.remove();
+      }, 5000);
+    }
   }
 
   async onFinish() {

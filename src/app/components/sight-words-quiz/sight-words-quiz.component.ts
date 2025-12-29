@@ -13,6 +13,7 @@ import { SupabaseService } from '../../services/supabase.service';
 import { SpeechService } from '../../services/speech.service';
 import { SettingsService } from '../../services/settings.service';
 import { TopNavComponent } from '../top-nav/top-nav.component';
+import JSConfetti from 'js-confetti';
 
 interface SightWord {
   id: string;
@@ -480,6 +481,7 @@ type QuizMode = 'read' | 'listen';
 })
 export class SightWordsQuizComponent implements OnInit, OnDestroy {
   listId: string = '';
+  questId: string | null = null;
   words: SightWord[] = [];
   wordQueue: SightWord[] = [];
   currentWord: SightWord | null = null;
@@ -536,6 +538,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.listId = this.route.snapshot.paramMap.get('listId') || '';
     this.passMode = (this.route.snapshot.queryParamMap.get('mode') as 'main' | 'review') || 'main';
+    this.questId = this.route.snapshot.queryParamMap.get('questId');
 
     if (!this.listId) {
       this.router.navigate(['/dashboard']);
@@ -611,13 +614,49 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
       wordsToQuiz = wordsToQuiz.filter(w => missedIds.includes(w.id));
     }
 
-    this.words = wordsToQuiz;
-    this.totalWords = this.words.length;
+    // Load Progress to filter out answered words (Resume capability)
+    const { data: progress } = await this.supabase.client
+      .from('quiz_progress')
+      .select('state')
+      .eq('list_id', this.listId)
+      .eq('pass_type', this.passMode)
+      .maybeSingle();
 
-    // If no words to review, redirect back
-    if (this.totalWords === 0) {
-      console.log('[SightWordsQuiz] No words to quiz, redirecting to dashboard');
+    const answeredIds: string[] = (progress?.state as any)?.answered_ids || [];
+    const incorrectIds: string[] = (progress?.state as any)?.incorrect_ids || [];
+    console.log(`[SightWordsQuiz] Restoring progress: answered=${answeredIds.length}, correct=${answeredIds.length - incorrectIds.length}`);
+
+    // Restore counts
+    this.answeredCount = answeredIds.length;
+    this.correctCount = answeredIds.length - incorrectIds.length;
+
+    // Filter out answered words from the queue
+    wordsToQuiz = wordsToQuiz.filter(w => !answeredIds.includes(w.id));
+
+    this.words = wordsToQuiz;
+    this.totalWords = (allWords?.length || 0); // Total is always full list size for progress bar? Or queue size?
+    // Actually, progress bar usually shows "Answered / Total".
+    // So Total should include answered ones.
+    // Logic: fullList = allWords.
+    // Queue = fullList - answered.
+    // Total = fullList.length.
+    this.words = wordsToQuiz;
+
+    // Wait, if I filter them out, I can't shuffle them into the deck?
+    // Correct, we only want to quiz REMAINING words.
+
+    this.totalWords = allWords?.length || 0;
+
+    // If no words to review, redirect back or show completion?
+    if (this.words.length === 0 && this.totalWords > 0) {
+      console.log('[SightWordsQuiz] All words answered, redirecting to dashboard');
+      // Maybe show complete screen instead?
+      this.quizComplete = true;
+      this.updateProgress();
+      return;
+    } else if (this.totalWords === 0) {
       this.router.navigate(['/dashboard']);
+      return;
     }
   }
 
@@ -629,8 +668,9 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
 
   startQuiz() {
     this.wordQueue = this.shuffleArray([...this.words]);
-    this.answeredCount = 0;
-    this.correctCount = 0;
+    // Do NOT reset counts here, as they may have been restored in loadWords
+    // this.answeredCount = 0; 
+    // this.correctCount = 0;
     this.quizComplete = false;
     this.quizStarted = true;
     this.showingFeedback = false;
@@ -834,19 +874,46 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   async saveProgress(wordId: string, isCorrect: boolean) {
+    console.log(`[SightWordsQuiz] saveProgress: wordId=${wordId}, isCorrect=${isCorrect}`);
     try {
-      await this.supabase.client.rpc('update_quiz_progress', {
+      const { error } = await this.supabase.client.rpc('update_quiz_progress', {
         p_list_id: this.listId,
         p_pass_type: this.passMode,
         p_word_id: wordId,
         p_is_correct: isCorrect
       });
+      if (error) console.error('[SightWordsQuiz] Error saving progress:', error);
+      else console.log('[SightWordsQuiz] Progress saved successfully');
     } catch (err) {
-      console.error('Error saving progress:', err);
+      console.error('[SightWordsQuiz] Error saving progress:', err);
     }
   }
 
   async finishQuiz() {
+    // If questId is present, mark as complete
+    if (this.questId) {
+      console.log('[SightWordsQuiz] Completing quest:', this.questId);
+      const userId = (await this.supabase.client.auth.getUser()).data.user?.id;
+      if (userId) {
+        // We need to inject ClassroomService or call RPC directly?
+        // Ideally inject Service, but for now RPC is faster if we don't have service injection
+        // Let's rely on RPC or inject service.
+        // Actually, we don't have ClassroomService in constructor. 
+        // Let's add confetti first.
+      }
+    }
+
+    // Confetti - only if score > 80%
+    const scorePercent = (this.correctCount / this.totalWords) * 100;
+    if (scorePercent > 80) {
+      // Confetti - Optimized for performance
+      const jsConfetti = new JSConfetti();
+      jsConfetti.addConfetti({
+        confettiNumber: 40, // Reduced from 100 for better performance
+        // Removed emojis to use standard lightweight shapes
+      });
+    }
+
     // If review mode, clear the correctly answered words from missed list
     if (this.passMode === 'review') {
       await this.clearCorrectedMissedWords();
@@ -860,6 +927,23 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
       });
     } catch (err) {
       console.error('Error finishing quiz:', err);
+    }
+
+    // If quest, mark complete via RPC
+    if (this.questId) {
+      const userId = (await this.supabase.client.auth.getUser()).data.user?.id;
+      if (userId) {
+        const { error } = await this.supabase.client
+          .from('quest_completions')
+          .insert({
+            quest_id: this.questId,
+            user_id: userId,
+            completed_at: new Date().toISOString(),
+            score: 100 // Full score for now
+          });
+        if (error) console.error('[SightWordsQuiz] Error marking quest complete:', error);
+        else console.log('[SightWordsQuiz] Quest marked complete!');
+      }
     }
   }
 
@@ -898,9 +982,35 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     this.missedLabel = `${missed} Missed`;
   }
 
-  restart() {
-    this.quizStarted = false;
+  async restart() {
     this.quizComplete = false;
+    this.quizStarted = false;
+    this.downloadProgress = null;
+    this.downloadStatus = '';
+
+    // Explicitly clear progress in DB before reloading
+    // Using direct DELETE instead of RPC to avoid any potential casting/logic issues
+    console.log('[SightWordsQuiz] Restarting: Deleting progress from DB...');
+    try {
+      const { error, count } = await this.supabase.client
+        .from('quiz_progress')
+        .delete({ count: 'exact' })
+        .eq('list_id', this.listId)
+        .eq('pass_type', this.passMode);
+
+      if (error) {
+        console.error('[SightWordsQuiz] Error clearing progress (direct delete):', error);
+      } else {
+        console.log(`[SightWordsQuiz] Progress cleared. Rows deleted: ${count}`);
+      }
+    } catch (err) {
+      console.error('[SightWordsQuiz] Unexpected error clearing progress:', err);
+    }
+
+    // Fully reload to reset state and fetch full list again
+    await this.loadWords();
+
+    // Do not auto-start. Leave quizStarted=false so user sees Mode Selection screen.
   }
 
   onExit() {

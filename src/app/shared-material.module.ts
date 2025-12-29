@@ -13,6 +13,9 @@ import { MatInputModule } from '@angular/material/input';
 
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatDividerModule } from '@angular/material/divider';
 
 @NgModule({
   imports: [
@@ -28,7 +31,10 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
     MatTooltipModule,
     MatInputModule,
     MatMenuModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    MatDividerModule
   ],
   exports: [
     MatButtonModule,
@@ -43,7 +49,10 @@ import { MatSnackBarModule } from '@angular/material/snack-bar';
     MatTooltipModule,
     MatInputModule,
     MatMenuModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    MatDividerModule
   ]
 })
 export class SharedMaterialModule { }
