@@ -19,7 +19,7 @@ import { AuthService } from '../../services/auth.service';
       </div>
 
       <div class="right-section">
-        <button mat-icon-button (click)="onSettings()">
+        <button mat-icon-button *ngIf="showSettings" (click)="onSettings()">
           <mat-icon>settings</mat-icon>
         </button>
         
@@ -103,8 +103,8 @@ import { AuthService } from '../../services/auth.service';
         height: 100%;
         object-fit: cover;
       }
-    }
-  `]
+}
+`]
 })
 export class TopNavComponent implements OnInit {
   @Input() backLink: string | null = null;
@@ -150,6 +150,10 @@ export class TopNavComponent implements OnInit {
       return false;
     }
     return true;
+  }
+
+  get showSettings(): boolean {
+    return !this.router.url.includes('/settings');
   }
 
   onBack() {

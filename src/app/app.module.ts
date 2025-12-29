@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { NgModule, isDevMode } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule } from '@angular/common/http';
@@ -10,6 +10,7 @@ import { SharedMaterialModule } from './shared-material.module';
 import { MainMenuComponent } from './components/main-menu.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { TopNavComponent } from './components/top-nav/top-nav.component';
+import { ServiceWorkerModule } from '@angular/service-worker';
 
 @NgModule({
   declarations: [
@@ -24,7 +25,21 @@ import { TopNavComponent } from './components/top-nav/top-nav.component';
     SharedMaterialModule,
     HttpClientModule,
     FormsModule,
-    TopNavComponent
+    TopNavComponent,
+    ServiceWorkerModule.register('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      // Register the ServiceWorker as soon as the application is stable
+      // or after 30 seconds (whichever comes first).
+      registrationStrategy: 'registerWhenStable:30000'
+    }),
+    
+      ServiceWorkerModule.register('ngsw-worker.js', {
+        enabled: !isDevMode(),
+        // Register the ServiceWorker as soon as the application is stable
+        // or after 30 seconds (whichever comes first).
+        registrationStrategy: 'registerWhenStable:30000'
+      })
+    
   ],
   providers: [],
   bootstrap: [AppComponent]
