@@ -11,7 +11,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { SettingsService, AppSettings } from '../services/settings.service';
-import { SpeechService } from '../services/speech.service'; // Added
+import { SpeechService } from '../services/speech.service';
+import { AuthService } from '../services/auth.service'; // Added
 import { AlertDialogComponent } from './dialogs/alert-dialog/alert-dialog.component';
 import { TopNavComponent } from './top-nav/top-nav.component';
 
@@ -35,6 +36,21 @@ import { TopNavComponent } from './top-nav/top-nav.component';
     <div class="settings-container">
       <app-top-nav (back)="onBackToQuiz()"></app-top-nav>
       <h2>Settings</h2>
+
+      <div class="settings-section" *ngIf="(auth.profile$ | async) as profile">
+        <h3>Account</h3>
+        <div class="setting-item">
+            <p class="setting-description" style="margin-left: 0; margin-bottom: 8px;">
+                Current Role: <strong>{{ profile.role | titlecase }}</strong>
+            </p>
+            <button mat-stroked-button color="primary" (click)="switchRole(profile.role)">
+                Switch to {{ profile.role === 'teacher' ? 'Student' : 'Teacher' }}
+            </button>
+             <p class="setting-description" style="margin-left: 0; margin-top: 8px; font-size: 0.8rem;">
+                Note: Switching roles updates your dashboard view.
+            </p>
+        </div>
+      </div>
 
       <div class="settings-section">
         <h3>Appearance</h3>
@@ -269,7 +285,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
   constructor(
     private settingsService: SettingsService,
     private speechService: SpeechService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    public auth: AuthService
   ) { }
 
   async ngOnInit(): Promise<void> {
@@ -287,6 +304,33 @@ export class SettingsComponent implements OnInit, OnDestroy {
     if (this.progressSub) {
       this.progressSub.unsubscribe();
     }
+  }
+
+  switchRole(currentRole: string | undefined) {
+    if (!currentRole) return;
+    const newRole = currentRole === 'teacher' ? 'student' : 'teacher';
+
+    const dialogRef = this.dialog.open(AlertDialogComponent, {
+      data: {
+        title: 'Switch Role',
+        message: `Are you sure you want to switch to ${newRole}? This will update your dashboard view.`,
+        showCancel: true,
+        confirmText: 'Switch'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.auth.updateRole(newRole as any).then(() => {
+          // Role updated
+        }).catch(err => {
+          console.error("Error switching role", err);
+          this.dialog.open(AlertDialogComponent, {
+            data: { title: 'Error', message: 'Failed to switch role.' }
+          });
+        });
+      }
+    });
   }
 
   onBackToQuiz() {

@@ -1,0 +1,32 @@
+<div class="class-detail" *ngIf="!loading && classroom; else loadingTmp">
+    <app-top-nav (back)="goBack()"></app-top-nav>
+
+    <div class="header">
+        <div>
+            <h1>{{ classroom.name }}</h1>
+            <div class="subtitle"><span *ngIf="classroom.grade_level">{{ classroom.grade_level }} • </span>Code:
+                <strong>{{ classroom.code }}</strong></div>
+        </div>
+    </div>
+
+    <mat-tab-group>
+        <mat-tab label="Roster">
+            <app-roster *ngIf="classroom" [classId]="classroom.id" [classCode]="classroom.code"
+                [className]="classroom.name"></app-roster>
+        </mat-tab>
+        <mat-tab label="Assignments">
+            <div class="tab-content">
+                <div class="empty-tab">
+                    <mat-icon>assignment</mat-icon>
+                    <h3>Assignments coming soon (Sprint 2)</h3>
+                </div>
+            </div>
+        </mat-tab>
+    </mat-tab-group>
+</div>
+
+<ng-template #loadingTmp>
+    <div class="loading-container">
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    </div>
+</ng-template>

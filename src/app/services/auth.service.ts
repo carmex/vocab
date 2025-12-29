@@ -9,6 +9,8 @@ import { BehaviorSubject, Observable } from 'rxjs';
 export class AuthService {
     private _user = new BehaviorSubject<User | null>(null);
     public user$ = this._user.asObservable();
+    private _profile = new BehaviorSubject<import('../models/classroom.interface').Profile | null>(null);
+    public profile$ = this._profile.asObservable();
 
     constructor(private supabase: SupabaseService) {
         this.init();
@@ -101,7 +103,14 @@ export class AuthService {
     }
 
     private setUser(session: AuthSession | null) {
-        this._user.next(session?.user ?? null);
+        const user = session?.user ?? null;
+        this._user.next(user);
+
+        if (user) {
+            this.fetchProfile(user.id);
+        } else {
+            this._profile.next(null);
+        }
     }
 
     async signInAnonymously() {
@@ -156,8 +165,50 @@ export class AuthService {
         return this.supabase.client.auth.signOut();
     }
 
+    async updateRole(role: import('../models/classroom.interface').UserRole) {
+        const user = this._user.value;
+        if (!user) throw new Error('No user logged in to update role');
+
+        const { error } = await this.supabase.client
+            .from('profiles')
+            .update({ role })
+            .eq('id', user.id);
+
+        if (error) throw error;
+
+        // Update local state
+        const currentProfile = this._profile.value;
+        if (currentProfile) {
+            this._profile.next({ ...currentProfile, role });
+        } else {
+            // Should verify this case, but likely we just fetch again
+            this.fetchProfile(user.id);
+        }
+    }
+
+    private async fetchProfile(userId: string) {
+        const { data, error } = await this.supabase.client
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            console.error('Error fetching profile:', error);
+            // If profile doesn't exist, we might need to create it, or handle it. 
+            // For now, assume trigger handles creation or it exists.
+            this._profile.next(null);
+        } else {
+            this._profile.next(data as import('../models/classroom.interface').Profile);
+        }
+    }
+
     get currentUser() {
         return this._user.value;
+    }
+
+    get currentProfile() {
+        return this._profile.value;
     }
 
     get isAnonymous() {

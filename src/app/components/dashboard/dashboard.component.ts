@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { ListService, ListShare } from '../../services/list.service';
 import { AuthService } from '../../services/auth.service';
-import { Observable, of } from 'rxjs';
-import { catchError, filter, switchMap } from 'rxjs/operators';
-import { Router } from '@angular/router';
+import { Observable, of, combineLatest } from 'rxjs';
+import { catchError, filter, switchMap, map } from 'rxjs/operators';
+import { Router, ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { ListTypeDialogComponent } from '../dialogs/list-type-dialog/list-type-dialog.component';
 import { ListType } from '../../models/list-type.enum';
@@ -19,12 +19,26 @@ import { QrScannerDialogComponent } from '../dialogs/qr-scanner-dialog.component
 export class DashboardComponent implements OnInit {
     myLists$: Observable<ListShare[]>;
 
+    showTeacherView$: Observable<boolean>;
+
     constructor(
         private listService: ListService,
         private router: Router,
+        private route: ActivatedRoute,
         public auth: AuthService,
         private dialog: MatDialog
     ) {
+        this.showTeacherView$ = combineLatest([
+            this.auth.profile$,
+            this.route.queryParams
+        ]).pipe(
+            map(([profile, params]) => {
+                const isTeacher = profile?.role === 'teacher';
+                const forcedStudentView = params['view'] === 'lists';
+                return isTeacher && !forcedStudentView;
+            })
+        );
+
         // Wait for auth to be ready before fetching lists
         this.myLists$ = this.auth.user$.pipe(
             filter(user => !!user),

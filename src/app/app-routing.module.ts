@@ -18,6 +18,8 @@ const routes: Routes = [
   { path: 'signup', loadComponent: () => import('./components/auth/signup.component').then(m => m.SignupComponent) },
   { path: 'share/:code', loadComponent: () => import('./components/share-receiver/share-receiver.component').then(m => m.ShareReceiverComponent) },
   { path: 'summary', loadComponent: () => import('./components/summary.component').then(m => m.SummaryComponent) },
+  { path: 'class/:id', loadComponent: () => import('./components/class-detail/class-detail.component').then(m => m.ClassDetailComponent) },
+  { path: 'join/:code', loadComponent: () => import('./components/join-class/join-class.component').then(m => m.JoinClassComponent) },
   { path: '**', redirectTo: '/dashboard' }
 ];
 

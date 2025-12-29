@@ -1,0 +1,32 @@
+<div class="teacher-dashboard">
+    <div class="header">
+        <h1>My Classes</h1>
+        <button mat-raised-button color="primary" (click)="createClass()">
+            <mat-icon>add</mat-icon> Create Class
+        </button>
+    </div>
+
+    <div class="class-grid" *ngIf="!loading; else loadingTmp">
+        <div class="empty-state" *ngIf="classrooms.length === 0">
+            <mat-icon>school</mat-icon>
+            <h3>No classes yet</h3>
+            <p>Create your first class to get started!</p>
+        </div>
+
+        <mat-card *ngFor="let cls of classrooms" class="class-card" (click)="openClass(cls.id)">
+            <mat-card-header>
+                <mat-icon mat-card-avatar>class</mat-icon>
+                <mat-card-title>{{ cls.name }}</mat-card-title>
+                <mat-card-subtitle><span *ngIf="cls.grade_level">{{ cls.grade_level }} • </span>Code: {{ cls.code
+                    }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-actions align="end">
+                <button mat-button color="accent">OPEN</button>
+            </mat-card-actions>
+        </mat-card>
+    </div>
+
+    <ng-template #loadingTmp>
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    </ng-template>
+</div>

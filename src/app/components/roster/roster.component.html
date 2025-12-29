@@ -1,0 +1,68 @@
+<div class="roster-container">
+    <div class="stats-bar" *ngIf="students.length > 0">
+        <div class="stat">
+            <span class="value">{{ students.length }}</span>
+            <span class="label">Total Students</span>
+        </div>
+    </div>
+
+    <div class="add-students-section">
+        <h3>Add Students</h3>
+        <mat-tab-group animationDuration="0ms" dynamicHeight>
+            <mat-tab label="Bulk Invite">
+                <div class="invite-box">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>Paste Email Addresses</mat-label>
+                        <textarea matInput [(ngModel)]="inviteText" placeholder="jane@example.com, john@example.com"
+                            rows="4"></textarea>
+                        <mat-hint>Separate by comma or new line</mat-hint>
+                    </mat-form-field>
+                    <div class="actions">
+                        <button mat-raised-button color="primary" [disabled]="!inviteText || isInviting"
+                            (click)="sendInvites()">
+                            {{ isInviting ? 'Sending...' : 'Send Invites' }}
+                        </button>
+                    </div>
+                </div>
+            </mat-tab>
+            <mat-tab label="QR Code">
+                <div class="qr-box">
+                    <div class="qr-display">
+                        <qrcode [qrdata]="'https://vocab.crmx.pw/join/' + classCode" [width]="200"
+                            [errorCorrectionLevel]="'M'"></qrcode>
+                    </div>
+                    <div class="qr-info">
+                        <p>Scan to join <strong>{{ className }}</strong></p>
+                        <button mat-stroked-button (click)="printQr()">Print Instructions</button>
+                    </div>
+                </div>
+            </mat-tab>
+        </mat-tab-group>
+    </div>
+
+    <div class="student-list-section">
+        <h3>Class Roster</h3>
+        <div class="student-list" *ngIf="(students) as list">
+            <div class="empty-roster" *ngIf="list.length === 0">
+                No students yet.
+            </div>
+            <mat-list>
+                <mat-list-item *ngFor="let student of list">
+                    <mat-icon matListItemIcon [class.icon-active]="student.status === 'active'"
+                        [class.icon-pending]="student.status === 'pending'">person</mat-icon>
+                    <div matListItemTitle>{{ student.invited_email || 'Student' }}</div>
+                    <div matListItemLine>
+                        <span class="status-badge" [class.status-active]="student.status === 'active'"
+                            [class.status-pending]="student.status === 'pending'">
+                            {{ student.status | titlecase }}
+                        </span>
+                    </div>
+                    <div matListItemMeta>
+                        <button mat-icon-button color="warn"
+                            (click)="removeStudent(student)"><mat-icon>remove_circle_outline</mat-icon></button>
+                    </div>
+                </mat-list-item>
+            </mat-list>
+        </div>
+    </div>
+</div>

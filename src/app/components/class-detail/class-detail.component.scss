@@ -1,0 +1,84 @@
+.class-detail {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+
+    h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    .subtitle {
+        color: #666;
+        margin-top: 4px;
+    }
+}
+
+.tab-content {
+    padding: 24px 0;
+}
+
+.empty-tab {
+    text-align: center;
+    padding: 48px;
+    color: #999;
+
+    mat-icon {
+        font-size: 48px;
+        height: 48px;
+        width: 48px;
+        margin-bottom: 16px;
+    }
+}
+
+.loading-container {
+    padding: 20px;
+}
+
+// Dark Mode Overrides
+:host-context(body.dark-mode) {
+    .header {
+        h1 {
+            color: #e0e0e0;
+        }
+
+        .subtitle {
+            color: #b0b0b0;
+
+            strong {
+                color: #fff;
+            }
+        }
+    }
+
+    .empty-tab {
+        color: #777;
+
+        mat-icon {
+            color: #555;
+        }
+    }
+
+    // Fix Tab Text Colors
+    ::ng-deep .mat-mdc-tab-group {
+        .mat-mdc-tab:not(.mdc-tab--active) {
+            .mdc-tab__text-label {
+                color: #b0b0b0 !important;
+            }
+        }
+
+        .mat-mdc-tab.mdc-tab--active {
+            .mdc-tab__text-label {
+                color: #fff !important;
+            }
+        }
+    }
+}

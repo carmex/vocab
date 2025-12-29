@@ -1,0 +1,198 @@
+.roster-container {
+    padding: 16px;
+}
+
+.stats-bar {
+    margin-bottom: 16px;
+
+    .stat {
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+
+        .value {
+            font-weight: 700;
+            margin-right: 6px;
+        }
+
+        .label {
+            color: #666;
+        }
+    }
+}
+
+.add-students-section {
+    background: #fafafa;
+    border: 1px solid #eee;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+
+    h3 {
+        margin-top: 0;
+    }
+}
+
+.full-width {
+    width: 100%;
+}
+
+.actions {
+    text-align: right;
+    margin-top: 8px;
+}
+
+.qr-box {
+    display: flex;
+    padding: 24px;
+    gap: 24px;
+    align-items: center;
+    justify-content: center;
+
+    @media (max-width: 600px) {
+        flex-direction: column;
+    }
+
+    .qr-info {
+        text-align: center;
+    }
+}
+
+.student-list-section {
+    h3 {
+        margin-bottom: 16px;
+    }
+}
+
+.empty-roster {
+    color: #999;
+    font-style: italic;
+    padding: 16px;
+    text-align: center;
+}
+
+// Fix for floating label overlap
+.invite-box {
+    margin-top: 24px;
+}
+
+
+
+// Dark Mode Overrides
+:host-context(body.dark-mode) {
+    .add-students-section {
+        background: #1e1e1e;
+        border-color: #333;
+
+        h3 {
+            color: #e0e0e0;
+        }
+    }
+
+    .student-list-section h3 {
+        color: #e0e0e0;
+    }
+
+    .stats-bar .stat {
+        color: #e0e0e0;
+
+        .label {
+            color: #aaa;
+        }
+    }
+
+    // Fix the label background in dark mode
+    ::ng-deep .invite-box {
+
+        .mat-mdc-input-element,
+        textarea {
+            color: #e0e0e0 !important;
+            caret-color: #e0e0e0;
+        }
+
+        // Ensure inactive label is also colored correctly (text only)
+        .mat-mdc-form-field-label {
+            color: #b0b0b0;
+        }
+
+        // Fix Outline Borders in Dark Mode & Remove Artifacts
+        .mdc-notched-outline__leading,
+        .mdc-notched-outline__notch,
+        .mdc-notched-outline__trailing {
+            border-color: #666 !important;
+        }
+
+        .mdc-notched-outline__leading {
+            border-right: none !important;
+        }
+
+        .mdc-notched-outline__notch {
+            border-left: none !important;
+            border-right: none !important;
+        }
+
+        .mdc-notched-outline__trailing {
+            border-left: none !important;
+        }
+    }
+
+    .qr-info p {
+        color: #e0e0e0;
+    }
+
+    // Fix Tab Text Colors
+    ::ng-deep .mat-mdc-tab-group {
+        .mat-mdc-tab:not(.mdc-tab--active) {
+            .mdc-tab__text-label {
+                color: #b0b0b0 !important;
+            }
+        }
+
+        .mat-mdc-tab.mdc-tab--active {
+            .mdc-tab__text-label {
+                color: #fff !important;
+            }
+        }
+    }
+
+    // Badge Dark Mode
+    .status-badge {
+        &.status-active {
+            background-color: #1b5e20;
+            color: #a5d6a7;
+        }
+
+        &.status-pending {
+            background-color: #e65100;
+            color: #ffcc80;
+        }
+    }
+}
+
+// Global Styles for Roster (Badges)
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 4px;
+
+    &.status-active {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    &.status-pending {
+        background-color: #fff3e0;
+        color: #ef6c00;
+    }
+}
+
+.icon-active {
+    color: #4caf50 !important;
+}
+
+.icon-pending {
+    color: #ff9800 !important;
+}

@@ -1,0 +1,20 @@
+<h2 mat-dialog-title>Welcome to LexiQuest!</h2>
+<mat-dialog-content>
+    <p class="intro-text">To get started, please tell us who you are.</p>
+
+    <div class="role-options">
+        <button mat-stroked-button class="role-card" (click)="selectRole('student')" [disabled]="isUpdating">
+            <mat-icon class="role-icon">school</mat-icon>
+            <div class="role-label">I am a Student</div>
+            <div class="role-desc">I want to join a class and play games.</div>
+        </button>
+
+        <button mat-stroked-button class="role-card" (click)="selectRole('teacher')" [disabled]="isUpdating">
+            <mat-icon class="role-icon">person_outline</mat-icon>
+            <div class="role-label">I am a Teacher</div>
+            <div class="role-desc">I want to create classes and track progress.</div>
+        </button>
+    </div>
+
+    <mat-progress-bar *ngIf="isUpdating" mode="indeterminate"></mat-progress-bar>
+</mat-dialog-content>
