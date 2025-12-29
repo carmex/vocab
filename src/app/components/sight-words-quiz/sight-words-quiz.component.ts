@@ -194,7 +194,8 @@ type QuizMode = 'read' | 'listen';
     .quiz-container {
       max-width: 600px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 10px;
+      box-sizing: border-box;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
