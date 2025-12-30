@@ -70,6 +70,17 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "test": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.test.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -82,6 +93,9 @@
             },
             "development": {
               "buildTarget": "vocab:build:development"
+            },
+            "test": {
+              "buildTarget": "vocab:build:test"
             }
           },
           "defaultConfiguration": "development"

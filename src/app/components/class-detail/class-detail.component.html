@@ -42,8 +42,8 @@
                             <th mat-header-cell *matHeaderCellDef> Progress </th>
                             <td mat-cell *matCellDef="let quest">
                                 <span class="completion-badge"
-                                    [class.full]="quest.completion_count === (classroom?.student_count || 0)">
-                                    {{quest.completion_count}} / {{classroom?.student_count || 0}} Done
+                                    [class.full]="quest.completion_count === (classroom.student_count || 0)">
+                                    {{quest.completion_count}} / {{classroom.student_count || 0}} Done
                                 </span>
                             </td>
                         </ng-container>
