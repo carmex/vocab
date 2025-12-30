@@ -1,0 +1,101 @@
+<div class="gradebook">
+    <!-- Loading State -->
+    <div class="loading-container" *ngIf="loading">
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    </div>
+
+    <!-- Empty State -->
+    <ng-container *ngIf="!loading && data">
+        <div class="empty-state" *ngIf="data.students.length === 0 || data.quests.length === 0">
+            <mat-icon>insights</mat-icon>
+            <h3>No data yet</h3>
+            <p *ngIf="data.students.length === 0">Add students to this class to see their progress.</p>
+            <p *ngIf="data.quests.length === 0">Assign quests to start tracking mastery.</p>
+        </div>
+    </ng-container>
+
+    <!-- Desktop Grid View -->
+    <div class="grid-container"
+        *ngIf="!loading && data && data.students.length > 0 && data.quests.length > 0 && !isMobile">
+        <div class="grid-wrapper">
+            <table class="gradebook-grid">
+                <thead>
+                    <tr>
+                        <!-- Sticky Student Header -->
+                        <th class="student-header sticky-col">Student</th>
+                        <!-- Quest Headers -->
+                        <th *ngFor="let quest of data.quests" class="quest-header">
+                            <div class="quest-name">{{ quest.listName }}</div>
+                            <div class="quest-meta" *ngIf="quest.classAverage !== null">
+                                Avg: {{ quest.classAverage }}%
+                            </div>
+                            <div class="quest-insight" *ngIf="quest.mostMissedWord">
+                                Most Missed: <strong>{{ quest.mostMissedWord }}</strong>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let student of data.students">
+                        <!-- Sticky Student Name -->
+                        <td class="student-name sticky-col">
+                            <span class="name">{{ student.name }}</span>
+                        </td>
+                        <!-- Score Cells -->
+                        <td *ngFor="let quest of data.quests" class="score-cell"
+                            [ngClass]="getCellClass(getCell(student.id, quest.id).status)"
+                            (click)="onCellClick(student, quest)"
+                            [class.clickable]="getCell(student.id, quest.id).status !== 'not_started'">
+                            <span class="score">{{ getScoreDisplay(getCell(student.id, quest.id)) }}</span>
+                            <span class="attempt-badge" *ngIf="getCell(student.id, quest.id).attemptCount > 1">
+                                •{{ getCell(student.id, quest.id).attemptCount }}
+                            </span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mobile List View -->
+    <div class="mobile-view" *ngIf="!loading && data && data.students.length > 0 && data.quests.length > 0 && isMobile">
+        <!-- Quest Selector -->
+        <mat-form-field appearance="outline" class="quest-selector">
+            <mat-label>Select Quest</mat-label>
+            <mat-select [(value)]="selectedQuestId">
+                <mat-option *ngFor="let quest of data.quests" [value]="quest.id">
+                    {{ quest.listName }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <!-- Quest Aggregate Info -->
+        <div class="mobile-quest-info" *ngIf="getSelectedQuest() as quest">
+            <div class="info-row" *ngIf="quest.classAverage !== null">
+                <mat-icon>analytics</mat-icon>
+                <span>Class Average: <strong>{{ quest.classAverage }}%</strong></span>
+            </div>
+            <div class="info-row" *ngIf="quest.mostMissedWord">
+                <mat-icon>warning</mat-icon>
+                <span>Most Missed: <strong>{{ quest.mostMissedWord }}</strong></span>
+            </div>
+        </div>
+
+        <!-- Student List -->
+        <mat-list class="student-list">
+            <mat-list-item *ngFor="let item of getMobileListData(); let i = index"
+                (click)="selectedQuestId ? onCellClick(item.student, getSelectedQuest()!) : null"
+                [class.clickable]="item.cell.status !== 'not_started'">
+                <div class="mobile-row">
+                    <span class="mobile-student-name">{{ item.student.name }}</span>
+                    <div class="mobile-score" [ngClass]="getCellClass(item.cell.status)">
+                        {{ getScoreDisplay(item.cell) }}
+                        <span class="attempt-badge" *ngIf="item.cell.attemptCount > 1">
+                            •{{ item.cell.attemptCount }}
+                        </span>
+                    </div>
+                </div>
+            </mat-list-item>
+        </mat-list>
+    </div>
+</div>

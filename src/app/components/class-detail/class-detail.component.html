@@ -82,6 +82,9 @@
                 </ng-template>
             </div>
         </mat-tab>
+        <mat-tab label="Gradebook">
+            <app-gradebook *ngIf="classroom" [classId]="classroom.id"></app-gradebook>
+        </mat-tab>
     </mat-tab-group>
 </div>
 

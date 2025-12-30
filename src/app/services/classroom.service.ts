@@ -111,6 +111,7 @@ export class ClassroomService {
 
     /**
      * Marks a quest as complete for the current user.
+     * Uses upsert to handle repeat completions gracefully.
      */
     completeQuest(questId: string, userId: string, score?: number): Observable<void> {
         const row = {
@@ -121,13 +122,11 @@ export class ClassroomService {
 
         const query = this.supabase.client
             .from('quest_completions')
-            .insert(row);
+            .upsert(row, { onConflict: 'quest_id,user_id' });
 
         return from(query).pipe(
             map(({ error }) => {
-                // Ignore unique constraint error if already completed?
-                // Or just let it throw.
-                if (error && error.code !== '23505') throw error; // 23505 is unique violation
+                if (error) throw error;
             })
         );
     }

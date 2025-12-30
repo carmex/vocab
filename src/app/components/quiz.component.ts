@@ -66,7 +66,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     }
 
     try {
-      const { listType } = await this.quizService.startQuiz(this.listId, this.quizMode);
+      const { listType } = await this.quizService.startQuiz(this.listId, this.quizMode, this.questId);
 
       // Redirect sight words to dedicated quiz
       if (listType === ListType.SIGHT_WORDS) {
@@ -88,7 +88,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     if (this.timerInterval) clearInterval(this.timerInterval);
   }
 
-  private displayNextQuestion() {
+  private async displayNextQuestion() {
     this.feedbackVisible = false;
     this.selectedAnswer = null;
     this.isCorrect = false;
@@ -98,7 +98,9 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.currentQuestion = this.quizService.getNextQuestion();
 
     if (!this.currentQuestion) {
-      // Quiz Over
+      // Quiz Over - Save result for gradebook
+      await this.quizService.saveQuizResult();
+
       if (this.questId) {
         // Mark quest as complete
         const userId = this.auth.currentUser?.id;
@@ -124,7 +126,11 @@ export class QuizComponent implements OnInit, OnDestroy {
 
     // Optimistic Update
     if (this.currentQuestion.wordToQuiz.id) {
-      this.quizService.submitAnswer(this.currentQuestion.wordToQuiz.id, this.isCorrect);
+      this.quizService.submitAnswer(
+        this.currentQuestion.wordToQuiz.id,
+        this.isCorrect,
+        this.currentQuestion.wordToQuiz.word
+      );
     }
 
     this.updateProgress();

@@ -15,6 +15,7 @@ import { RosterComponent } from '../roster/roster.component';
 import { TopNavComponent } from '../top-nav/top-nav.component';
 import { EditQuestDialogComponent } from '../dialogs/edit-quest-dialog/edit-quest-dialog.component';
 import { AlertDialogComponent } from '../dialogs/alert-dialog/alert-dialog.component';
+import { GradebookComponent } from '../gradebook/gradebook.component';
 
 @Component({
     selector: 'app-class-detail',
@@ -26,7 +27,8 @@ import { AlertDialogComponent } from '../dialogs/alert-dialog/alert-dialog.compo
         MatTableModule,
         MatMenuModule,
         RosterComponent,
-        TopNavComponent
+        TopNavComponent,
+        GradebookComponent
     ],
     providers: [DatePipe],
     templateUrl: './class-detail.component.html',

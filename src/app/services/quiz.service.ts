@@ -26,6 +26,7 @@ export class QuizService {
 
   // Current Session State
   public currentListId: string = '';
+  public currentQuestId: string | null = null; // For gradebook tracking
   public currentListType: ListType = ListType.WORD_DEFINITION;
   public currentLanguage: string = 'en';
   public currentMode: 'main' | 'review' = 'main';
@@ -33,14 +34,29 @@ export class QuizService {
   public answeredCount: number = 0;
   public correctCount: number = 0;
 
+  // Tracking for quiz results
+  private startTime: number | null = null;
+  private missedWordIds: string[] = [];
+  private missedWords: { id: string; word: string }[] = [];
+
   constructor(private supabase: SupabaseService) { }
 
-  async startQuiz(listId: string, mode: 'main' | 'review'): Promise<{ listType: ListType }> {
-    console.log(`Starting quiz: list=${listId}, mode=${mode}`);
+  async startQuiz(listId: string, mode: 'main' | 'review', questId?: string | null): Promise<{ listType: ListType }> {
+    console.log(`Starting quiz: list=${listId}, mode=${mode}, questId=${questId}`);
     this.currentListId = listId;
+    this.currentQuestId = questId || null;
     this.currentMode = mode;
     this.answeredCount = 0;
     this.correctCount = 0;
+    this.startTime = Date.now();
+    this.missedWordIds = [];
+    this.missedWords = [];
+
+    // If starting a quest, check if we should clear stale progress
+    // This handles the case where the same list was assigned to a different quest before
+    if (questId && mode === 'main') {
+      await this.clearStaleProgressIfNeeded(listId, questId);
+    }
 
     // Fetch list type and language first
     const { data: listData, error: listError } = await this.supabase.client
@@ -128,15 +144,23 @@ export class QuizService {
   }
 
   // Optimistic Update
-  async submitAnswer(wordId: string, isCorrect: boolean) {
+  async submitAnswer(wordId: string, isCorrect: boolean, wordText?: string) {
     console.log(`[DEBUG] submitAnswer: wordId=${wordId}, isCorrect=${isCorrect}`);
     // 1. Remove from queue immediately (Optimistic UI)
-    const index = this.quizQueue.findIndex(w => w.id === wordId);
-    if (index > -1) {
-      this.quizQueue.splice(index, 1);
+    const wordIndex = this.quizQueue.findIndex(w => w.id === wordId);
+    const word = wordIndex > -1 ? this.quizQueue[wordIndex] : null;
+    if (wordIndex > -1) {
+      this.quizQueue.splice(wordIndex, 1);
     }
     this.answeredCount++;
-    if (isCorrect) this.correctCount++;
+    if (isCorrect) {
+      this.correctCount++;
+    } else {
+      // Track missed word for gradebook
+      const missedWordText = wordText || word?.word || '';
+      this.missedWordIds.push(wordId);
+      this.missedWords.push({ id: wordId, word: missedWordText });
+    }
 
     // 2. Background RPC Call
     const payload = {
@@ -205,6 +229,77 @@ export class QuizService {
     }
   }
 
+  /**
+   * Save quiz result to database for gradebook tracking.
+   * Should be called when a quiz pass is completed in the context of a quest.
+   */
+  async saveQuizResult(): Promise<void> {
+    // Only save if we have a quest context
+    if (!this.currentQuestId) {
+      console.log('[DEBUG] No questId, skipping quiz result save');
+      return;
+    }
+
+    const scorePercent = this.totalWordsInPass > 0
+      ? Math.round((this.correctCount / this.totalWordsInPass) * 100)
+      : 0;
+
+    const durationSeconds = this.startTime
+      ? Math.round((Date.now() - this.startTime) / 1000)
+      : null;
+
+    console.log(`[DEBUG] Saving quiz result: score=${scorePercent}%, duration=${durationSeconds}s, missed=${this.missedWords.length}`);
+
+    try {
+      // Get current user ID for RLS
+      const userId = (await this.supabase.client.auth.getUser()).data.user?.id;
+      if (!userId) {
+        console.error('[DEBUG] No user ID available for saving quiz result');
+        return;
+      }
+
+      // Insert quiz result
+      const { data: resultData, error: resultError } = await this.supabase.client
+        .from('quiz_results')
+        .insert({
+          quest_id: this.currentQuestId,
+          user_id: userId,
+          score: scorePercent,
+          total_words: this.totalWordsInPass,
+          correct_count: this.correctCount,
+          duration_seconds: durationSeconds
+        })
+        .select('id')
+        .single();
+
+      if (resultError) {
+        console.error('[DEBUG] Error saving quiz result:', resultError);
+        return;
+      }
+
+      // Insert missed words if any
+      if (this.missedWords.length > 0 && resultData?.id) {
+        const missedInserts = this.missedWords.map(mw => ({
+          result_id: resultData.id,
+          word_id: mw.id,
+          word_text: mw.word
+        }));
+
+        const { error: missedError } = await this.supabase.client
+          .from('quiz_result_missed')
+          .insert(missedInserts);
+
+        if (missedError) {
+          console.error('[DEBUG] Error saving missed words:', missedError);
+        }
+      }
+
+      console.log('[DEBUG] Quiz result saved successfully');
+    } catch (err) {
+      console.error('[DEBUG] Error in saveQuizResult:', err);
+    }
+  }
+
   private getDistractors(target: ListWord): string[] {
     const others = this.fullList.filter(w => w.id !== target.id);
     this.shuffleArray(others);
@@ -217,5 +312,43 @@ export class QuizService {
       [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+  }
+
+  /**
+   * Check if this is a fresh quest start (no completion record) and clear stale progress.
+   * This handles the case where the same list was assigned to a different quest before,
+   * or the quest was deleted and reassigned.
+   */
+  private async clearStaleProgressIfNeeded(listId: string, questId: string): Promise<void> {
+    const userId = (await this.supabase.client.auth.getUser()).data.user?.id;
+    if (!userId) return;
+
+    // Check if there's already a quiz_result for THIS quest (not just this list)
+    const { data: existingResult } = await this.supabase.client
+      .from('quiz_results')
+      .select('id')
+      .eq('quest_id', questId)
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    // If user has already attempted THIS specific quest, keep progress (resume mode)
+    if (existingResult) {
+      console.log('[DEBUG] User has existing quiz_results for this quest, keeping progress');
+      return;
+    }
+
+    // No prior attempt for this quest - clear any stale progress from previous quests
+    console.log('[DEBUG] Fresh quest start - clearing stale quiz_progress for list');
+
+    const { error } = await this.supabase.client
+      .from('quiz_progress')
+      .delete()
+      .eq('list_id', listId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[DEBUG] Error clearing stale progress:', error);
+    }
   }
 }

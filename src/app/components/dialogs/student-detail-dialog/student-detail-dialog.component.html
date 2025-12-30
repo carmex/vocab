@@ -1,0 +1,70 @@
+<div class="student-detail-dialog">
+    <!-- Header -->
+    <div class="dialog-header">
+        <div class="header-content">
+            <h2>{{ data.studentName }}</h2>
+            <span class="quest-name">{{ data.questName }}</span>
+        </div>
+        <button mat-icon-button (click)="close()">
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-container" *ngIf="loading">
+        <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
+    </div>
+
+    <!-- Content -->
+    <div class="dialog-content" *ngIf="!loading && detail">
+        <!-- Metrics -->
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value" [ngClass]="getScoreClass()">
+                    {{ detail.bestScore !== null ? detail.bestScore + '%' : '—' }}
+                </div>
+                <div class="metric-label">Best Score</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">{{ detail.attemptCount }}</div>
+                <div class="metric-label">Attempts</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">{{ formatDuration(detail.totalTimeSeconds) }}</div>
+                <div class="metric-label">Time Spent</div>
+            </div>
+        </div>
+
+        <!-- Struggle List -->
+        <div class="struggle-section" *ngIf="detail.missedWords.length > 0">
+            <div class="section-header">
+                <mat-icon color="warn">error_outline</mat-icon>
+                <span>Missed Words (Most Recent Attempt)</span>
+            </div>
+            <div class="missed-words">
+                <span class="word-chip" *ngFor="let word of detail.missedWords">
+                    {{ word }}
+                </span>
+            </div>
+            <button mat-stroked-button class="copy-btn" (click)="copyMissedWords()">
+                <mat-icon>content_copy</mat-icon>
+                Copy Missed Words
+            </button>
+        </div>
+
+        <!-- No Missed Words -->
+        <div class="no-missed" *ngIf="detail.missedWords.length === 0 && detail.bestScore !== null">
+            <mat-icon>check_circle</mat-icon>
+            <span>No missed words on the most recent attempt!</span>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="dialog-actions" *ngIf="!loading">
+        <button mat-button color="warn" (click)="onReset()" [disabled]="resetting">
+            <mat-icon>restart_alt</mat-icon>
+            Reset Progress
+        </button>
+        <button mat-flat-button (click)="close()">Close</button>
+    </div>
+</div>

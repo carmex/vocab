@@ -524,6 +524,10 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   private remainingTime = 0;
   private totalTime = 0;
 
+  // Gradebook tracking
+  private startTime: number | null = null;
+  private missedWords: { id: string; word: string }[] = [];
+
 
   constructor(
     private route: ActivatedRoute,
@@ -580,6 +584,11 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   async loadWords() {
+    // If starting a quest in main mode, check if we should clear stale progress
+    if (this.questId && this.passMode === 'main') {
+      await this.clearStaleProgressIfNeeded();
+    }
+
     // Fetch list metadata including language
     const { data: listData } = await this.supabase.client
       .from('word_lists')
@@ -674,6 +683,8 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     this.quizComplete = false;
     this.quizStarted = true;
     this.showingFeedback = false;
+    this.startTime = Date.now();
+    this.missedWords = [];
     this.updateProgress();
     this.displayNextWord();
   }
@@ -818,6 +829,11 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     this.updateProgress();
     this.saveProgress(this.currentWord!.id, false);
 
+    // Track missed word for gradebook
+    if (this.currentWord) {
+      this.missedWords.push({ id: this.currentWord.id, word: this.currentWord.word });
+    }
+
     // Speak the correct word
     if (this.currentWord) {
       try {
@@ -890,17 +906,9 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   async finishQuiz() {
-    // If questId is present, mark as complete
+    // Save quiz result for gradebook
     if (this.questId) {
-      console.log('[SightWordsQuiz] Completing quest:', this.questId);
-      const userId = (await this.supabase.client.auth.getUser()).data.user?.id;
-      if (userId) {
-        // We need to inject ClassroomService or call RPC directly?
-        // Ideally inject Service, but for now RPC is faster if we don't have service injection
-        // Let's rely on RPC or inject service.
-        // Actually, we don't have ClassroomService in constructor. 
-        // Let's add confetti first.
-      }
+      await this.saveQuizResult();
     }
 
     // Confetti - only if score > 80%
@@ -929,21 +937,87 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
       console.error('Error finishing quiz:', err);
     }
 
-    // If quest, mark complete via RPC
+    // If quest, mark complete via upsert (update if already exists)
     if (this.questId) {
       const userId = (await this.supabase.client.auth.getUser()).data.user?.id;
       if (userId) {
         const { error } = await this.supabase.client
           .from('quest_completions')
-          .insert({
+          .upsert({
             quest_id: this.questId,
             user_id: userId,
             completed_at: new Date().toISOString(),
-            score: 100 // Full score for now
-          });
+            score: Math.round(scorePercent)
+          }, { onConflict: 'quest_id,user_id' });
         if (error) console.error('[SightWordsQuiz] Error marking quest complete:', error);
         else console.log('[SightWordsQuiz] Quest marked complete!');
       }
+    }
+  }
+
+  /**
+   * Save quiz result to database for gradebook tracking.
+   */
+  private async saveQuizResult(): Promise<void> {
+    if (!this.questId) return;
+
+    const scorePercent = this.totalWords > 0
+      ? Math.round((this.correctCount / this.totalWords) * 100)
+      : 0;
+
+    const durationSeconds = this.startTime
+      ? Math.round((Date.now() - this.startTime) / 1000)
+      : null;
+
+    console.log(`[SightWordsQuiz] Saving quiz result: score=${scorePercent}%, duration=${durationSeconds}s, missed=${this.missedWords.length}`);
+
+    try {
+      // Get current user ID for RLS
+      const userId = (await this.supabase.client.auth.getUser()).data.user?.id;
+      if (!userId) {
+        console.error('[SightWordsQuiz] No user ID available for saving quiz result');
+        return;
+      }
+
+      // Insert quiz result
+      const { data: resultData, error: resultError } = await this.supabase.client
+        .from('quiz_results')
+        .insert({
+          quest_id: this.questId,
+          user_id: userId,
+          score: scorePercent,
+          total_words: this.totalWords,
+          correct_count: this.correctCount,
+          duration_seconds: durationSeconds
+        })
+        .select('id')
+        .single();
+
+      if (resultError) {
+        console.error('[SightWordsQuiz] Error saving quiz result:', resultError);
+        return;
+      }
+
+      // Insert missed words if any
+      if (this.missedWords.length > 0 && resultData?.id) {
+        const missedInserts = this.missedWords.map(mw => ({
+          result_id: resultData.id,
+          word_id: mw.id,
+          word_text: mw.word
+        }));
+
+        const { error: missedError } = await this.supabase.client
+          .from('quiz_result_missed')
+          .insert(missedInserts);
+
+        if (missedError) {
+          console.error('[SightWordsQuiz] Error saving missed words:', missedError);
+        }
+      }
+
+      console.log('[SightWordsQuiz] Quiz result saved successfully');
+    } catch (err) {
+      console.error('[SightWordsQuiz] Error in saveQuizResult:', err);
     }
   }
 
@@ -1023,5 +1097,39 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
       [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+  }
+
+  /**
+   * Check if this is a fresh quest start and clear stale progress if needed.
+   */
+  private async clearStaleProgressIfNeeded(): Promise<void> {
+    if (!this.questId) return;
+
+    const userId = (await this.supabase.client.auth.getUser()).data.user?.id;
+    if (!userId) return;
+
+    // Check if there's already a quiz_result for THIS quest
+    const { data: existingResult } = await this.supabase.client
+      .from('quiz_results')
+      .select('id')
+      .eq('quest_id', this.questId)
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
+
+    // If user has already attempted THIS specific quest, keep progress
+    if (existingResult) {
+      console.log('[SightWordsQuiz] User has existing quiz_results for this quest, keeping progress');
+      return;
+    }
+
+    // Fresh quest start - clear any stale progress from previous quests with same list
+    console.log('[SightWordsQuiz] Fresh quest start - clearing stale quiz_progress for list');
+
+    await this.supabase.client
+      .from('quiz_progress')
+      .delete()
+      .eq('list_id', this.listId)
+      .eq('user_id', userId);
   }
 }

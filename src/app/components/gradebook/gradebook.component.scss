@@ -1,0 +1,348 @@
+.gradebook {
+    padding: 16px;
+    height: 100%;
+}
+
+// Loading & Empty States
+.loading-container {
+    padding: 24px;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-secondary, rgba(0, 0, 0, 0.6));
+
+    mat-icon {
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        font-weight: 500;
+    }
+
+    p {
+        margin: 0;
+        font-size: 14px;
+    }
+}
+
+// ========================
+// Desktop Grid View
+// ========================
+.grid-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+}
+
+.grid-wrapper {
+    min-width: max-content;
+}
+
+.gradebook-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+
+    th,
+    td {
+        padding: 12px 16px;
+        text-align: center;
+        border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    }
+
+    thead th {
+        background: var(--surface-variant, #f5f5f5);
+        color: var(--text-primary, rgba(0, 0, 0, 0.87));
+        font-weight: 500;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+}
+
+// Sticky Student Column
+.sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface, #fff);
+    border-right: 2px solid var(--border-color, rgba(0, 0, 0, 0.12)) !important;
+}
+
+.student-header {
+    text-align: left !important;
+    min-width: 160px;
+    z-index: 3 !important; // Above other sticky
+}
+
+.student-name {
+    text-align: left !important;
+    font-weight: 500;
+
+    .name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        max-width: 150px;
+    }
+}
+
+// Quest Headers
+.quest-header {
+    min-width: 140px;
+    vertical-align: top;
+
+    .quest-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 140px;
+    }
+
+    .quest-meta {
+        font-size: 12px;
+        color: var(--text-secondary, rgba(0, 0, 0, 0.6));
+        margin-bottom: 2px;
+    }
+
+    .quest-insight {
+        font-size: 11px;
+        color: var(--warning-color, #e65100);
+
+        strong {
+            font-weight: 600;
+        }
+    }
+}
+
+// Score Cells - Heatmap Colors
+.score-cell {
+    position: relative;
+    min-width: 80px;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+
+    &.clickable {
+        cursor: pointer;
+
+        &:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 1;
+        }
+    }
+
+    .score {
+        font-weight: 600;
+        font-size: 15px;
+    }
+
+    .attempt-badge {
+        position: absolute;
+        top: 4px;
+        right: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        opacity: 0.8;
+    }
+}
+
+// Cell Status Colors - Light Mode
+.cell-not-started {
+    background: var(--cell-not-started-bg, #f0f0f0);
+    color: var(--cell-not-started-text, rgba(0, 0, 0, 0.38));
+}
+
+.cell-struggling {
+    background: var(--cell-struggling-bg, #d32f2f);
+    color: var(--cell-struggling-text, #fff);
+}
+
+.cell-developing {
+    background: var(--cell-developing-bg, #ffc107);
+    color: var(--cell-developing-text, rgba(0, 0, 0, 0.87));
+}
+
+.cell-mastered {
+    background: var(--cell-mastered-bg, #388e3c);
+    color: var(--cell-mastered-text, #fff);
+}
+
+// ========================
+// Mobile View
+// ========================
+.mobile-view {
+    .quest-selector {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    .mobile-quest-info {
+        background: var(--surface-variant, #f5f5f5);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-secondary, rgba(0, 0, 0, 0.7));
+
+            mat-icon {
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+            }
+
+            &:not(:last-child) {
+                margin-bottom: 8px;
+            }
+
+            strong {
+                color: var(--text-primary, rgba(0, 0, 0, 0.87));
+            }
+        }
+    }
+
+    .student-list {
+        mat-list-item {
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+            overflow: hidden;
+
+            &.clickable {
+                cursor: pointer;
+
+                &:hover {
+                    background: var(--hover-bg, rgba(0, 0, 0, 0.04));
+                }
+            }
+        }
+
+        .mobile-row {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .mobile-student-name {
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .mobile-score {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+    }
+}
+
+// ========================
+// Dark Mode Support
+// ========================
+@media (prefers-color-scheme: dark) {
+    .empty-state {
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    .grid-container {
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .gradebook-grid {
+
+        th,
+        td {
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        thead th {
+            background: #2d2d2d;
+            color: rgba(255, 255, 255, 0.87);
+        }
+    }
+
+    .sticky-col {
+        background: #1e1e1e;
+        border-right-color: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    .quest-header {
+        .quest-meta {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .quest-insight {
+            color: #ffb74d;
+        }
+    }
+
+    // Cell Colors - Dark Mode (slightly adjusted for better contrast)
+    .cell-not-started {
+        background: #2d2d2d;
+        color: rgba(255, 255, 255, 0.38);
+    }
+
+    .cell-struggling {
+        background: #c62828; // Slightly darker red
+        color: #fff;
+    }
+
+    .cell-developing {
+        background: #ffb300; // Slightly darker yellow
+        color: rgba(0, 0, 0, 0.87);
+    }
+
+    .cell-mastered {
+        background: #2e7d32; // Slightly darker green
+        color: #fff;
+    }
+
+    .mobile-view {
+        .mobile-quest-info {
+            background: #2d2d2d;
+
+            .info-row {
+                color: rgba(255, 255, 255, 0.7);
+
+                strong {
+                    color: rgba(255, 255, 255, 0.87);
+                }
+            }
+        }
+
+        .student-list {
+            mat-list-item {
+                border-color: rgba(255, 255, 255, 0.08);
+
+                &:hover {
+                    background: rgba(255, 255, 255, 0.04);
+                }
+            }
+        }
+    }
+}
