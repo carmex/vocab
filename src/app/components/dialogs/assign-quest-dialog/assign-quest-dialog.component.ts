@@ -4,17 +4,35 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ClassroomService } from '../../../services/classroom.service';
 import { AuthService } from '../../../services/auth.service';
+import { ListService, ListShare } from '../../../services/list.service';
 import { SharedMaterialModule } from '../../../shared-material.module';
 import { Classroom } from '../../../models/classroom.interface';
+
+export interface CreateQuestDialogData {
+  classId?: string;
+  className?: string;
+}
 
 @Component({
   selector: 'app-assign-quest-dialog',
   standalone: true,
   imports: [CommonModule, SharedMaterialModule, ReactiveFormsModule],
   template: `
-    <h2 mat-dialog-title>Assign Quest</h2>
+    <h2 mat-dialog-title>Create Quest</h2>
     <mat-dialog-content [formGroup]="form">
-      <p class="subtitle">Assigning <strong>{{ data.listName }}</strong> to your class.</p>
+      <p class="subtitle" *ngIf="data?.className">Creating quest for <strong>{{ data.className }}</strong></p>
+
+      <mat-form-field appearance="fill" class="full-width">
+        <mat-label>Select List</mat-label>
+        <mat-select formControlName="listId">
+          <mat-option *ngFor="let list of lists" [value]="list.word_list_id">
+            {{ list.word_lists?.name }}
+          </mat-option>
+        </mat-select>
+        <mat-error *ngIf="form.get('listId')?.hasError('required')">
+          List is required
+        </mat-error>
+      </mat-form-field>
 
       <mat-form-field appearance="fill" class="full-width">
         <mat-label>Select Class</mat-label>
@@ -44,7 +62,7 @@ import { Classroom } from '../../../models/classroom.interface';
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>Cancel</button>
       <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="form.invalid || loading">
-        {{ loading ? 'Assigning...' : 'Create Quest' }}
+        {{ loading ? 'Creating...' : 'Create' }}
       </button>
     </mat-dialog-actions>
   `,
@@ -56,17 +74,20 @@ import { Classroom } from '../../../models/classroom.interface';
 export class AssignQuestDialogComponent implements OnInit {
   form: FormGroup;
   classrooms: Classroom[] = [];
+  lists: ListShare[] = [];
   loading = false;
 
   constructor(
     private fb: FormBuilder,
     private classroomService: ClassroomService,
+    private listService: ListService,
     private auth: AuthService,
     private dialogRef: MatDialogRef<AssignQuestDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { listId: string, listName: string }
+    @Inject(MAT_DIALOG_DATA) public data: CreateQuestDialogData
   ) {
     this.form = this.fb.group({
-      classroomId: [[], Validators.required], // Array for multiple selection
+      listId: [null, Validators.required],
+      classroomId: [[], Validators.required],
       dueDate: [null],
       instructions: ['']
     });
@@ -75,11 +96,23 @@ export class AssignQuestDialogComponent implements OnInit {
   ngOnInit(): void {
     const user = this.auth.currentUser;
     if (user) {
+      // Fetch classrooms
       this.classroomService.getClassrooms(user.id).subscribe(classes => {
         this.classrooms = classes;
-        // Auto-select if only one class
-        if (classes.length === 1) {
+        // Pre-select the class if provided
+        if (this.data?.classId) {
+          this.form.get('classroomId')?.setValue([this.data.classId]);
+        } else if (classes.length === 1) {
           this.form.get('classroomId')?.setValue([classes[0].id]);
+        }
+      });
+
+      // Fetch user's lists
+      this.listService.getMyLists(user.id).subscribe(lists => {
+        this.lists = lists;
+        // Auto-select if only one list
+        if (lists.length === 1) {
+          this.form.get('listId')?.setValue(lists[0].word_list_id);
         }
       });
     }
@@ -90,12 +123,13 @@ export class AssignQuestDialogComponent implements OnInit {
       this.loading = true;
       const formVal = this.form.value;
       const classroomIds: string[] = formVal.classroomId;
+      const listId: string = formVal.listId;
 
       // Create a quest for each selected class
       const promises = classroomIds.map(clsId => {
         return this.classroomService.createQuest({
           classroom_id: clsId,
-          list_id: this.data.listId,
+          list_id: listId,
           due_date: formVal.dueDate,
           instructions: formVal.instructions
         }).toPromise();
@@ -111,7 +145,7 @@ export class AssignQuestDialogComponent implements OnInit {
       }).catch(err => {
         console.error(err);
         this.loading = false;
-        alert('Failed to assign quest. Please try again.');
+        alert('Failed to create quest. Please try again.');
       });
     }
   }

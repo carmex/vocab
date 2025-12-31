@@ -11,7 +11,7 @@ import { ClassroomService } from '../../services/classroom.service';
 import { Quest } from '../../models/quest.interface';
 import { ShareDialogComponent } from '../dialogs/share-dialog.component';
 import { QrScannerDialogComponent } from '../dialogs/qr-scanner-dialog.component';
-import { AssignQuestDialogComponent } from '../dialogs/assign-quest-dialog/assign-quest-dialog.component';
+
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
@@ -137,26 +137,7 @@ export class DashboardComponent implements OnInit {
         });
     }
 
-    onAssign(listId: string, listName: string | undefined) {
-        if (!listName) return;
 
-        const dialogRef = this.dialog.open(AssignQuestDialogComponent, {
-            width: '500px',
-            data: { listId, listName }
-        });
-
-        dialogRef.afterClosed().subscribe(result => {
-            if (result && result.count > 0) {
-                const count = result.studentCount;
-                const msg = count === 1 ? 'Assigned to 1 student!' : `Assigned to ${count} students!`;
-                this.snackBar.open(msg, 'Close', {
-                    duration: 3000
-                });
-                // Optimistically mark as assigned? Or refresh lists?
-                // For now, no visible change requested other than toast.
-            }
-        });
-    }
 
     onScanQr() {
         const dialogRef = this.dialog.open(QrScannerDialogComponent, {

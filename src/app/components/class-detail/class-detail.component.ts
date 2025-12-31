@@ -15,6 +15,7 @@ import { RosterComponent } from '../roster/roster.component';
 import { TopNavComponent } from '../top-nav/top-nav.component';
 import { EditQuestDialogComponent } from '../dialogs/edit-quest-dialog/edit-quest-dialog.component';
 import { AlertDialogComponent } from '../dialogs/alert-dialog/alert-dialog.component';
+import { AssignQuestDialogComponent } from '../dialogs/assign-quest-dialog/assign-quest-dialog.component';
 import { GradebookComponent } from '../gradebook/gradebook.component';
 
 @Component({
@@ -133,6 +134,24 @@ export class ClassDetailComponent implements OnInit {
                         this.snakeBar.open('Error deleting assignment', 'Close', { duration: 3000 });
                     }
                 });
+            }
+        });
+    }
+
+    onCreateQuest() {
+        if (!this.classroom) return;
+
+        const dialogRef = this.dialog.open(AssignQuestDialogComponent, {
+            width: '500px',
+            data: { classId: this.classroom.id, className: this.classroom.name }
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result && result.count > 0) {
+                const count = result.studentCount;
+                const msg = count === 1 ? 'Quest created for 1 student!' : `Quest created for ${count} students!`;
+                this.snakeBar.open(msg, 'Close', { duration: 3000 });
+                this.fetchQuests();
             }
         });
     }

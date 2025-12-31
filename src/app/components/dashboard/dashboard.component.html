@@ -88,13 +88,6 @@
             <mat-icon>share</mat-icon>
           </button>
 
-          <!-- Assign Button for Teachers -->
-          <button mat-flat-button color="primary" *ngIf="(auth.profile$ | async)?.role === 'teacher'"
-            (click)="$event.stopPropagation(); onAssign(share.word_list_id, share.word_lists?.name)"
-            matTooltip="Assign to Class">
-            Assign
-          </button>
-
           <button mat-icon-button *ngIf="share.word_lists?.creator_id === (auth.user$ | async)?.id"
             (click)="$event.stopPropagation(); onEdit(share.word_list_id)" matTooltip="Edit List">
             <mat-icon>edit</mat-icon>

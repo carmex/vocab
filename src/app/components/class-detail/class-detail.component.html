@@ -77,9 +77,13 @@
                     <div class="empty-tab">
                         <mat-icon>assignment_turned_in</mat-icon>
                         <h3>No active assignments</h3>
-                        <p>Create a new assignment from the "My Lists" tab.</p>
+                        <p>Create a new assignment using the + button.</p>
                     </div>
                 </ng-template>
+
+                <button mat-fab color="primary" class="fab-add" (click)="onCreateQuest()">
+                    <mat-icon>add</mat-icon>
+                </button>
             </div>
         </mat-tab>
         <mat-tab label="Gradebook">
