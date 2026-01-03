@@ -52,9 +52,15 @@ import { ListType } from '../../../models/list-type.enum';
   styles: [`
     .type-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 16px;
-      min-width: 500px;
+    }
+
+    @media (min-width: 600px) {
+        .type-grid {
+            grid-template-columns: 1fr 1fr;
+            min-width: 500px;
+        }
     }
     .type-card {
       cursor: pointer;

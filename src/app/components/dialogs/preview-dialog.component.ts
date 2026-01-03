@@ -2,7 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
-import { MatListModule } from '@angular/material/list';
+
 import { ListService } from '../../services/list.service';
 import { Router } from '@angular/router';
 import { TwemojiPipe } from '../../pipes/twemoji.pipe';
@@ -13,26 +13,29 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 @Component({
   selector: 'app-preview-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatListModule, TwemojiPipe],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, TwemojiPipe],
   template: `
-    <h2 mat-dialog-title>Preview: {{ data.listName }}</h2>
-    <mat-dialog-content>
-      <p>Sample words from this list:</p>
-      <mat-list>
-        <mat-list-item *ngFor="let word of sampleWords">
-          <span matListItemTitle [innerHTML]="word.word | twemoji"></span>
-          <span matListItemLine [innerHTML]="word.definition | twemoji"></span>
-        </mat-list-item>
-      </mat-list>
-      <p *ngIf="loading">Loading words...</p>
+    <h2 mat-dialog-title>
+      Preview: {{ data.listName }}
+      <span class="word-count" *ngIf="!loading">({{ words.length }} items)</span>
+    </h2>
+    <mat-dialog-content class="preview-content">
+      <div class="word-grid" *ngIf="!loading">
+        <div class="word-card" *ngFor="let word of words">
+          <div class="word-text" [innerHTML]="word.word | twemoji"></div>
+          <div class="word-def" [innerHTML]="word.definition | twemoji"></div>
+        </div>
+      </div>
+      <p *ngIf="loading" class="loading-text">Loading words...</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>Cancel</button>
       <button mat-stroked-button color="primary" 
         *ngIf="(auth.profile$ | async)?.role === 'teacher'"
         (click)="onAssign()"
+        [disabled]="assigning"
         style="margin-right: 8px;">
-        Assign to Class
+        {{ assigning ? 'Preparing...' : 'Assign to Class' }}
       </button>
       <button mat-raised-button color="primary" (click)="onSubscribe()" [disabled]="subscribing">
         {{ subscribing ? 'Adding...' : 'Add to My Lists' }}
@@ -40,13 +43,67 @@ import { MatSnackBar } from '@angular/material/snack-bar';
     </mat-dialog-actions>
   `,
   styles: [`
-    mat-list-item { margin-bottom: 10px; }
+    .preview-content {
+      min-height: 300px;
+    }
+    .word-count {
+      font-size: 0.8em;
+      color: #777;
+      margin-left: 10px;
+      font-weight: normal;
+    }
+    .word-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      padding-top: 10px;
+    }
+    .word-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .word-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border-color: #bdbdbd;
+    }
+    .word-text {
+      font-weight: 600;
+      font-size: 1.1em;
+      margin-bottom: 6px;
+      color: #333;
+      word-break: break-word;
+    }
+    .word-def {
+      font-size: 0.85em;
+      color: #666;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    .loading-text {
+      text-align: center;
+      margin-top: 20px;
+      color: #666;
+    }
+    /* Scroll fix for dialog content if needed */
+    mat-dialog-content {
+      max-height: 70vh;
+    }
   `]
 })
 export class PreviewDialogComponent implements OnInit {
-  sampleWords: any[] = [];
+  words: any[] = [];
   loading = true;
   subscribing = false;
+  assigning = false;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: { listId: string, listName: string },
@@ -59,23 +116,8 @@ export class PreviewDialogComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    // We can reuse getListDetails or just fetch words directly. 
-    // Since getListDetails fetches metadata (which we have) and counts, 
-    // let's just fetch a few words for preview.
-    // Ideally ListService should have a 'getWords(listId, limit)' method.
-    // For now, I'll assume we can use getListDetails and maybe it's overkill but works,
-    // OR I can add a small helper in ListService.
-    // Let's just use getListDetails for now, but wait, getListDetails DOES NOT return words list, just counts.
-    // I need to fetch words!
-    // I will use a direct query here or add a method. 
-    // Better to keep logic in Service. I'll add `getPreviewWords` to ListService in a separate step or just use what I have.
-    // Actually, I missed `getPreviewWords` in the plan. I'll add it to ListService now.
-
-    // TEMPORARY: I will use ListService.getListDetails just to verify it exists, 
-    // but I really want to show words.
-    // I'll add `getSampleWords` to ListService.
-    this.listService.getSampleWords(this.data.listId).subscribe(words => {
-      this.sampleWords = words;
+    this.listService.getWords(this.data.listId).subscribe(words => {
+      this.words = words;
       this.loading = false;
     });
   }
@@ -96,10 +138,25 @@ export class PreviewDialogComponent implements OnInit {
   }
 
   onAssign() {
-    this.dialogRef.close(); // Close preview first? Or keep open? User story says "Dashboard" list, but preview is good too.
-    // Better to close preview to avoid stacking dialogs too much, 
-    // OR open on top. Material handles stacking.
-    // Let's close preview if they decide to assign.
+    this.assigning = true;
+    // Auto-subscribe first so it appears in the list selector
+    this.listService.subscribeToList(this.data.listId).subscribe({
+      next: () => {
+        this.openAssignDialog();
+        this.assigning = false;
+      },
+      error: (err) => {
+        console.warn('Subscribe failed or already subscribed, proceeding anyway', err);
+        // Proceed anyway, maybe they already have it or it's a glitch, 
+        // don't block the user.
+        this.openAssignDialog();
+        this.assigning = false;
+      }
+    });
+  }
+
+  openAssignDialog() {
+    this.dialogRef.close();
 
     const dialogRef = this.dialog.open(AssignQuestDialogComponent, {
       width: '500px',
@@ -117,3 +174,5 @@ export class PreviewDialogComponent implements OnInit {
     });
   }
 }
+
+

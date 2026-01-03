@@ -278,20 +278,7 @@ export class ListService {
         );
     }
 
-    getSampleWords(listId: string): Observable<any[]> {
-        const query = this.supabase.client
-            .from('list_words')
-            .select('word, definition')
-            .eq('list_id', listId)
-            .limit(5);
 
-        return from(query).pipe(
-            map(({ data, error }) => {
-                if (error) throw error;
-                return data || [];
-            })
-        );
-    }
 
     /**
      * Adds multiple words to a list.

@@ -117,7 +117,8 @@ export class MarketplaceComponent implements OnInit {
   openPreview(list: WordList) {
     this.dialog.open(PreviewDialogComponent, {
       data: { listId: list.id, listName: list.name },
-      width: '500px'
+      width: '90%',
+      maxWidth: '800px'
     });
   }
 }
