@@ -43,29 +43,32 @@
                 </div>
 
                 <div class="missed-info" *ngIf="share.missed_word_count && share.missed_word_count > 0">
-                    <mat-icon inline>warning</mat-icon> {{ share.missed_word_count }} Missed {{ share.missed_word_count
-                    === 1 ?
-                    'Word' : 'Words' }}
+                    <mat-icon inline>warning</mat-icon> {{ share.missed_word_count }} Missed {{
+                    share.word_lists?.list_type === 'math'
+                    ? (share.missed_word_count === 1 ? 'Problem' : 'Problems')
+                    : (share.missed_word_count === 1 ? 'Word' : 'Words')
+                    }}
                 </div>
             </mat-card-content>
             <mat-card-actions align="end">
                 <button mat-icon-button
-                    (click)="$event.stopPropagation(); onShare(share.word_list_id, share.word_lists?.name)"
+                    (click)="onShare(share.word_list_id, share.word_lists?.name); $event.stopPropagation()"
                     matTooltip="Share List">
                     <mat-icon>share</mat-icon>
                 </button>
 
                 <button mat-icon-button *ngIf="(auth.profile$ | async)?.role === 'teacher'"
-                    (click)="$event.stopPropagation(); onAssign(share.word_list_id)" matTooltip="Assign to Class">
+                    (click)="onAssign(share.word_list_id); $event.stopPropagation()" matTooltip="Assign to Class">
                     <mat-icon>assignment_turned_in</mat-icon>
                 </button>
 
                 <button mat-icon-button *ngIf="share.word_lists?.creator_id === (auth.user$ | async)?.id"
-                    (click)="$event.stopPropagation(); onEdit(share.word_list_id)" matTooltip="Edit List">
+                    (click)="onEdit(share.word_list_id); $event.stopPropagation()" matTooltip="Edit List">
                     <mat-icon>edit</mat-icon>
                 </button>
                 <button mat-icon-button color="accent" *ngIf="share.missed_word_count && share.missed_word_count > 0"
-                    (click)="$event.stopPropagation(); onReview(share.word_list_id)" matTooltip="Review Missed Words">
+                    (click)="onReview(share.word_list_id); $event.stopPropagation()"
+                    [matTooltip]="share.word_lists?.list_type === 'math' ? 'Review Missed Problems' : 'Review Missed Words'">
                     <mat-icon>rate_review</mat-icon>
                 </button>
             </mat-card-actions>
