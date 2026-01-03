@@ -7,10 +7,10 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import jsQR from 'jsqr';
 
 @Component({
-    selector: 'app-qr-scanner-dialog',
-    standalone: true,
-    imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, MatProgressBarModule],
-    template: `
+  selector: 'app-qr-scanner-dialog',
+  standalone: true,
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, MatProgressBarModule],
+  template: `
     <h2 mat-dialog-title>Scan QR Code</h2>
     <mat-dialog-content class="scanner-content">
       <div class="video-container">
@@ -28,13 +28,13 @@ import jsQR from 'jsqr';
             <p>Starting camera...</p>
         </div>
       </div>
-      <p class="hint">Point your camera at a LexiQuest QR code.</p>
+      <p class="hint">Point your camera at a FlashQuest QR code.</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>Cancel</button>
     </mat-dialog-actions>
   `,
-    styles: [`
+  styles: [`
     .scanner-content {
       display: flex;
       flex-direction: column;
@@ -96,81 +96,81 @@ import jsQR from 'jsqr';
   `]
 })
 export class QrScannerDialogComponent implements AfterViewInit, OnDestroy {
-    @ViewChild('video') videoElement!: ElementRef<HTMLVideoElement>;
-    @ViewChild('canvas') canvasElement!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('video') videoElement!: ElementRef<HTMLVideoElement>;
+  @ViewChild('canvas') canvasElement!: ElementRef<HTMLCanvasElement>;
 
-    hasCamera = false;
-    permissionDenied = false;
-    loading = true;
-    private stream: MediaStream | null = null;
-    private animationFrameId: number | null = null;
+  hasCamera = false;
+  permissionDenied = false;
+  loading = true;
+  private stream: MediaStream | null = null;
+  private animationFrameId: number | null = null;
 
-    constructor(private dialogRef: MatDialogRef<QrScannerDialogComponent>) { }
+  constructor(private dialogRef: MatDialogRef<QrScannerDialogComponent>) { }
 
-    ngAfterViewInit() {
-        this.startCamera();
+  ngAfterViewInit() {
+    this.startCamera();
+  }
+
+  ngOnDestroy() {
+    this.stopCamera();
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+  }
+
+  async startCamera() {
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+
+      const video = this.videoElement.nativeElement;
+      video.srcObject = this.stream;
+      video.setAttribute('playsinline', 'true');
+
+      await video.play();
+      this.hasCamera = true;
+      this.loading = false;
+      this.scanFrame();
+    } catch (err) {
+      console.error('Camera error:', err);
+      this.permissionDenied = true;
+      this.loading = false;
+    }
+  }
+
+  stopCamera() {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+  }
+
+  scanFrame() {
+    if (!this.videoElement || !this.canvasElement) return;
+
+    const video = this.videoElement.nativeElement;
+    const canvas = this.canvasElement.nativeElement;
+    const context = canvas.getContext('2d');
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA && context) {
+      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      });
+
+      if (code) {
+        // Found a QR code!
+        console.log('Found QR code:', code.data);
+        this.dialogRef.close(code.data);
+        return; // Stop scanning
+      }
     }
 
-    ngOnDestroy() {
-        this.stopCamera();
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-        }
-    }
-
-    async startCamera() {
-        try {
-            this.stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
-
-            const video = this.videoElement.nativeElement;
-            video.srcObject = this.stream;
-            video.setAttribute('playsinline', 'true');
-
-            await video.play();
-            this.hasCamera = true;
-            this.loading = false;
-            this.scanFrame();
-        } catch (err) {
-            console.error('Camera error:', err);
-            this.permissionDenied = true;
-            this.loading = false;
-        }
-    }
-
-    stopCamera() {
-        if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
-            this.stream = null;
-        }
-    }
-
-    scanFrame() {
-        if (!this.videoElement || !this.canvasElement) return;
-
-        const video = this.videoElement.nativeElement;
-        const canvas = this.canvasElement.nativeElement;
-        const context = canvas.getContext('2d');
-
-        if (video.readyState === video.HAVE_ENOUGH_DATA && context) {
-            canvas.height = video.videoHeight;
-            canvas.width = video.videoWidth;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert',
-            });
-
-            if (code) {
-                // Found a QR code!
-                console.log('Found QR code:', code.data);
-                this.dialogRef.close(code.data);
-                return; // Stop scanning
-            }
-        }
-
-        this.animationFrameId = requestAnimationFrame(() => this.scanFrame());
-    }
+    this.animationFrameId = requestAnimationFrame(() => this.scanFrame());
+  }
 }

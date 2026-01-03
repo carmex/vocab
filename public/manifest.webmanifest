@@ -1,6 +1,6 @@
 {
-  "name": "LexiQuest",
-  "short_name": "LexiQuest",
+  "name": "FlashQuest",
+  "short_name": "FlashQuest",
   "theme_color": "#673ab7",
   "background_color": "#fafafa",
   "display": "standalone",
