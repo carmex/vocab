@@ -5,11 +5,10 @@
 
   <div class="menu-actions">
     <ng-container *ngIf="isTeacher$ | async; else studentButtons">
-      <button mat-raised-button color="primary" routerLink="/dashboard" class="menu-button">
+      <button mat-raised-button color="primary" routerLink="/classes" class="menu-button">
         <mat-icon>school</mat-icon> My Classes
       </button>
-      <button mat-raised-button color="accent" [routerLink]="['/dashboard']" [queryParams]="{view: 'lists'}"
-        class="menu-button">
+      <button mat-raised-button color="accent" routerLink="/lists" class="menu-button">
         <mat-icon>dashboard</mat-icon> My Lists
       </button>
       <button mat-raised-button class="menu-button marketplace-btn" routerLink="/marketplace">
@@ -18,7 +17,7 @@
     </ng-container>
 
     <ng-template #studentButtons>
-      <button mat-raised-button color="primary" routerLink="/dashboard" class="menu-button">
+      <button mat-raised-button color="primary" routerLink="/lists" class="menu-button">
         <mat-icon>dashboard</mat-icon> My Lists
       </button>
       <button mat-raised-button color="accent" routerLink="/marketplace" class="menu-button">

@@ -58,7 +58,7 @@ export interface WordRow {
   ],
   template: `
     <div class="editor-container">
-      <app-top-nav backLink="/dashboard"></app-top-nav>
+      <app-top-nav backLink="/lists"></app-top-nav>
       <h1>{{ isEditMode ? 'Edit List' : 'Create New List' }}</h1>
       <div class="list-type-badge" *ngIf="!isEditMode">
         <mat-icon>{{ getTypeIcon() }}</mat-icon>
@@ -716,7 +716,7 @@ export class ListEditorComponent implements OnInit {
   }
 
   onCancel() {
-    this.router.navigate(['/dashboard']);
+    this.router.navigate(['/lists']);
   }
 
   async onSave() {
@@ -737,7 +737,7 @@ export class ListEditorComponent implements OnInit {
           definition: w.definition,
           imageUrl: w.imageUrl
         })), this.deletedWordIds).toPromise();
-        this.router.navigate(['/dashboard']);
+        this.router.navigate(['/lists']);
       } else {
         const listId = await this.listService.createList(this.name, this.description, this.isPublic, this.listType, this.language).toPromise();
         if (listId) {
@@ -871,7 +871,7 @@ export class ListEditorComponent implements OnInit {
         } else if (data.type === 'result') {
           worker.terminate();
           this.isUploading = false;
-          this.router.navigate(['/dashboard']);
+          this.router.navigate(['/lists']);
         } else if (data.type === 'error') {
           worker.terminate();
           this.isUploading = false;

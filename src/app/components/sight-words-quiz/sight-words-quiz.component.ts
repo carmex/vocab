@@ -545,7 +545,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
     this.questId = this.route.snapshot.queryParamMap.get('questId');
 
     if (!this.listId) {
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/lists']);
       return;
     }
 
@@ -664,7 +664,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
       this.updateProgress();
       return;
     } else if (this.totalWords === 0) {
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/lists']);
       return;
     }
   }
@@ -1088,7 +1088,7 @@ export class SightWordsQuizComponent implements OnInit, OnDestroy {
   }
 
   onExit() {
-    this.router.navigate(['/dashboard']);
+    this.router.navigate(['/lists']);
   }
 
   private shuffleArray<T>(array: T[]): T[] {

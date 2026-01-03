@@ -61,7 +61,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.questId = this.route.snapshot.queryParamMap.get('questId');
 
     if (!this.listId || !this.quizMode) {
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/lists']);
       return;
     }
 
@@ -80,7 +80,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     } catch (err) {
       console.error('Failed to start quiz', err);
       alert('Error starting quiz. Check console.');
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/lists']);
     }
   }
 

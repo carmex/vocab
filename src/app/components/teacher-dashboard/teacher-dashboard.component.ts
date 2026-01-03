@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { SharedMaterialModule } from '../../shared-material.module';
 import { MatDialog } from '@angular/material/dialog';
 import { CreateClassModalComponent } from '../create-class-modal/create-class-modal.component';
+import { TopNavComponent } from '../top-nav/top-nav.component';
 import { AuthService } from '../../services/auth.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { Classroom } from '../../models/classroom.interface';
@@ -11,7 +12,7 @@ import { Router } from '@angular/router';
 @Component({
     selector: 'app-teacher-dashboard',
     standalone: true,
-    imports: [CommonModule, SharedMaterialModule],
+    imports: [CommonModule, SharedMaterialModule, TopNavComponent],
     templateUrl: './teacher-dashboard.component.html',
     styleUrls: ['./teacher-dashboard.component.scss']
 })

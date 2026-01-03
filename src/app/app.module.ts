@@ -10,14 +10,12 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { SharedMaterialModule } from './shared-material.module';
 import { MainMenuComponent } from './components/main-menu.component';
-import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { TopNavComponent } from './components/top-nav/top-nav.component';
 import { RoleSelectionModalComponent } from './components/role-selection-modal/role-selection-modal.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    DashboardComponent,
     MainMenuComponent
   ],
   imports: [

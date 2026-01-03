@@ -85,7 +85,7 @@ export class PreviewDialogComponent implements OnInit {
     this.listService.subscribeToList(this.data.listId).subscribe({
       next: () => {
         this.dialogRef.close();
-        this.router.navigate(['/dashboard']);
+        this.router.navigate(['/lists']);
       },
       error: (err) => {
         console.error(err);

@@ -40,7 +40,7 @@ export class ShareReceiverComponent implements OnInit {
     ngOnInit(): void {
         const code = this.route.snapshot.paramMap.get('code');
         if (!code) {
-            this.router.navigate(['/dashboard']);
+            this.router.navigate(['/lists']);
             return;
         }
 
@@ -55,17 +55,17 @@ export class ShareReceiverComponent implements OnInit {
 
                     dialogRef.afterClosed().subscribe(() => {
                         // Whether they added it or cancelled, go to dashboard
-                        this.router.navigate(['/dashboard']);
+                        this.router.navigate(['/lists']);
                     });
                 } else {
                     alert('List not found or invalid code.');
-                    this.router.navigate(['/dashboard']);
+                    this.router.navigate(['/lists']);
                 }
             },
             error: (err) => {
                 console.error(err);
                 alert('Error loading list.');
-                this.router.navigate(['/dashboard']);
+                this.router.navigate(['/lists']);
             }
         });
     }

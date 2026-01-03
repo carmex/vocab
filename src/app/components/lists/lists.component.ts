@@ -11,20 +11,25 @@ import { ClassroomService } from '../../services/classroom.service';
 import { Quest } from '../../models/quest.interface';
 import { ShareDialogComponent } from '../dialogs/share-dialog.component';
 import { QrScannerDialogComponent } from '../dialogs/qr-scanner-dialog.component';
-
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { CommonModule } from '@angular/common';
+import { SharedMaterialModule } from '../../shared-material.module';
+import { RouterModule } from '@angular/router';
+import { TopNavComponent } from '../top-nav/top-nav.component';
 
 @Component({
-    selector: 'app-dashboard',
-    templateUrl: './dashboard.component.html',
-    styleUrls: ['./dashboard.component.scss'],
-    standalone: false
+    selector: 'app-lists',
+    templateUrl: './lists.component.html',
+    styleUrls: ['./lists.component.scss'],
+    standalone: true,
+    imports: [CommonModule, SharedMaterialModule, RouterModule, TopNavComponent, QrScannerDialogComponent]
 })
-export class DashboardComponent implements OnInit {
+export class ListsComponent implements OnInit {
     myLists$: Observable<ListShare[]>;
     myQuests$: Observable<Quest[]>;
 
-    showTeacherView$: Observable<boolean>;
+    // We no longer need to check for teacher view here, as this component is dedicated to lists/quests.
+    // However, teachers can also have lists, so we display them for everyone.
 
     constructor(
         private listService: ListService,
@@ -35,17 +40,6 @@ export class DashboardComponent implements OnInit {
         private dialog: MatDialog,
         private snackBar: MatSnackBar
     ) {
-        this.showTeacherView$ = combineLatest([
-            this.auth.profile$,
-            this.route.queryParams
-        ]).pipe(
-            map(([profile, params]) => {
-                const isTeacher = profile?.role === 'teacher';
-                const forcedStudentView = params['view'] === 'lists';
-                return isTeacher && !forcedStudentView;
-            })
-        );
-
         // Wait for auth to be ready before fetching lists
         this.myLists$ = this.auth.user$.pipe(
             filter(user => !!user),
@@ -56,17 +50,7 @@ export class DashboardComponent implements OnInit {
             })
         );
 
-        // Fetch Quests for student view
-        // Fetch Quests for student view
-        // Use behavior subject or combineLatest with a refresh trigger to reaload when navigating back?
-        // Actually, route navigation re-triggers if the component re-inits.
-        // If the component is reused, we need to listen to ActivatedRoute params or events.
-        // Or simply use `ionViewWillEnter` equivalent if this was ionic.. but it's regular Angular.
-        // `myQuests$` is a cold observable? No, it pipes from `auth.user$`. 
-        // If `auth.user$` emits, it runs. It emits on load.
-        // We can merge a "refreshSubject" to force reload.
-
-        const refreshTrigger = this.route.params; // Re-trigger on route params change (which happens on navigation)
+        const refreshTrigger = this.route.params;
 
         this.myQuests$ = combineLatest([
             this.auth.user$.pipe(filter(u => !!u)),
@@ -123,6 +107,7 @@ export class DashboardComponent implements OnInit {
     onLogin() {
         this.router.navigate(['/login']);
     }
+
     onShare(listId: string, listName: string | undefined) {
         if (!listName) return;
 
@@ -136,8 +121,6 @@ export class DashboardComponent implements OnInit {
             error: (err) => console.error('Error generating share code:', err)
         });
     }
-
-
 
     onScanQr() {
         const dialogRef = this.dialog.open(QrScannerDialogComponent, {
@@ -162,13 +145,8 @@ export class DashboardComponent implements OnInit {
 
     onPlayQuest(quest: Quest) {
         if (quest.is_completed) {
-            // Replay? Just go to main.
             this.router.navigate(['/quiz', quest.list_id, 'main']);
         } else {
-            // Go to main, but maybe pass quest ID?
-            // For now, MVP: Just play. We'll handle completion in the quiz.
-            // Wait, we need to complete the quest.
-            // I should pass 'questId' as query param.
             this.router.navigate(['/quiz', quest.list_id, 'main'], { queryParams: { questId: quest.id } });
         }
     }

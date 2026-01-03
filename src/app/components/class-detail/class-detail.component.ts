@@ -54,7 +54,7 @@ export class ClassDetailComponent implements OnInit {
     ) { }
 
     goBack() {
-        this.router.navigate(['/dashboard']);
+        this.router.navigate(['/classes']);
     }
 
     ngOnInit() {

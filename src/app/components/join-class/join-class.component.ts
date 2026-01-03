@@ -151,7 +151,7 @@ export class JoinClassComponent implements OnInit {
   }
 
   cancel() {
-    this.router.navigate(['/dashboard']);
+    this.router.navigate(['/lists']);
   }
 
   async confirmJoin() {
@@ -185,7 +185,7 @@ export class JoinClassComponent implements OnInit {
           .eq('student_id', this.auth.currentUser.id);
 
         if (!updateError) {
-          this.router.navigate(['/dashboard']);
+          this.router.navigate(['/lists']);
           return;
         }
       }
@@ -194,7 +194,7 @@ export class JoinClassComponent implements OnInit {
       this.joining = false;
     } else {
       // Success
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/lists']);
     }
   }
 }

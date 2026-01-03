@@ -61,7 +61,7 @@ export class SummaryComponent implements OnInit {
     this.loading = true;
     try {
       await this.quizService.finishPass(false); // Don't clear missed words
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/lists']);
     } catch (err) {
       console.error(err);
       alert('Error finishing pass');
@@ -73,7 +73,7 @@ export class SummaryComponent implements OnInit {
     this.loading = true;
     try {
       await this.quizService.finishPass(true); // Clear missed words
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/lists']);
     } catch (err) {
       console.error(err);
       alert('Error clearing corrected words');

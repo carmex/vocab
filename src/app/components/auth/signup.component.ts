@@ -197,7 +197,7 @@ export class SignupComponent {
       // Try to upgrade the current anonymous user first
       const { error } = await this.auth.upgradeUser(this.email, this.password);
       if (error) throw error;
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/menu']);
     } catch (err: any) {
       this.error = err.message || 'Signup failed';
     } finally {
