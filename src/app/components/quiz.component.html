@@ -1,46 +1,85 @@
 <div class="quiz-container">
   <app-top-nav (back)="onExit()" (settings)="onSettings()"></app-top-nav>
 
-  <div class="progress-section">
-    <mat-progress-bar mode="determinate" [value]="progressPercent" class="quiz-progress"></mat-progress-bar>
-    <div class="progress-label">{{ progressLabel }}</div>
+  <!-- Mode Selection -->
+  <div class="mode-selection" *ngIf="!quizStarted && isMathQuiz">
+    <h2>Choose Quiz Mode</h2>
+    <div class="mode-cards">
+      <mat-card class="mode-card" (click)="startWithMode('speak')">
+        <mat-icon class="mode-icon">record_voice_over</mat-icon>
+        <h3>Speak Mode</h3>
+        <p>See the problem, say the answer</p>
+      </mat-card>
 
-    <mat-progress-bar mode="determinate" [value]="missedPercent" class="missed-progress"
-      color="warn"></mat-progress-bar>
-    <div class="missed-label">{{ missedLabel }}</div>
-  </div>
-
-  <div class="word-display" *ngIf="currentQuestion">
-    <!-- Image/Definition Quiz: Show image -->
-    <img *ngIf="isImageQuiz && currentQuestion.wordToQuiz.imageUrl" 
-         [src]="currentQuestion.wordToQuiz.imageUrl" 
-         alt="Quiz image"
-         class="quiz-image">
-    <!-- Word/Definition Quiz: Show text -->
-    <span *ngIf="!isImageQuiz" [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
-  </div>
-
-  <div class="answer-options" *ngIf="currentQuestion">
-    <button *ngFor="let option of currentQuestion.options" mat-raised-button class="answer-button"
-      (click)="!feedbackVisible && onAnswer(option)" [ngClass]="{
-            'correct': feedbackVisible && option === currentQuestion.correctAnswer,
-            'incorrect': feedbackVisible && option === selectedAnswer && option !== currentQuestion.correctAnswer
-          }">
-      <span [innerHTML]="option | twemoji"></span>
-    </button>
-  </div>
-
-  <div class="feedback-controls" *ngIf="feedbackVisible">
-    <mat-progress-bar *ngIf="!isPaused && timerProgress > 0" mode="determinate" [value]="timerProgress"
-      class="timer-progress"></mat-progress-bar>
-
-    <div class="feedback-buttons">
-      <button mat-stroked-button color="primary" *ngIf="!isPaused && timerProgress > 0" (click)="onPause()">
-        <mat-icon>pause</mat-icon> Pause
-      </button>
-      <button mat-flat-button color="primary" (click)="onNext()">
-        Next <mat-icon>arrow_forward</mat-icon>
-      </button>
+      <mat-card class="mode-card" (click)="startWithMode('multiple-choice')">
+        <mat-icon class="mode-icon">touch_app</mat-icon>
+        <h3>Multi-choice</h3>
+        <p>Pick the correct answer</p>
+      </mat-card>
     </div>
   </div>
+
+  <ng-container *ngIf="quizStarted">
+    <div class="progress-section">
+      <mat-progress-bar mode="determinate" [value]="progressPercent" class="quiz-progress"></mat-progress-bar>
+      <div class="progress-label">{{ progressLabel }}</div>
+
+      <mat-progress-bar mode="determinate" [value]="missedPercent" class="missed-progress"
+        color="warn"></mat-progress-bar>
+      <div class="missed-label">{{ missedLabel }}</div>
+    </div>
+
+    <div class="word-display" *ngIf="currentQuestion">
+      <!-- Image/Definition Quiz: Show image -->
+      <img *ngIf="isImageQuiz && currentQuestion.wordToQuiz.imageUrl" [src]="currentQuestion.wordToQuiz.imageUrl"
+        alt="Quiz image" class="quiz-image">
+      <!-- Word/Definition Quiz: Show text -->
+      <span *ngIf="!isImageQuiz" [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
+    </div>
+
+    <!-- Multi-Choice Options -->
+    <div class="answer-options" *ngIf="interactionMode === 'multiple-choice' && currentQuestion">
+      <button *ngFor="let option of currentQuestion.options" mat-raised-button class="answer-button"
+        (click)="!feedbackVisible && onAnswer(option)" [ngClass]="{
+              'correct': feedbackVisible && option === currentQuestion.correctAnswer,
+              'incorrect': feedbackVisible && option === selectedAnswer && option !== currentQuestion.correctAnswer
+            }">
+        <span [innerHTML]="option | twemoji"></span>
+      </button>
+    </div>
+
+    <!-- Speak Mode UI -->
+    <div class="speak-interface" *ngIf="interactionMode === 'speak' && currentQuestion && !feedbackVisible">
+      <button mat-fab extended color="primary" class="record-btn" (click)="isListening ? onStopListening() : onRecord()"
+        [disabled]="isProcessing">
+        <mat-icon>{{ isListening ? 'stop' : 'mic' }}</mat-icon>
+        {{ isProcessing ? 'Processing...' : (isListening ? 'Stop' : 'Record') }}
+      </button>
+      <p *ngIf="recognizedText" class="spoken-text">You said: "{{ recognizedText }}"</p>
+    </div>
+
+    <div class="feedback-controls" *ngIf="feedbackVisible">
+      <!-- Feedback Text for Speak Mode -->
+      <div *ngIf="interactionMode === 'speak'" class="speak-feedback">
+        <div class="feedback-status" [class.correct]="isCorrect" [class.incorrect]="!isCorrect">
+          <mat-icon>{{ isCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
+          <span>{{ isCorrect ? 'Correct!' : 'Keep trying!' }}</span>
+        </div>
+        <p *ngIf="!isCorrect">Correct answer: <strong>{{ currentQuestion?.correctAnswer }}</strong></p>
+        <p class="you-said">You said: "{{ recognizedText }}"</p>
+      </div>
+
+      <mat-progress-bar *ngIf="!isPaused && timerProgress > 0" mode="determinate" [value]="timerProgress"
+        class="timer-progress"></mat-progress-bar>
+
+      <div class="feedback-buttons">
+        <button mat-stroked-button color="primary" *ngIf="!isPaused && timerProgress > 0" (click)="onPause()">
+          <mat-icon>pause</mat-icon> Pause
+        </button>
+        <button mat-flat-button color="primary" (click)="onNext()">
+          Next <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </div>
+  </ng-container>
 </div>

@@ -1,14 +1,16 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
 import { QuizQuestion } from '../models/quiz-question.interface';
 import { QuizService } from '../services/quiz.service';
 import { SettingsService } from '../services/settings.service';
 import { ClassroomService } from '../services/classroom.service';
 import { AuthService } from '../services/auth.service';
+import { SpeechService } from '../services/speech.service';
 import { TopNavComponent } from './top-nav/top-nav.component';
 import { TwemojiPipe } from '../pipes/twemoji.pipe';
 import { ListType } from '../models/list-type.enum';
@@ -16,7 +18,7 @@ import { ListType } from '../models/list-type.enum';
 @Component({
   selector: 'app-quiz',
   standalone: true,
-  imports: [CommonModule, MatProgressBarModule, MatButtonModule, MatIconModule, TopNavComponent, TwemojiPipe],
+  imports: [CommonModule, MatProgressBarModule, MatButtonModule, MatIconModule, MatCardModule, TopNavComponent, TwemojiPipe],
   templateUrl: './quiz.component.html',
   styleUrls: ['./quiz.component.scss']
 })
@@ -25,6 +27,15 @@ export class QuizComponent implements OnInit, OnDestroy {
   listId: string = '';
   currentQuestion: QuizQuestion | null = null;
   isImageQuiz = false;
+  isMathQuiz = false;
+  quizStarted = true;
+  interactionMode: 'multiple-choice' | 'speak' = 'multiple-choice';
+
+  // Speech State
+  isListening = false;
+  isProcessing = false;
+  recognizedText = '';
+  speechSupported = false;
 
   // Feedback UI State
   feedbackVisible = false;
@@ -52,7 +63,9 @@ export class QuizComponent implements OnInit, OnDestroy {
     private quizService: QuizService,
     private settingsService: SettingsService,
     private classroomService: ClassroomService,
-    private auth: AuthService
+    private auth: AuthService,
+    private speechService: SpeechService,
+    private ngZone: NgZone
   ) { }
 
   async ngOnInit(): Promise<void> {
@@ -75,6 +88,19 @@ export class QuizComponent implements OnInit, OnDestroy {
       }
 
       this.isImageQuiz = listType === ListType.IMAGE_DEFINITION;
+
+      // Handle Math Quiz Mode Selection
+      if (listType === ListType.MATH) {
+        this.isMathQuiz = true;
+        this.quizStarted = false;
+        this.speechSupported = this.speechService.isSTTSupported();
+        // Preload generic model if needed?
+        if (!this.speechService.isNativeSupported() && this.speechSupported) {
+          this.speechService.preloadModel();
+        }
+        return;
+      }
+
       this.updateProgress();
       this.displayNextQuestion();
     } catch (err) {
@@ -86,6 +112,14 @@ export class QuizComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.timerInterval) clearInterval(this.timerInterval);
+    this.speechService.stopListening();
+  }
+
+  startWithMode(mode: 'multiple-choice' | 'speak') {
+    this.interactionMode = mode;
+    this.quizStarted = true;
+    this.updateProgress();
+    this.displayNextQuestion();
   }
 
   private async displayNextQuestion() {
@@ -94,6 +128,10 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.isCorrect = false;
     this.timerProgress = 0;
     this.isPaused = false;
+
+    this.isListening = false;
+    this.isProcessing = false;
+    this.recognizedText = '';
 
     this.currentQuestion = this.quizService.getNextQuestion();
 
@@ -139,6 +177,88 @@ export class QuizComponent implements OnInit, OnDestroy {
     const settings = this.settingsService.getSettings();
     if (settings.autoAdvance) {
       this.totalTime = this.isCorrect ? settings.correctAnswerTimer * 1000 : settings.incorrectAnswerTimer * 1000;
+      this.remainingTime = this.totalTime;
+      this.startTimer();
+    }
+  }
+
+  onRecord() {
+    if (this.isListening || !this.currentQuestion) return;
+
+    this.isListening = true;
+    this.recognizedText = '';
+
+    // Listen for the correct answer
+    // For Math, correct answer is usually a digit (e.g. "6") or word ("six")
+    this.speechService.listen(this.currentQuestion.correctAnswer, 'en').subscribe({
+      next: (result) => {
+        this.ngZone.run(() => {
+          if ('error' in result) {
+            console.error('Speech error:', result.error);
+            this.isListening = false;
+            this.isProcessing = false;
+            // Don't mark incorrect on no-speech, just stop?
+            // Or show error?
+            return;
+          }
+
+          if ('status' in result && result.status === 'processing') {
+            this.isProcessing = true;
+            this.isListening = false;
+            return;
+          }
+
+          if ('result' in result) {
+            this.isListening = false;
+            this.isProcessing = false;
+            this.recognizedText = result.result;
+
+            if (this.speechService.wordsMatch(result.result, this.currentQuestion!.correctAnswer)) {
+              this.onAnswer(this.currentQuestion!.correctAnswer); // Pass correct answer to simulate match
+            } else {
+              // Handle explicit incorrect
+              this.onSpeakIncorrect(result.result);
+            }
+          }
+        });
+      },
+      error: (err) => {
+        this.ngZone.run(() => {
+          console.error('Speech fatal error:', err);
+          this.isListening = false;
+          this.isProcessing = false;
+        });
+      }
+    });
+  }
+
+  onStopListening() {
+    this.speechService.stopListening();
+    this.isListening = false;
+  }
+
+  onSpeakIncorrect(text: string) {
+    if (this.feedbackVisible || !this.currentQuestion) return;
+
+    this.feedbackVisible = true;
+    this.selectedAnswer = text; // Show what was said
+    this.isCorrect = false;
+    this.recognizedText = text;
+
+    // Logic similar to onAnswer but for custom text
+    if (this.currentQuestion.wordToQuiz.id) {
+      this.quizService.submitAnswer(
+        this.currentQuestion.wordToQuiz.id,
+        this.isCorrect,
+        this.currentQuestion.wordToQuiz.word
+      );
+    }
+    this.updateProgress();
+
+    // Auto Advance
+    const settings = this.settingsService.getSettings();
+    if (settings.autoAdvance) {
+      this.totalTime = settings.incorrectAnswerTimer * 1000;
       this.remainingTime = this.totalTime;
       this.startTimer();
     }
