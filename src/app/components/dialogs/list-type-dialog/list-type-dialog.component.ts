@@ -37,6 +37,12 @@ import { ListType } from '../../../models/list-type.enum';
           <h3>Sight Words</h3>
           <p>Practice reading and speaking words aloud</p>
         </mat-card>
+
+        <mat-card class="type-card" (click)="select(ListType.MATH)">
+          <mat-icon class="type-icon">calculate</mat-icon>
+          <h3>Math</h3>
+          <p>Practice math problems (Add, Sub, Mult, Div)</p>
+        </mat-card>
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -45,10 +51,10 @@ import { ListType } from '../../../models/list-type.enum';
   `,
   styles: [`
     .type-grid {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 16px;
-      min-width: 300px;
+      min-width: 500px;
     }
     .type-card {
       cursor: pointer;

@@ -1,0 +1,58 @@
+npm warn Unknown user config "always-auth" (//packages.infragistics.com/npm/js-licensed/:always-auth). This will stop working in the next major version of npm.
+
+            Running 'ngcc' is not required for Angular 16+ projects. This 'ngcc-jest-processor' script will be removed in the next major version of 'jest-preset-angular'.
+            Tip: To avoid this message you can remove 'jest-preset-angular/global-setup' from your jest config
+        
+  console.warn
+    
+        Importing "setup-jest.js" directly is deprecated. The file "setup-jest.js" will be removed in the future.
+        Please use "setupZoneTestEnv" function instead. Example:
+    
+        // setup-jest.ts
+        import { setupZoneTestEnv } from 'jest-preset-angular/setup-env/zone';
+    
+        setupZoneTestEnv();
+
+    [0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m [32m'jest-preset-angular/setup-jest'[39m[33m;[39m
+     [90m   |[39m [31m[1m^[22m[39m
+     [90m 2 |[39m[0m
+
+      at Object.<anonymous> (node_modules/jest-preset-angular/setup-jest.js:1:111)
+      at Object.<anonymous> (setup-jest.ts:1:1)
+
+FAIL src/app/components/modals/math-gen-modal/math-gen-modal.component.spec.ts
+  MathGenModalComponent
+    √ should create (283 ms)
+    √ should calculate combinations correctly for addition (103 ms)
+    × should filter non-integer division results (90 ms)
+    √ should limit number of generated cards to count (79 ms)
+
+  ● MathGenModalComponent › should filter non-integer division results
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: ObjectContaining {"definition": "1", "word": "2 ÷ 2"}
+    Received array: [{"definition": "1", "word": "2 ÷ 2"}, {"definition": "2", "word": "4 ÷ 2"}]
+
+    Looks like you wanted to test for object/array equality with the stricter `toContain` matcher. You probably need to use `toContainEqual` instead.
+
+    [0m [90m 49 |[39m         component[33m.[39mrecalc()[33m;[39m
+     [90m 50 |[39m         expect(component[33m.[39mmaxCards)[33m.[39mtoBe([35m2[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 51 |[39m         expect(component[33m.[39mpool)[33m.[39mtoContain(expect[33m.[39mobjectContaining({ word[33m:[39m [32m'2 ÷ 2'[39m[33m,[39m definition[33m:[39m [32m'1'[39m }))[33m;[39m
+     [90m    |[39m                                [31m[1m^[22m[39m
+     [90m 52 |[39m         expect(component[33m.[39mpool)[33m.[39mtoContain(expect[33m.[39mobjectContaining({ word[33m:[39m [32m'4 ÷ 2'[39m[33m,[39m definition[33m:[39m [32m'2'[39m }))[33m;[39m
+     [90m 53 |[39m         expect(component[33m.[39mpool)[33m.[39mnot[33m.[39mtoContain(expect[33m.[39mobjectContaining({ word[33m:[39m [32m'1 ÷ 2'[39m }))[33m;[39m
+     [90m 54 |[39m     })[33m;[39m[0m
+
+      at src/app/components/modals/math-gen-modal/math-gen-modal.component.spec.ts:51:32
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 3 passed, 4 total
+Snapshots:   0 total
+Time:        3.128 s
+Ran all test suites matching /src\\app\\components\\modals\\math-gen-modal\\math-gen-modal.component.spec.ts/i.

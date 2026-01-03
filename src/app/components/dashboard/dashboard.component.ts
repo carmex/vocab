@@ -94,7 +94,7 @@ export class DashboardComponent implements OnInit {
 
     onCreateList() {
         const dialogRef = this.dialog.open(ListTypeDialogComponent, {
-            width: '400px'
+            width: '600px'
         });
 
         dialogRef.afterClosed().subscribe((result: ListType | undefined) => {

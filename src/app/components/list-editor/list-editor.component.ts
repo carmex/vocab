@@ -11,6 +11,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MathGenModalComponent } from '../modals/math-gen-modal/math-gen-modal.component';
 import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { AuthService } from '../../services/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -34,6 +36,9 @@ export interface WordRow {
   selector: 'app-list-editor',
   standalone: true,
   imports: [
+    CommonModule,
+    FormsModule,
+    MatDialogModule,
     CommonModule,
     FormsModule,
     MatButtonModule,
@@ -118,10 +123,10 @@ export interface WordRow {
                     </button>
                   </div>
                   <div class="card-content">
-                    <!-- Word/Definition Type -->
-                    <ng-container *ngIf="listType === ListType.WORD_DEFINITION">
+                    <!-- Word/Definition Type or Math -->
+                    <ng-container *ngIf="listType === ListType.WORD_DEFINITION || listType === ListType.MATH">
                       <mat-form-field appearance="outline" class="word-input">
-                        <mat-label>Word</mat-label>
+                        <mat-label>{{ listType === ListType.MATH ? 'Problem' : 'Word' }}</mat-label>
                         <input matInput [(ngModel)]="row.word" required>
                         <mat-hint *ngIf="hasEmoji(row.word)" align="start">
                           <span class="emoji-preview" [innerHTML]="row.word | twemoji"></span>
@@ -129,7 +134,7 @@ export interface WordRow {
                       </mat-form-field>
 
                       <mat-form-field appearance="outline" class="def-input">
-                        <mat-label>Definition</mat-label>
+                        <mat-label>{{ listType === ListType.MATH ? 'Answer' : 'Definition' }}</mat-label>
                         <input matInput [(ngModel)]="row.definition" required>
                         <mat-hint *ngIf="hasEmoji(row.definition)" align="start">
                           <span class="emoji-preview" [innerHTML]="row.definition | twemoji"></span>
@@ -555,7 +560,8 @@ export class ListEditorComponent implements OnInit {
     private router: Router,
     private route: ActivatedRoute,
     private auth: AuthService,
-    private supabaseService: SupabaseService
+    private supabaseService: SupabaseService,
+    private dialog: MatDialog
   ) { }
 
   ngOnInit(): void {
@@ -564,6 +570,10 @@ export class ListEditorComponent implements OnInit {
       const type = queryParams.get('type');
       if (type && Object.values(ListType).includes(type as ListType)) {
         this.listType = type as ListType;
+        if (this.listType === ListType.MATH) {
+          // Short delay to ensure view is ready or just to separate execution
+          setTimeout(() => this.openMathGenModal(), 0);
+        }
       }
     });
 
@@ -605,6 +615,7 @@ export class ListEditorComponent implements OnInit {
       case ListType.WORD_DEFINITION: return 'text_fields';
       case ListType.IMAGE_DEFINITION: return 'image';
       case ListType.SIGHT_WORDS: return 'record_voice_over';
+      case ListType.MATH: return 'calculate';
       default: return 'text_fields';
     }
   }
@@ -614,6 +625,7 @@ export class ListEditorComponent implements OnInit {
       case ListType.WORD_DEFINITION: return 'Word / Definition';
       case ListType.IMAGE_DEFINITION: return 'Image / Definition';
       case ListType.SIGHT_WORDS: return 'Sight Words';
+      case ListType.MATH: return 'Math Problems';
       default: return 'Word / Definition';
     }
   }
@@ -623,6 +635,7 @@ export class ListEditorComponent implements OnInit {
       case ListType.WORD_DEFINITION: return 'e.g. Spanish Verbs';
       case ListType.IMAGE_DEFINITION: return 'e.g. US State Shapes';
       case ListType.SIGHT_WORDS: return 'e.g. Kindergarten Sight Words';
+      case ListType.MATH: return 'e.g. Simple Addition';
       default: return 'e.g. Spanish Verbs';
     }
   }
@@ -695,6 +708,8 @@ export class ListEditorComponent implements OnInit {
         return this.words.every(w => (w.imageUrl || w.imageFile) && w.definition.trim().length > 0);
       case ListType.SIGHT_WORDS:
         return this.words.every(w => w.word.trim().length > 0);
+      case ListType.MATH:
+        return this.words.every(w => w.word.trim().length > 0 && w.definition.trim().length > 0);
       default:
         return false;
     }
@@ -817,6 +832,20 @@ export class ListEditorComponent implements OnInit {
         return;
       }
     }
+  }
+
+  openMathGenModal() {
+    const dialogRef = this.dialog.open(MathGenModalComponent, {
+      width: '500px',
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.words = result;
+        if (this.words.length === 0) this.words.push({ word: '', definition: '' });
+      }
+    });
   }
 
   private async uploadWordsWithWorker(listId: string, words: WordRow[]) {
