@@ -11,6 +11,7 @@ import { Classroom } from '../../../models/classroom.interface';
 export interface CreateQuestDialogData {
   classId?: string;
   className?: string;
+  listId?: string;
 }
 
 @Component({
@@ -110,8 +111,10 @@ export class AssignQuestDialogComponent implements OnInit {
       // Fetch user's lists
       this.listService.getMyLists(user.id).subscribe(lists => {
         this.lists = lists;
-        // Auto-select if only one list
-        if (lists.length === 1) {
+        // Auto-select if only one list OR if listId is provided in data
+        if (this.data?.listId) {
+          this.form.get('listId')?.setValue(this.data.listId);
+        } else if (lists.length === 1) {
           this.form.get('listId')?.setValue(lists[0].word_list_id);
         }
       });

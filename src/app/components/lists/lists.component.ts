@@ -26,7 +26,7 @@ import { TopNavComponent } from '../top-nav/top-nav.component';
 })
 export class ListsComponent implements OnInit {
     myLists$: Observable<ListShare[]>;
-    myQuests$: Observable<Quest[]>;
+
 
     // We no longer need to check for teacher view here, as this component is dedicated to lists/quests.
     // However, teachers can also have lists, so we display them for everyone.
@@ -50,27 +50,7 @@ export class ListsComponent implements OnInit {
             })
         );
 
-        const refreshTrigger = this.route.params;
 
-        this.myQuests$ = combineLatest([
-            this.auth.user$.pipe(filter(u => !!u)),
-            refreshTrigger.pipe(startWith({}))
-        ]).pipe(
-            switchMap(([user, _]) => this.classroomService.getStudentQuests(user!.id)),
-            map(quests => {
-                // Front-end sort: Incomplete first, then by due date
-                return quests.sort((a, b) => {
-                    if (a.is_completed === b.is_completed) {
-                        return (new Date(a.due_date || 0).getTime()) - (new Date(b.due_date || 0).getTime());
-                    }
-                    return a.is_completed ? 1 : -1;
-                });
-            }),
-            catchError(err => {
-                console.error('Error fetching quests:', err);
-                return of([]);
-            })
-        );
     }
 
     ngOnInit(): void {
@@ -98,6 +78,15 @@ export class ListsComponent implements OnInit {
 
     onReview(listId: string) {
         this.router.navigate(['/quiz', listId, 'review']);
+    }
+
+    onAssign(listId: string) {
+        import('../dialogs/assign-quest-dialog/assign-quest-dialog.component').then(({ AssignQuestDialogComponent }) => {
+            this.dialog.open(AssignQuestDialogComponent, {
+                width: '500px',
+                data: { listId }
+            });
+        });
     }
 
     onMarketplace() {
@@ -143,11 +132,5 @@ export class ListsComponent implements OnInit {
         });
     }
 
-    onPlayQuest(quest: Quest) {
-        if (quest.is_completed) {
-            this.router.navigate(['/quiz', quest.list_id, 'main']);
-        } else {
-            this.router.navigate(['/quiz', quest.list_id, 'main'], { queryParams: { questId: quest.id } });
-        }
-    }
+
 }

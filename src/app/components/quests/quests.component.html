@@ -1,0 +1,39 @@
+<div class="dashboard-container">
+    <app-top-nav backLink="/menu"></app-top-nav>
+
+    <h2 class="section-title">
+        <mat-icon class="section-icon">assignment</mat-icon> Quests
+    </h2>
+
+    <div class="quests-container" *ngIf="(myQuests$ | async) as quests">
+        <div class="lists-grid" *ngIf="quests.length > 0; else noQuests">
+            <mat-card *ngFor="let quest of quests" class="list-card quest-card" [class.completed]="quest.is_completed"
+                (click)="onPlayQuest(quest)">
+                <mat-card-header>
+                    <mat-icon mat-card-avatar [class.done-icon]="quest.is_completed">
+                        {{ quest.is_completed ? 'check_circle' : 'circle' }}
+                    </mat-icon>
+                    <mat-card-title>{{ quest.word_lists?.name }}</mat-card-title>
+                    <mat-card-subtitle>
+                        Due: {{ quest.due_date | date:'mediumDate' }}
+                    </mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                    <p *ngIf="quest.instructions" class="quest-instructions">{{ quest.instructions }}</p>
+                </mat-card-content>
+                <mat-card-actions align="end">
+                    <span *ngIf="quest.is_completed" class="status-badge complete">Completed</span>
+                    <span *ngIf="!quest.is_completed" class="status-badge todo">To Do</span>
+                </mat-card-actions>
+            </mat-card>
+        </div>
+
+        <ng-template #noQuests>
+            <div class="empty-state">
+                <mat-icon class="empty-icon">assignment_turned_in</mat-icon>
+                <h2>No Quests Assigned</h2>
+                <p>You're all caught up! Check back later.</p>
+            </div>
+        </ng-template>
+    </div>
+</div>

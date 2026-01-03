@@ -227,8 +227,24 @@ export class MathGenModalComponent {
   }
 
   generate() {
-    // Sequential
-    const selected = this.pool.slice(0, Math.max(0, Math.min(this.count, this.maxCards)));
+    // Random selection but preserved order
+
+    // 1. Create indices
+    const indices = Array.from({ length: this.pool.length }, (_, k) => k);
+
+    // 2. Shuffle indices (Fisher-Yates)
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+
+    // 3. Take the first 'count' distinct random indices and sort them
+    // so the final items are in the original pool order.
+    const limit = Math.max(0, Math.min(this.count, this.pool.length));
+    const selectedIndices = indices.slice(0, limit).sort((a, b) => a - b);
+
+    // 4. Map back to items
+    const selected = selectedIndices.map(i => this.pool[i]);
 
     this.dialogRef.close(selected);
   }

@@ -6,6 +6,7 @@ import { AuthGuard } from './guards/auth.guard';
 
 const routes: Routes = [
   { path: '', redirectTo: '/menu', pathMatch: 'full' },
+  { path: 'quests', loadComponent: () => import('./components/quests/quests.component').then(m => m.QuestsComponent), canActivate: [AuthGuard] },
   { path: 'lists', loadComponent: () => import('./components/lists/lists.component').then(m => m.ListsComponent), canActivate: [AuthGuard] },
   { path: 'classes', component: TeacherDashboardComponent, canActivate: [AuthGuard] },
   // Keeping dashboard redirect for backward compatibility

@@ -8,6 +8,9 @@
       <button mat-raised-button color="primary" routerLink="/classes" class="menu-button">
         <mat-icon>school</mat-icon> My Classes
       </button>
+      <button mat-raised-button color="warn" routerLink="/quests" class="menu-button" *ngIf="hasQuests$ | async">
+        <mat-icon>assignment</mat-icon> Quests
+      </button>
       <button mat-raised-button color="accent" routerLink="/lists" class="menu-button">
         <mat-icon>dashboard</mat-icon> My Lists
       </button>
@@ -17,6 +20,9 @@
     </ng-container>
 
     <ng-template #studentButtons>
+      <button mat-raised-button color="warn" routerLink="/quests" class="menu-button" *ngIf="hasQuests$ | async">
+        <mat-icon>assignment</mat-icon> Quests
+      </button>
       <button mat-raised-button color="primary" routerLink="/lists" class="menu-button">
         <mat-icon>dashboard</mat-icon> My Lists
       </button>
