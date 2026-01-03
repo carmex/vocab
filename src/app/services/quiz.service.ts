@@ -301,9 +301,26 @@ export class QuizService {
   }
 
   private getDistractors(target: ListWord): string[] {
-    const others = this.fullList.filter(w => w.id !== target.id);
-    this.shuffleArray(others);
-    return others.slice(0, 3).map(w => w.definition);
+    // 1. Filter out words that have the SAME definition as the target (even if different ID)
+    const validCandidates = this.fullList.filter(w =>
+      w.id !== target.id && w.definition !== target.definition
+    );
+
+    this.shuffleArray(validCandidates);
+
+    // 2. Select unique definitions
+    const selectedDefinitions = new Set<string>();
+    const distractors: string[] = [];
+
+    for (const candidate of validCandidates) {
+      if (!selectedDefinitions.has(candidate.definition)) {
+        selectedDefinitions.add(candidate.definition);
+        distractors.push(candidate.definition);
+        if (distractors.length >= 3) break;
+      }
+    }
+
+    return distractors;
   }
 
   private shuffleArray<T>(array: T[]): T[] {

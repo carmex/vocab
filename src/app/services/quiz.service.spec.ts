@@ -25,9 +25,26 @@ describe('QuizService Logic Tests', () => {
     }
 
     function getDistractors(target: ListWord, fullList: ListWord[]): string[] {
-        const others = fullList.filter(w => w.id !== target.id);
-        const shuffled = shuffleArray(others);
-        return shuffled.slice(0, 3).map(w => w.definition);
+        // 1. Filter out words that have the SAME definition as the target
+        const validCandidates = fullList.filter(w =>
+            w.id !== target.id && w.definition !== target.definition
+        );
+
+        const shuffled = shuffleArray(validCandidates);
+
+        // 2. Select unique definitions
+        const selectedDefinitions = new Set<string>();
+        const distractors: string[] = [];
+
+        for (const candidate of shuffled) {
+            if (!selectedDefinitions.has(candidate.definition)) {
+                selectedDefinitions.add(candidate.definition);
+                distractors.push(candidate.definition);
+                if (distractors.length >= 3) break;
+            }
+        }
+
+        return distractors;
     }
 
     // Sample test data
@@ -37,6 +54,8 @@ describe('QuizService Logic Tests', () => {
         { id: '3', word: 'cherry', definition: 'A small round fruit that is usually red' },
         { id: '4', word: 'date', definition: 'A sweet brown fruit from a palm tree' },
         { id: '5', word: 'elderberry', definition: 'A small dark purple berry' },
+        { id: '6', word: 'duplicate_apple', definition: 'A round fruit that is red, green, or yellow' }, // Same as apple
+        { id: '7', word: 'duplicate_banana', definition: 'A long curved fruit with yellow skin' }, // Same as banana
     ];
 
     describe('shuffleArray', () => {
@@ -107,6 +126,36 @@ describe('QuizService Logic Tests', () => {
         });
     });
 
+    it('should not include distractors with same definition as target (even if different ID)', () => {
+        const target = sampleWords[0]; // apple
+        // duplicate_apple has same definition
+        const distractors = getDistractors(target, sampleWords);
+        expect(distractors).not.toContain(target.definition);
+        // Ensure duplicate_apple's definition (which is same as target) didn't sneak in
+        // Ideally we shouldn't see it at all.
+        // Since we filter by definition, it definitely should be gone.
+        expect(distractors.includes(target.definition)).toBe(false);
+    });
+
+    it('should return unique distractors even if source list has duplicates', () => {
+        // Force a list where many items have same definition
+        const duplicateList = [
+            { id: '1', word: 'a', definition: 'def1' },
+            { id: '2', word: 'b', definition: 'def2' },
+            { id: '3', word: 'c', definition: 'def2' }, // duplicate def
+            { id: '4', word: 'd', definition: 'def3' },
+            { id: '5', word: 'e', definition: 'def3' }, // duplicate def
+            { id: '6', word: 'f', definition: 'def4' },
+        ];
+        const target = duplicateList[0];
+        const distractors = getDistractors(target, duplicateList);
+
+        // Should contain 3 distractors
+        // And they should be unique
+        const uniqueSet = new Set(distractors);
+        expect(uniqueSet.size).toBe(distractors.length);
+    });
+
     describe('Quiz Question Generation', () => {
         function generateQuestion(currentWord: ListWord, fullList: ListWord[]) {
             const distractors = getDistractors(currentWord, fullList);
@@ -145,7 +194,7 @@ describe('QuizService Logic Tests', () => {
         it('should correctly identify answered words', () => {
             const answeredIds = ['1', '2'];
             const remainingWords = sampleWords.filter(w => !answeredIds.includes(w.id));
-            expect(remainingWords.length).toBe(3);
+            expect(remainingWords.length).toBe(5);
         });
 
         it('should correctly calculate correct count', () => {
