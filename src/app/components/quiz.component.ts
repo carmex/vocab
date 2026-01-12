@@ -44,6 +44,11 @@ export class QuizComponent implements OnInit, OnDestroy {
   private remainingTime = 0;
   private totalTime = 0;
 
+  // Answer Delay State
+  delayingAnswers = false;
+  delayTimerProgress = 0;
+  private delayTimerInterval: any = null;
+
   questId: string | null = null;
 
   constructor(
@@ -86,6 +91,7 @@ export class QuizComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.timerInterval) clearInterval(this.timerInterval);
+    if (this.delayTimerInterval) clearInterval(this.delayTimerInterval);
   }
 
   private async displayNextQuestion() {
@@ -94,6 +100,11 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.isCorrect = false;
     this.timerProgress = 0;
     this.isPaused = false;
+    
+    // Clear any existing delay timer
+    if (this.delayTimerInterval) clearInterval(this.delayTimerInterval);
+    this.delayingAnswers = false;
+    this.delayTimerProgress = 0;
 
     this.currentQuestion = this.quizService.getNextQuestion();
 
@@ -114,7 +125,36 @@ export class QuizComponent implements OnInit, OnDestroy {
       } else {
         this.router.navigate(['/summary']);
       }
+      return;
     }
+
+    // Check delay settings
+    const settings = this.settingsService.getSettings();
+    if (settings.delayAnswers) {
+      this.startDelayTimer(settings.delayAnswerTimer);
+    }
+  }
+
+  private startDelayTimer(durationSeconds: number) {
+    this.delayingAnswers = true;
+    this.delayTimerProgress = 100;
+    
+    const step = 50; // Update frequently for smooth bar
+    let remaining = durationSeconds * 1000;
+    const total = remaining;
+
+    if (this.delayTimerInterval) clearInterval(this.delayTimerInterval);
+
+    this.delayTimerInterval = setInterval(() => {
+      remaining -= step;
+      this.delayTimerProgress = (remaining / total) * 100;
+
+      if (remaining <= 0) {
+        clearInterval(this.delayTimerInterval);
+        this.delayingAnswers = false;
+        this.delayTimerProgress = 0;
+      }
+    }, step);
   }
 
   onAnswer(selectedOption: string) {

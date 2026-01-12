@@ -20,7 +20,12 @@
     <span *ngIf="!isImageQuiz" [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
   </div>
 
-  <div class="answer-options" *ngIf="currentQuestion">
+  <div class="delay-container" *ngIf="delayingAnswers">
+    <div class="delay-text">Think about the answer...</div>
+    <mat-progress-bar mode="determinate" [value]="delayTimerProgress" class="delay-progress"></mat-progress-bar>
+  </div>
+
+  <div class="answer-options" *ngIf="currentQuestion && !delayingAnswers">
     <button *ngFor="let option of currentQuestion.options" mat-raised-button class="answer-button"
       (click)="!feedbackVisible && onAnswer(option)" [ngClass]="{
             'correct': feedbackVisible && option === currentQuestion.correctAnswer,
