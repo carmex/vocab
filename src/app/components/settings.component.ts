@@ -85,7 +85,7 @@ import { TopNavComponent } from './top-nav/top-nav.component';
           <mat-slide-toggle [(ngModel)]="darkMode" (ngModelChange)="autoSave()" color="primary">
             Dark Mode
           </mat-slide-toggle>
-          <p class="setting-description">Switch between light and dark themes</p>
+          <p class="setting-description">Switch between light and dark themes xyz</p>
         </div>
       </div>
 
