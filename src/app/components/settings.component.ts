@@ -103,6 +103,32 @@ import { TopNavComponent } from './top-nav/top-nav.component';
       </div>
 
       <div class="settings-section">
+        <h3>Answer Display</h3>
+        
+        <div class="setting-item">
+          <mat-checkbox [(ngModel)]="delayAnswers" (ngModelChange)="autoSave()" color="primary">
+            Delay answer choices
+          </mat-checkbox>
+          <p class="setting-description">Wait before showing the multiple choice answers</p>
+        </div>
+
+        <div class="timer-settings" [class.disabled]="!delayAnswers">
+          <div class="timer-setting-item">
+            <mat-form-field appearance="fill" class="timer-setting">
+              <mat-label>Delay Duration (seconds)</mat-label>
+              <mat-select [(ngModel)]="delayAnswerTimer" (ngModelChange)="autoSave()" [disabled]="!delayAnswers">
+                <mat-option [value]="1">1 second</mat-option>
+                <mat-option [value]="2">2 seconds</mat-option>
+                <mat-option [value]="3">3 seconds</mat-option>
+                <mat-option [value]="5">5 seconds</mat-option>
+                <mat-option [value]="10">10 seconds</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <h3>Speech Settings</h3>
         
         <div class="setting-item">
