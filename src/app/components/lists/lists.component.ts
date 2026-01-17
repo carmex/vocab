@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ListService, ListShare } from '../../services/list.service';
 import { AuthService } from '../../services/auth.service';
-import { Observable, of, combineLatest } from 'rxjs';
+import { Observable, of, forkJoin, timer } from 'rxjs';
 import { catchError, filter, switchMap, map, startWith } from 'rxjs/operators';
 import { Router, ActivatedRoute } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
@@ -22,7 +22,7 @@ import { TopNavComponent } from '../top-nav/top-nav.component';
     templateUrl: './lists.component.html',
     styleUrls: ['./lists.component.scss'],
     standalone: true,
-    imports: [CommonModule, SharedMaterialModule, RouterModule, TopNavComponent, QrScannerDialogComponent]
+    imports: [CommonModule, SharedMaterialModule, RouterModule, TopNavComponent]
 })
 export class ListsComponent implements OnInit {
     myLists$: Observable<ListShare[]>;
@@ -43,7 +43,57 @@ export class ListsComponent implements OnInit {
         // Wait for auth to be ready before fetching lists
         this.myLists$ = this.auth.user$.pipe(
             filter(user => !!user),
-            switchMap(user => this.listService.getMyLists(user!.id)),
+            switchMap(user =>
+                // Poll every 5 seconds for updates if we have pending items?
+                // For now, just load once. We can add polling if "generating" is active later.
+                // Or better: use a timer that refreshes stats.
+                timer(0, 5000).pipe(
+                    switchMap(() => this.listService.getMyLists(user!.id)),
+                    switchMap(lists => {
+                        // Get IDs of Sight Word lists
+                        const sightWordListIds = lists
+                            .filter(l => l.word_lists?.list_type === ListType.SIGHT_WORDS)
+                            .map(l => l.word_list_id);
+
+                        if (sightWordListIds.length === 0) return of(lists);
+
+                        // Fetch audio stats
+                        return this.listService.getListAudioStats(sightWordListIds).then(stats => {
+                            const statsMap = new Map(stats.map(s => [s.list_id, s]));
+
+                            return lists.map(list => {
+                                const s = statsMap.get(list.word_list_id);
+                                if (!s) return list;
+
+                                // Parse stats
+                                const total = s.total_words || 0;
+                                const completed = s.completed_words || 0;
+                                const failed = s.failed_words || 0;
+                                const pending = s.pending_words || 0;
+                                const queuePos = s.queue_position || 0;
+
+                                let progress = 100;
+                                if (total > 0) {
+                                    progress = Math.floor(((completed + failed) / total) * 100);
+                                }
+
+                                // State: 'generating' if pending > 0
+                                const isGenerating = pending > 0;
+
+                                return {
+                                    ...list,
+                                    audioStats: {
+                                        progress,
+                                        isGenerating,
+                                        queuePosition: queuePos,
+                                        estimatedWaitSeconds: Math.ceil(queuePos * 8)
+                                    }
+                                };
+                            });
+                        });
+                    })
+                )
+            ),
             catchError(err => {
                 console.error('Error fetching lists:', err);
                 return of([]);

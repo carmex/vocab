@@ -26,4 +26,13 @@ export class SupabaseService {
             }
         });
     }
+
+    async uploadUserRecording(blob: Blob, path: string): Promise<{ data: any; error: any }> {
+        return this.client.storage
+            .from('user-recordings')
+            .upload(path, blob, {
+                contentType: 'audio/webm',
+                upsert: true
+            });
+    }
 }

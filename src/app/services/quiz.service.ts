@@ -128,7 +128,11 @@ export class QuizService {
 
     // Generate Options
     const distractors = this.getDistractors(currentWord);
-    const options = this.shuffleArray([currentWord.definition, ...distractors]);
+    // For Sight Words, the answer is the word itself. For Defs, it's the definition.
+    const answer = this.currentListType === ListType.SIGHT_WORDS ? currentWord.word : currentWord.definition;
+
+    // For Sight Words, options are words. For Defs, options are definitions.
+    const options = this.shuffleArray([answer, ...distractors]);
 
     return {
       wordToQuiz: {
@@ -139,8 +143,12 @@ export class QuizService {
         imageUrl: currentWord.image_url
       },
       options,
-      correctAnswer: currentWord.definition
+      correctAnswer: answer
     };
+  }
+
+  getRemainingWords(): string[] {
+    return this.quizQueue.map(w => w.word);
   }
 
   // Optimistic Update
@@ -301,21 +309,29 @@ export class QuizService {
   }
 
   private getDistractors(target: ListWord): string[] {
-    // 1. Filter out words that have the SAME definition as the target (even if different ID)
-    const validCandidates = this.fullList.filter(w =>
-      w.id !== target.id && w.definition !== target.definition
-    );
+    const isSightWord = this.currentListType === ListType.SIGHT_WORDS;
+
+    // 1. Filter out words that have the SAME answer as the target
+    const validCandidates = this.fullList.filter(w => {
+      if (w.id === target.id) return false;
+      if (isSightWord) {
+        return w.word !== target.word;
+      } else {
+        return w.definition !== target.definition;
+      }
+    });
 
     this.shuffleArray(validCandidates);
 
-    // 2. Select unique definitions
-    const selectedDefinitions = new Set<string>();
+    // 2. Select unique answers
+    const selectedAnswers = new Set<string>();
     const distractors: string[] = [];
 
     for (const candidate of validCandidates) {
-      if (!selectedDefinitions.has(candidate.definition)) {
-        selectedDefinitions.add(candidate.definition);
-        distractors.push(candidate.definition);
+      const answer = isSightWord ? candidate.word : candidate.definition;
+      if (!selectedAnswers.has(answer)) {
+        selectedAnswers.add(answer);
+        distractors.push(answer);
         if (distractors.length >= 3) break;
       }
     }

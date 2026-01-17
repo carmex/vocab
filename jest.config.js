@@ -10,5 +10,5 @@ module.exports = {
         '<rootDir>/e2e/',
         '<rootDir>/src/environments/'
     ],
-    transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$|rxjs))'],
+    transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$|rxjs|vosk-browser))'],
 };

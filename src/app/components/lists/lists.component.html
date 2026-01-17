@@ -24,7 +24,9 @@
             </div>
         </div>
 
-        <mat-card *ngFor="let share of lists" class="list-card" (click)="onStudy(share.word_list_id)">
+        <mat-card *ngFor="let share of lists" class="list-card"
+            (click)="!(share.audioStats?.isGenerating) && onStudy(share.word_list_id)"
+            [class.disabled-card]="share.audioStats ? share.audioStats.isGenerating : false">
             <mat-card-header>
                 <mat-card-title>{{ share.word_lists?.name }}</mat-card-title>
                 <mat-card-subtitle>{{ share.word_lists?.description }}</mat-card-subtitle>
@@ -49,24 +51,46 @@
                     : (share.missed_word_count === 1 ? 'Word' : 'Words')
                     }}
                 </div>
+
+                <div class="audio-generation-info" *ngIf="share.audioStats?.isGenerating">
+                    <div class="progress-info">
+                        <mat-progress-bar mode="determinate"
+                            [value]="share.audioStats?.progress || 0"></mat-progress-bar>
+                        <span class="progress-text small-text">
+                            {{ share.audioStats?.progress || 0 }}% Generated
+                            <span *ngIf="(share.audioStats?.queuePosition || 0) > 0" class="wait-time">
+                                (~{{ share.audioStats?.estimatedWaitSeconds }}s wait)
+                            </span>
+                        </span>
+                    </div>
+                    <div class="generating-label">
+                        <mat-icon inline class="spin">sync</mat-icon> Generating Audio...
+                    </div>
+                </div>
             </mat-card-content>
             <mat-card-actions align="end">
-                <button mat-icon-button
+                <button mat-icon-button [disabled]="share.audioStats ? share.audioStats.isGenerating : false"
                     (click)="onShare(share.word_list_id, share.word_lists?.name); $event.stopPropagation()"
                     matTooltip="Share List">
                     <mat-icon>share</mat-icon>
                 </button>
 
-                <button mat-icon-button *ngIf="(auth.profile$ | async)?.role === 'teacher'"
-                    (click)="onAssign(share.word_list_id); $event.stopPropagation()" matTooltip="Assign to Class">
-                    <mat-icon>assignment_turned_in</mat-icon>
-                </button>
+                <ng-container *ngIf="auth.profile$ | async as profile">
+                    <button mat-icon-button *ngIf="profile.role === 'teacher'"
+                        [disabled]="share.audioStats ? share.audioStats.isGenerating : false"
+                        (click)="onAssign(share.word_list_id); $event.stopPropagation()" matTooltip="Assign to Class">
+                        <mat-icon>assignment_turned_in</mat-icon>
+                    </button>
+                </ng-container>
 
-                <button mat-icon-button *ngIf="share.word_lists?.creator_id === (auth.user$ | async)?.id"
-                    (click)="onEdit(share.word_list_id); $event.stopPropagation()" matTooltip="Edit List">
-                    <mat-icon>edit</mat-icon>
-                </button>
+                <ng-container *ngIf="auth.user$ | async as user">
+                    <button mat-icon-button *ngIf="share.word_lists?.creator_id === user.id"
+                        (click)="onEdit(share.word_list_id); $event.stopPropagation()" matTooltip="Edit List">
+                        <mat-icon>edit</mat-icon>
+                    </button>
+                </ng-container>
                 <button mat-icon-button color="accent" *ngIf="share.missed_word_count && share.missed_word_count > 0"
+                    [disabled]="share.audioStats ? share.audioStats.isGenerating : false"
                     (click)="onReview(share.word_list_id); $event.stopPropagation()"
                     [matTooltip]="share.word_lists?.list_type === 'math' ? 'Review Missed Problems' : 'Review Missed Words'">
                     <mat-icon>rate_review</mat-icon>

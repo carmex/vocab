@@ -17,6 +17,7 @@
   margin: 20px 0 30px 0;
   background: linear-gradient(45deg, #FF4081, #3F51B5);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   text-align: center;
   letter-spacing: 2px;
@@ -58,4 +59,31 @@
 .gray {
   background-color: #9E9E9E !important;
   color: white !important;
+}
+
+.marketplace-btn {
+  background-color: #2E7D32 !important;
+  /* Green 800 */
+  color: white !important;
+
+  &:hover {
+    background-color: #1B5E20 !important;
+    /* Green 900 */
+  }
+
+  /* Ensure icon is white too */
+  mat-icon {
+    color: white !important;
+  }
+}
+
+:host-context(.dark-mode) .marketplace-btn {
+  /* In dark mode, we can keep the same green or go slightly brighter if needed based on elevation */
+  /* But 800 is good contrast for white text */
+  background-color: #388E3C !important;
+  /* Green 700 - slightly brighter for dark mode */
+
+  &:hover {
+    background-color: #2E7D32 !important;
+  }
 }

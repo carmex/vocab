@@ -11,9 +11,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
+
+import { MatMenuModule } from '@angular/material/menu';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MathGenModalComponent } from '../modals/math-gen-modal/math-gen-modal.component';
-import { ScrollingModule, CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
+
 import { AuthService } from '../../services/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ListService } from '../../services/list.service';
@@ -38,9 +40,6 @@ export interface WordRow {
   imports: [
     CommonModule,
     FormsModule,
-    MatDialogModule,
-    CommonModule,
-    FormsModule,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -49,487 +48,19 @@ export interface WordRow {
     MatSlideToggleModule,
     MatTooltipModule,
     MatProgressBarModule,
-    MatProgressBarModule,
     MatCheckboxModule,
     MatSelectModule,
-    ScrollingModule,
+    MatMenuModule,
+
+    MatDialogModule,
     TopNavComponent,
     TwemojiPipe
   ],
-  template: `
-    <div class="editor-container">
-      <app-top-nav backLink="/lists"></app-top-nav>
-      <h1>{{ isEditMode ? 'Edit List' : 'Create New List' }}</h1>
-      <div class="list-type-badge" *ngIf="!isEditMode">
-        <mat-icon>{{ getTypeIcon() }}</mat-icon>
-        <span>{{ getTypeName() }}</span>
-      </div>
-      
-      <mat-card class="editor-card">
-        <mat-card-content>
-          <div class="list-details">
-            <mat-form-field appearance="fill" class="full-width">
-              <mat-label>List Name</mat-label>
-              <input matInput [(ngModel)]="name" [placeholder]="getNamePlaceholder()" required>
-            </mat-form-field>
-
-            <mat-form-field appearance="fill" class="full-width">
-              <mat-label>Description</mat-label>
-              <textarea matInput [(ngModel)]="description" placeholder="Optional description"></textarea>
-            </mat-form-field>
-
-            <div class="toggle-container">
-              <mat-slide-toggle 
-                [(ngModel)]="isPublic" 
-                color="primary"
-                [disabled]="isAnonymous"
-                [matTooltip]="isAnonymous ? 'Create an account to make public lists' : ''">
-                Make Public (Visible in Marketplace)
-              </mat-slide-toggle>
-            </div>
-
-            <mat-form-field appearance="fill" class="language-select">
-              <mat-label>Language</mat-label>
-              <mat-select [(ngModel)]="language">
-                <mat-option value="en">English</mat-option>
-                <mat-option value="es">Spanish</mat-option>
-              </mat-select>
-              <mat-hint>For speech recognition and pronunciation</mat-hint>
-            </mat-form-field>
-          </div>
-
-          <div class="words-header-container">
-            <h3>{{ listType === ListType.SIGHT_WORDS ? 'Words' : 'Items' }}</h3>
-            <mat-checkbox [(ngModel)]="isCompactMode" color="primary">Compact Mode</mat-checkbox>
-          </div>
-          <div class="words-list-container">
-            <cdk-virtual-scroll-viewport [itemSize]="getItemSize()" class="words-viewport">
-              <div *cdkVirtualFor="let row of words; let i = index" class="word-row-wrapper" [style.height.px]="getItemSize()">
-                
-                <!-- Compact View -->
-                <div class="compact-row" *ngIf="isCompactMode">
-                  <span class="compact-number">#{{ i + 1 }}</span>
-                  <span class="compact-word">{{ row.word || '(Empty)' }}</span>
-                </div>
-
-                <!-- Full Card View -->
-                <div class="word-card" *ngIf="!isCompactMode"
-                     [attr.tabindex]="listType === ListType.IMAGE_DEFINITION ? 0 : null"
-                     (paste)="listType === ListType.IMAGE_DEFINITION ? onImagePaste($event, i) : null">
-                  <div class="card-header">
-                    <span class="card-number">#{{ i + 1 }}</span>
-                    <button mat-icon-button color="warn" (click)="removeWord(i)" *ngIf="words.length > 1 || isEditMode" matTooltip="Delete Item">
-                      <mat-icon>delete</mat-icon>
-                    </button>
-                  </div>
-                  <div class="card-content">
-                    <!-- Word/Definition Type or Math -->
-                    <ng-container *ngIf="listType === ListType.WORD_DEFINITION || listType === ListType.MATH">
-                      <mat-form-field appearance="outline" class="word-input">
-                        <mat-label>{{ listType === ListType.MATH ? 'Problem' : 'Word' }}</mat-label>
-                        <input matInput [(ngModel)]="row.word" required>
-                        <mat-hint *ngIf="hasEmoji(row.word)" align="start">
-                          <span class="emoji-preview" [innerHTML]="row.word | twemoji"></span>
-                        </mat-hint>
-                      </mat-form-field>
-
-                      <mat-form-field appearance="outline" class="def-input">
-                        <mat-label>{{ listType === ListType.MATH ? 'Answer' : 'Definition' }}</mat-label>
-                        <input matInput [(ngModel)]="row.definition" required>
-                        <mat-hint *ngIf="hasEmoji(row.definition)" align="start">
-                          <span class="emoji-preview" [innerHTML]="row.definition | twemoji"></span>
-                        </mat-hint>
-                      </mat-form-field>
-                    </ng-container>
-
-                    <!-- Image/Definition Type -->
-                    <ng-container *ngIf="listType === ListType.IMAGE_DEFINITION">
-                      <div class="image-upload-section">
-                        <div class="image-preview" *ngIf="row.imagePreview || row.imageUrl" 
-                             (click)="triggerImageUpload(i)"
-                             matTooltip="Click to change or paste (Ctrl+V) a new image">
-                          <img [src]="row.imagePreview || row.imageUrl" alt="Item image">
-                        </div>
-                        <div class="image-placeholder" 
-                             *ngIf="!row.imagePreview && !row.imageUrl" 
-                             (click)="triggerImageUpload(i)">
-                          <mat-icon>add_photo_alternate</mat-icon>
-                          <span>Click or paste (Ctrl+V)</span>
-                        </div>
-                        <input #itemImageInput type="file" (change)="onItemImageSelected($event, i)" style="display: none" accept="image/*">
-                        <button mat-stroked-button (click)="triggerImageUpload(i)" class="change-image-btn" *ngIf="row.imagePreview || row.imageUrl">
-                          Change Image
-                        </button>
-                      </div>
-
-                      <mat-form-field appearance="outline" class="def-input">
-                        <mat-label>Answer</mat-label>
-                        <input matInput [(ngModel)]="row.definition" required placeholder="e.g. Texas">
-                      </mat-form-field>
-                    </ng-container>
-
-                    <!-- Sight Words Type -->
-                    <ng-container *ngIf="listType === ListType.SIGHT_WORDS">
-                      <mat-form-field appearance="outline" class="word-input full-width-input">
-                        <mat-label>Word</mat-label>
-                        <input matInput [(ngModel)]="row.word" required placeholder="e.g. the">
-                      </mat-form-field>
-                    </ng-container>
-                  </div>
-                </div>
-              </div>
-            </cdk-virtual-scroll-viewport>
-          </div>
-
-          <!-- Bulk Paste for Sight Words -->
-          <div class="bulk-paste-section" *ngIf="listType === ListType.SIGHT_WORDS">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Bulk Add Words (comma-separated)</mat-label>
-              <textarea matInput 
-                        [(ngModel)]="bulkWordsText" 
-                        placeholder="the, and, is, a, to, in, it, you, that, he"
-                        rows="3"></textarea>
-              <mat-hint>Enter words separated by commas, then click "Add Words"</mat-hint>
-            </mat-form-field>
-            <button mat-stroked-button color="primary" (click)="onBulkAddWords()" [disabled]="!bulkWordsText.trim()">
-              <mat-icon>playlist_add</mat-icon> Add Words
-            </button>
-          </div>
-
-          <div class="actions">
-            <button mat-stroked-button (click)="addWord()">
-              <mat-icon>add</mat-icon> Add {{ listType === ListType.SIGHT_WORDS ? 'Word' : 'Item' }}
-            </button>
-            <button mat-stroked-button (click)="fileInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage" *ngIf="listType !== ListType.IMAGE_DEFINITION">
-              <mat-icon>upload_file</mat-icon> {{ isImporting ? 'Importing...' : 'Import JSON' }}
-            </button>
-            <input #fileInput type="file" (change)="onFileSelected($event)" style="display: none" accept=".json">
-
-            <ng-container *ngIf="listType === ListType.WORD_DEFINITION || listType === ListType.SIGHT_WORDS">
-              <button mat-stroked-button (click)="imageInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage">
-                <mat-icon>photo_library</mat-icon> {{ isProcessingImage ? 'Processing...' : 'Gallery' }}
-              </button>
-              <input #imageInput type="file" (change)="onImageSelected($event)" style="display: none" accept="image/*">
-
-              <button mat-stroked-button (click)="cameraInput.click()" style="margin-left: 10px;" [disabled]="isImporting || isUploading || isProcessingImage">
-                <mat-icon>camera_alt</mat-icon> {{ isProcessingImage ? 'Processing...' : 'Camera' }}
-              </button>
-              <input #cameraInput type="file" (change)="onImageSelected($event)" style="display: none" accept="image/*" capture="environment">
-            </ng-container>
-          </div>
-
-          <div class="import-progress" *ngIf="isImporting">
-            <mat-progress-bar mode="determinate" [value]="importProgress"></mat-progress-bar>
-            <span class="progress-text">Processing... {{ importProgress }}%</span>
-          </div>
-
-          <div class="import-progress" *ngIf="isUploading">
-            <mat-progress-bar mode="determinate" [value]="uploadProgress" color="accent"></mat-progress-bar>
-            <span class="progress-text">Uploading... {{ uploadProgress }}%</span>
-          </div>
-
-        </mat-card-content>
-        <mat-card-actions align="end">
-          <button mat-button (click)="onCancel()" [disabled]="saving || isUploading">Cancel</button>
-          <button mat-raised-button color="primary" (click)="onSave()" [disabled]="!isValid() || saving || isUploading">
-            {{ saving || isUploading ? 'Saving...' : 'Save List' }}
-          </button>
-        </mat-card-actions>
-      </mat-card>
-    </div>
-
-    <!-- Hidden file inputs for per-item image uploads -->
-    <input #hiddenImageInput type="file" (change)="onItemImageSelected($event, currentImageUploadIndex)" style="display: none" accept="image/*">
-  `,
-  styles: [`
-    .editor-container {
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 10px;
-      box-sizing: border-box;
-    }
-    .editor-card {
-      padding: 20px;
-    }
-    .full-width {
-      width: 100%;
-      margin-bottom: 10px;
-    }
-    .toggle-container {
-      margin-bottom: 20px;
-    }
-    .language-select {
-      width: 200px;
-      margin-bottom: 20px;
-    }
-    .list-type-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: #e3f2fd;
-      padding: 8px 16px;
-      border-radius: 20px;
-      margin-bottom: 16px;
-      width: fit-content;
-    }
-    .list-type-badge mat-icon {
-      color: #1976d2;
-    }
-    .words-list-container {
-      height: 640px;
-      border: 1px solid #eee;
-      border-radius: 4px;
-      margin-bottom: 10px;
-      background-color: #fafafa;
-    }
-    .words-viewport {
-      height: 100%;
-      width: 100%;
-    }
-    .word-row-wrapper {
-      padding: 10px;
-      box-sizing: border-box;
-    }
-    .word-card {
-      background: white;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      box-sizing: border-box;
-      outline: none;
-    }
-    .word-card:focus {
-      border-color: #1976d2;
-      box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
-    }
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 5px 10px;
-      border-bottom: 1px solid #f0f0f0;
-      background-color: #f9f9f9;
-      border-radius: 8px 8px 0 0;
-    }
-    .card-number {
-      font-weight: bold;
-      color: #777;
-      font-size: 0.9rem;
-    }
-    .card-content {
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      flex: 1;
-    }
-    .word-input, .def-input {
-      width: 100%;
-    }
-    .full-width-input {
-      width: 100%;
-    }
-    .actions {
-      margin-top: 20px;
-      margin-bottom: 20px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .import-progress {
-      margin-top: 20px;
-      margin-bottom: 20px;
-    }
-    .progress-text {
-      display: block;
-      margin-top: 5px;
-      font-size: 0.9rem;
-      color: #666;
-      text-align: center;
-    }
-    .emoji-preview {
-      font-size: 1.5em;
-      opacity: 1;
-      margin-top: 5px;
-      display: inline-block;
-    }
-    .words-header-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .words-header-container h3 {
-      margin: 0;
-    }
-    .compact-row {
-      display: flex;
-      align-items: center;
-      padding: 0 10px;
-      height: 100%;
-      border-bottom: 1px solid #eee;
-      background: white;
-    }
-    .compact-number {
-      font-weight: bold;
-      color: #777;
-      min-width: 40px;
-      margin-right: 10px;
-      flex-shrink: 0;
-    }
-    .compact-word {
-      font-size: 1rem;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .image-upload-section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-    }
-    .image-preview {
-      width: 100%;
-      max-height: 120px;
-      overflow: hidden;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-    }
-    .image-preview img {
-      width: 100%;
-      height: 120px;
-      object-fit: contain;
-      background: #f5f5f5;
-    }
-    .image-placeholder {
-      width: 100%;
-      height: 100px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: #f5f5f5;
-      border: 2px dashed #ccc;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
-      outline: none;
-    }
-    .image-placeholder:hover {
-      background: #eee;
-    }
-    .image-placeholder:focus {
-      border-color: #1976d2;
-      background: #e3f2fd;
-    }
-    .image-preview {
-      cursor: pointer;
-      outline: none;
-    }
-    .image-preview:focus {
-      outline: 2px solid #1976d2;
-      outline-offset: 2px;
-    }
-    .image-placeholder mat-icon {
-      font-size: 36px;
-      width: 36px;
-      height: 36px;
-      color: #999;
-    }
-    .image-placeholder span {
-      color: #999;
-      font-size: 0.85rem;
-      margin-top: 5px;
-    }
-    .change-image-btn {
-      font-size: 0.85rem;
-    }
-    .bulk-paste-section {
-      margin-bottom: 20px;
-      padding: 15px;
-      background: #e3f2fd;
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .bulk-paste-section button {
-      align-self: flex-start;
-    }
-
-    /* Dark Mode Overrides */
-    :host-context(body.dark-mode) {
-      .list-type-badge {
-        background: #1e3a5f;
-        color: #e0e0e0;
-      }
-      .list-type-badge mat-icon {
-        color: #64b5f6;
-      }
-      .words-list-container {
-        background-color: #1a1a1a;
-        border-color: #333;
-      }
-      .word-card {
-        background: #252525;
-        border-color: #444;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      }
-      .word-card:focus {
-        border-color: #64b5f6;
-        box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.3);
-      }
-      .card-header {
-        background-color: #2a2a2a;
-        border-bottom-color: #333;
-      }
-      .card-number {
-        color: #999;
-      }
-      .compact-row {
-        background: #252525;
-        border-bottom-color: #333;
-      }
-      .compact-number {
-        color: #999;
-      }
-      .progress-text {
-        color: #b0b0b0;
-      }
-      .image-preview {
-        border-color: #444;
-      }
-      .image-preview img {
-        background: #2a2a2a;
-      }
-      .image-placeholder {
-        background: #2a2a2a;
-        border-color: #555;
-      }
-      .image-placeholder:hover {
-        background: #333;
-      }
-      .image-placeholder:focus {
-        border-color: #64b5f6;
-        background: #1e3a5f;
-      }
-      .image-placeholder mat-icon,
-      .image-placeholder span {
-        color: #888;
-      }
-      .bulk-paste-section {
-        background: #1e3a5f;
-      }
-    }
-  `]
+  templateUrl: './list-editor.component.html',
+  styleUrls: ['./list-editor.component.scss']
 })
+
 export class ListEditorComponent implements OnInit {
-  @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
   @ViewChild('hiddenImageInput') hiddenImageInput!: any;
 
   listId: string | null = null;
@@ -554,6 +85,9 @@ export class ListEditorComponent implements OnInit {
   isProcessingImage = false;
   currentImageUploadIndex = 0;
   bulkWordsText = '';
+
+  // UI State
+  focusedIndex: number | null = null;
 
   constructor(
     private listService: ListService,
@@ -640,22 +174,9 @@ export class ListEditorComponent implements OnInit {
     }
   }
 
-  getItemSize(): number {
-    if (this.isCompactMode) return 50;
-    switch (this.listType) {
-      case ListType.IMAGE_DEFINITION: return 340;
-      case ListType.SIGHT_WORDS: return 150;
-      default: return 280;
-    }
-  }
-
   addWord() {
     this.words = [...this.words, { word: '', definition: '' }];
-    setTimeout(() => {
-      if (this.viewport) {
-        this.viewport.scrollToIndex(this.words.length - 1, 'smooth');
-      }
-    }, 100);
+    // No more viewport scroll needed, auto-scroll logic can be handled differently if needed or let browser handle it
   }
 
   onBulkAddWords() {
@@ -681,9 +202,11 @@ export class ListEditorComponent implements OnInit {
     this.bulkWordsText = '';
 
     // Scroll to show the new words
+    // Scroll logic removed pending viewchild fix if needed, or rely on native scroll
     setTimeout(() => {
-      if (this.viewport) {
-        this.viewport.scrollToIndex(this.words.length - 1, 'smooth');
+      const listContainer = document.querySelector('.words-list-container');
+      if (listContainer) {
+        listContainer.lastElementChild?.scrollIntoView({ behavior: 'smooth' });
       }
     }, 100);
   }
@@ -730,6 +253,13 @@ export class ListEditorComponent implements OnInit {
       }
 
       if (this.isEditMode && this.listId) {
+        // Enforce 50 word limit
+        if (this.words.length > 50) {
+          alert('Lists are currently limited to 50 items maximum for performance.');
+          this.saving = false;
+          return;
+        }
+
         await this.listService.updateList(this.listId, this.name, this.description, this.isPublic, this.language).toPromise();
         await this.listService.syncWords(this.listId, this.words.map(w => ({
           id: w.id,
@@ -737,24 +267,79 @@ export class ListEditorComponent implements OnInit {
           definition: w.definition,
           imageUrl: w.imageUrl
         })), this.deletedWordIds).toPromise();
+
+        // Queue all words for audio if Sight Words
+        if (this.listType === ListType.SIGHT_WORDS) {
+          await this.queueWordsForAudio(this.words.map(w => w.word));
+        }
+
         this.router.navigate(['/lists']);
       } else {
+        // Enforce 50 word limit
+        if (this.words.length > 50) {
+          alert('Lists are currently limited to 50 items maximum for performance.');
+          this.saving = false;
+          return;
+        }
+
         const listId = await this.listService.createList(this.name, this.description, this.isPublic, this.listType, this.language).toPromise();
         if (listId) {
-          if (this.words.length > 50 && typeof Worker !== 'undefined') {
-            this.uploadWordsWithWorker(listId, this.words);
-          } else {
-            await this.listService.addWords(listId, this.words.map(w => ({
-              word: w.word,
-              definition: w.definition,
-              imageUrl: w.imageUrl
-            }))).toPromise();
-            this.router.navigate(['/dashboard']);
+          // Always use standard addWords + Queue, no worker needed for < 50 items
+          await this.listService.addWords(listId, this.words.map(w => ({
+            word: w.word,
+            definition: w.definition,
+            imageUrl: w.imageUrl
+          }))).toPromise();
+
+          // Queue all words for audio if Sight Words
+          if (this.listType === ListType.SIGHT_WORDS) {
+            await this.queueWordsForAudio(this.words.map(w => w.word));
           }
+
+          this.router.navigate(['/dashboard']); // Go to dashboard (My Lists) so they can see progress
         }
       }
     } catch (err) {
       this.handleError(err);
+    }
+  }
+
+  // Helper to add words to the global generation queue
+  private async queueWordsForAudio(words: string[]) {
+    // Only queue if language implies speech (e.g. not math? Actually math uses speech too but "logic" is different)
+    // For now, queue everything. The Edge function can decide or we filter effectively.
+    // Actually, queue everything.
+
+    // Filter out empties
+    const validWords = [...new Set(words.filter(w => w && w.trim().length > 0))];
+
+    if (validWords.length === 0) return;
+
+    console.log('[ListEditor] Queueing words for audio generation:', validWords.length);
+
+    // Insert into table (ignore duplicates on conflict)
+    // We construct the rows
+    const rows = validWords.map(w => ({
+      word: w,
+      language: this.language,
+      status: 'pending'
+    }));
+
+    const { error } = await this.supabaseService.client
+      .from('audio_generation_queue')
+      .upsert(rows, { onConflict: 'word, language', ignoreDuplicates: true });
+
+    if (error) {
+      console.error('[ListEditor] Failed to queue words:', error);
+      // Don't block save, just log
+    } else {
+      console.log('[ListEditor] Words queued. Triggering processor...');
+      // Fire and forget the Edge Function trigger
+      this.supabaseService.client.functions.invoke('process-audio-queue')
+        .then(({ data, error }) => {
+          if (error) console.error('[ListEditor] Trigger error:', error);
+          else console.log('[ListEditor] Processor triggered:', data);
+        });
     }
   }
 
@@ -788,51 +373,7 @@ export class ListEditorComponent implements OnInit {
     return urlData.publicUrl;
   }
 
-  triggerImageUpload(index: number) {
-    this.currentImageUploadIndex = index;
-    const fileInputs = document.querySelectorAll('input[type="file"][accept="image/*"]');
-    const input = fileInputs[fileInputs.length - 1] as HTMLInputElement;
-    if (input) input.click();
-  }
 
-  onItemImageSelected(event: any, index: number) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Create preview
-    const reader = new FileReader();
-    reader.onload = (e: any) => {
-      this.words[index].imagePreview = e.target.result;
-      this.words[index].imageFile = file;
-      this.words = [...this.words];
-    };
-    reader.readAsDataURL(file);
-    event.target.value = '';
-  }
-
-  onImagePaste(event: ClipboardEvent, index: number) {
-    const items = event.clipboardData?.items;
-    if (!items) return;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        event.preventDefault();
-        const file = item.getAsFile();
-        if (file) {
-          // Create preview
-          const reader = new FileReader();
-          reader.onload = (e: any) => {
-            this.words[index].imagePreview = e.target.result;
-            this.words[index].imageFile = file;
-            this.words = [...this.words];
-          };
-          reader.readAsDataURL(file);
-        }
-        return;
-      }
-    }
-  }
 
   openMathGenModal() {
     const dialogRef = this.dialog.open(MathGenModalComponent, {
@@ -1066,5 +607,65 @@ export class ListEditorComponent implements OnInit {
       img.onerror = () => reject(new Error('Failed to load image'));
       img.src = URL.createObjectURL(file);
     });
+  }
+
+  isFocused(index: number): boolean {
+    return this.focusedIndex === index;
+  }
+
+  setFocused(index: number) {
+    this.focusedIndex = index;
+  }
+
+  onImagePaste(event: ClipboardEvent, index: number) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const blob = items[i].getAsFile();
+        if (blob) {
+          this.handleImageBlob(blob, index);
+        }
+        event.preventDefault(); // Prevent double paste behavior
+      }
+    }
+  }
+
+  async handleImageBlob(file: File, index: number) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      // Temporarily update preview
+      if (this.words[index]) {
+        this.words[index].imagePreview = e.target.result;
+        this.words[index].imageFile = file;
+        this.words = [...this.words];
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  triggerImageUpload(index: number) {
+    // Find the hidden input for this specific index if possible, or use a shared one
+    // The template uses a per-row input: <input #itemImageInput ...>
+    // But queryList might be needed if we want to trigger it programmatically from outside
+    // Actually, in the HTML I wrote: (click)="triggerImageUpload(i)" and matching <input #itemImageInput>
+    // But triggering a specific element in a list from TS is hard without QueryList.
+    // SIMPLER: Use a single hidden input for "current upload" and just set the index
+
+    this.currentImageUploadIndex = index;
+    if (this.hiddenImageInput) {
+      this.hiddenImageInput.nativeElement.click();
+    }
+  }
+
+  onItemImageSelected(event: any, index: number) {
+    const file = event.target.files[0];
+    if (file) {
+      this.handleImageBlob(file, index);
+    }
+    event.target.value = '';
   }
 }

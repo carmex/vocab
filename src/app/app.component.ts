@@ -5,6 +5,7 @@ import { AuthService } from './services/auth.service';
 import { RoleSelectionModalComponent } from './components/role-selection-modal/role-selection-modal.component';
 import { AlertDialogComponent } from './components/dialogs/alert-dialog/alert-dialog.component';
 import { SupabaseService } from './services/supabase.service';
+import { SpeechService } from './services/speech.service';
 
 @Component({
   selector: 'app-root',
@@ -19,7 +20,8 @@ export class AppComponent implements OnInit {
     private settingsService: SettingsService,
     private authService: AuthService,
     private dialog: MatDialog,
-    private supabase: SupabaseService
+    private supabase: SupabaseService,
+    private speechService: SpeechService
   ) { }
 
   ngOnInit() {

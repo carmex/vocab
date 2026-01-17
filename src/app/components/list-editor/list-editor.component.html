@@ -1,0 +1,246 @@
+<div class="editor-container">
+    <app-top-nav backLink="/lists"></app-top-nav>
+
+    <div class="header-section">
+        <h1>{{ isEditMode ? 'Edit List' : 'Create New List' }}</h1>
+        <div class="list-type-badge" *ngIf="!isEditMode">
+            <mat-icon>{{ getTypeIcon() }}</mat-icon>
+            <span>{{ getTypeName() }}</span>
+        </div>
+    </div>
+
+    <mat-card class="editor-card">
+        <mat-card-content>
+            <!-- Meta Information -->
+            <div class="list-details">
+                <!-- Grid Row 1: Name and Language -->
+                <div class="grid-2-col">
+                    <mat-form-field appearance="outline" class="full-width">
+                        <mat-label>List Name</mat-label>
+                        <input matInput [(ngModel)]="name" [placeholder]="getNamePlaceholder()" required>
+                        <mat-icon matSuffix class="subtle-icon">edit</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="language-select">
+                        <mat-label>Language</mat-label>
+                        <mat-select [(ngModel)]="language">
+                            <mat-option value="en">
+                                <span class="fi fi-us"></span> English
+                            </mat-option>
+                            <mat-option value="es">
+                                <span class="fi fi-es"></span> Spanish
+                            </mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <!-- Row 2: Description -->
+                <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Description</mat-label>
+                    <textarea matInput [(ngModel)]="description" placeholder="What is this list about?"
+                        rows="2"></textarea>
+                </mat-form-field>
+
+                <!-- Row 3: Toggles -->
+                <div class="toggle-container">
+                    <mat-slide-toggle [(ngModel)]="isPublic" color="primary" class="custom-toggle"
+                        [disabled]="isAnonymous"
+                        [matTooltip]="isAnonymous ? 'Create an account to make public lists' : 'Share this list with the community'">
+                        Make Public (Appears in Marketplace)
+                    </mat-slide-toggle>
+                </div>
+            </div>
+
+            <!-- Items Section -->
+            <div class="words-header-container">
+                <h3>{{ listType === ListType.SIGHT_WORDS ? 'Words' : 'Items' }} <span
+                        style="font-weight: 400; color: #94a3b8; font-size: 1rem;">({{ words.length }})</span></h3>
+                <mat-checkbox [(ngModel)]="isCompactMode" color="primary">Compact View</mat-checkbox>
+            </div>
+
+            <div class="words-list-container">
+                <!-- Replaced Virtual Scroll with Standard ngFor for better compatibility -->
+                <div *ngFor="let row of words; let i = index" class="word-row-wrapper">
+
+                    <!-- Compact View -->
+                    <div class="compact-row" *ngIf="isCompactMode">
+                        <span class="compact-number">#{{ i + 1 }}</span>
+                        <span class="compact-word">{{ row.word || '(Empty)' }}</span>
+                        <button mat-icon-button color="warn" (click)="removeWord(i)"
+                            *ngIf="words.length > 1 || isEditMode" style="margin-left: auto;">
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+
+                    <!-- Full Card View -->
+                    <div class="word-card" *ngIf="!isCompactMode" [class.focused-card]="isFocused(i)"
+                        (click)="setFocused(i)" [attr.tabindex]="listType === ListType.IMAGE_DEFINITION ? 0 : null"
+                        (paste)="listType === ListType.IMAGE_DEFINITION ? onImagePaste($event, i) : null">
+
+                        <div class="card-header">
+                            <span class="card-number">ITEM {{ i + 1 }}</span>
+                            <button mat-icon-button color="warn" (click)="removeWord(i)"
+                                *ngIf="words.length > 1 || isEditMode" matTooltip="Delete Item" class="delete-btn">
+                                <mat-icon>delete_outline</mat-icon>
+                            </button>
+                        </div>
+
+                        <div class="card-content">
+                            <!-- Word/Definition Type or Math -->
+                            <ng-container *ngIf="listType === ListType.WORD_DEFINITION || listType === ListType.MATH">
+                                <mat-form-field appearance="outline" class="word-input">
+                                    <mat-label>{{ listType === ListType.MATH ? 'Problem (e.g. 5 + 3)' : 'Front / Word'
+                                        }}</mat-label>
+                                    <input matInput [(ngModel)]="row.word" required>
+                                    <mat-hint *ngIf="hasEmoji(row.word)" align="start">
+                                        <span class="emoji-preview" [innerHTML]="row.word | twemoji"></span>
+                                    </mat-hint>
+                                </mat-form-field>
+
+                                <mat-form-field appearance="outline" class="def-input">
+                                    <mat-label>{{ listType === ListType.MATH ? 'Answer' : 'Back / Definition'
+                                        }}</mat-label>
+                                    <input matInput [(ngModel)]="row.definition" required>
+                                    <mat-hint *ngIf="hasEmoji(row.definition)" align="start">
+                                        <span class="emoji-preview" [innerHTML]="row.definition | twemoji"></span>
+                                    </mat-hint>
+                                </mat-form-field>
+                            </ng-container>
+
+                            <!-- Image/Definition Type -->
+                            <ng-container *ngIf="listType === ListType.IMAGE_DEFINITION">
+                                <div class="image-upload-section">
+                                    <div class="image-preview" *ngIf="row.imagePreview || row.imageUrl"
+                                        (click)="triggerImageUpload(i)" matTooltip="Click to change image">
+                                        <img [src]="row.imagePreview || row.imageUrl" alt="Item image">
+                                    </div>
+
+                                    <div class="image-placeholder" *ngIf="!row.imagePreview && !row.imageUrl"
+                                        (click)="triggerImageUpload(i)">
+                                        <mat-icon>add_photo_alternate</mat-icon>
+                                        <span>Upload Image</span>
+                                    </div>
+
+                                    <input #itemImageInput type="file" (change)="onItemImageSelected($event, i)"
+                                        style="display: none" accept="image/*">
+
+                                    <div style="margin-top: 10px; text-align: center;"
+                                        *ngIf="row.imagePreview || row.imageUrl">
+                                        <button mat-button color="primary" (click)="triggerImageUpload(i)">Replace
+                                            Image</button>
+                                    </div>
+                                </div>
+
+                                <mat-form-field appearance="outline" class="def-input">
+                                    <mat-label>Answer / Name</mat-label>
+                                    <input matInput [(ngModel)]="row.definition" required placeholder="e.g. Texas">
+                                </mat-form-field>
+                            </ng-container>
+
+                            <!-- Sight Words Type -->
+                            <ng-container *ngIf="listType === ListType.SIGHT_WORDS">
+                                <mat-form-field appearance="outline" class="word-input full-width-input">
+                                    <mat-label>Word</mat-label>
+                                    <input matInput [(ngModel)]="row.word" required placeholder="Type a word...">
+                                </mat-form-field>
+                            </ng-container>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Paste Area -->
+            <div class="bulk-paste-section" *ngIf="listType === ListType.SIGHT_WORDS">
+                <div class="quick-add-header">
+                    <mat-icon class="quick-add-icon">playlist_add</mat-icon>
+                    <h4>Quick Add Words</h4>
+                </div>
+
+                <p class="quick-add-hint">Paste a comma-separated list like: cat, dog, bird, fish</p>
+
+                <mat-form-field appearance="outline" class="full-width quick-add-input">
+                    <textarea matInput [(ngModel)]="bulkWordsText" placeholder="e.g. cat, dog, bird"
+                        rows="3"></textarea>
+                </mat-form-field>
+
+                <div class="quick-add-actions">
+                    <button mat-stroked-button color="primary" (click)="onBulkAddWords()"
+                        [disabled]="!bulkWordsText.trim()">
+                        <mat-icon>add</mat-icon> Add Words
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="actions-bar">
+                <button mat-raised-button color="primary" class="add-btn" (click)="addWord()">
+                    <mat-icon>add</mat-icon> Add {{ listType === ListType.SIGHT_WORDS ? 'Word' : 'Item' }}
+                </button>
+
+                <button mat-stroked-button color="accent" class="action-btn" (click)="openMathGenModal()"
+                    *ngIf="listType === ListType.MATH">
+                    <mat-icon>auto_fix_high</mat-icon> Generator
+                </button>
+
+                <!-- Secondary Actions -->
+                <button mat-stroked-button class="action-btn" (click)="fileInput.click()"
+                    [disabled]="isImporting || isUploading">
+                    <mat-icon>upload_file</mat-icon> Import JSON
+                </button>
+
+                <ng-container *ngIf="listType === ListType.WORD_DEFINITION || listType === ListType.SIGHT_WORDS">
+                    <button mat-stroked-button class="action-btn" (click)="imageInput.click()"
+                        [disabled]="isImporting || isUploading">
+                        <mat-icon>collections</mat-icon> Gallery
+                    </button>
+                    <button mat-stroked-button class="action-btn" (click)="cameraInput.click()"
+                        [disabled]="isImporting || isUploading">
+                        <mat-icon>photo_camera</mat-icon> Camera
+                    </button>
+                </ng-container>
+
+                <input #fileInput type="file" (change)="onFileSelected($event)" style="display: none" accept=".json">
+                <input #imageInput type="file" (change)="onImageSelected($event)" style="display: none"
+                    accept="image/*">
+                <input #cameraInput type="file" (change)="onImageSelected($event)" style="display: none"
+                    accept="image/*" capture="environment">
+            </div>
+
+            <!-- Loading Indicators -->
+            <div class="progress-container" *ngIf="isImporting || isUploading || isProcessingImage">
+                <div class="import-progress" *ngIf="isImporting">
+                    <mat-progress-bar mode="determinate" [value]="importProgress"></mat-progress-bar>
+                    <span class="progress-text">Processing... {{ importProgress }}%</span>
+                </div>
+
+                <div class="import-progress" *ngIf="isUploading">
+                    <mat-progress-bar mode="determinate" [value]="uploadProgress" color="accent"></mat-progress-bar>
+                    <span class="progress-text">Uploading images... {{ uploadProgress }}%</span>
+                </div>
+
+                <div class="import-progress" *ngIf="isProcessingImage">
+                    <mat-progress-bar mode="indeterminate" color="primary"></mat-progress-bar>
+                    <span class="progress-text">Processing image text...</span>
+                </div>
+            </div>
+
+        </mat-card-content>
+
+        <!-- Main Footer Actions -->
+        <!-- Main Footer Actions -->
+        <div class="main-actions">
+            <button mat-stroked-button class="footer-btn cancel-btn" (click)="onCancel()"
+                [disabled]="saving || isUploading">
+                Cancel
+            </button>
+            <button mat-flat-button color="primary" class="footer-btn save-btn" (click)="onSave()"
+                [disabled]="!isValid() || saving || isUploading">
+                {{ saving || isUploading ? 'Saving...' : 'Save List' }}
+            </button>
+        </div>
+    </mat-card>
+</div>
+
+<!-- Hidden file inputs for per-item image uploads -->
+<input #hiddenImageInput type="file" (change)="onItemImageSelected($event, currentImageUploadIndex)"
+    style="display: none" accept="image/*">

@@ -19,6 +19,7 @@ export class SummaryComponent implements OnInit {
   totalCount = 0;
   isReview = false;
   questCompleted = false;
+  returnSource: string | null = null;
 
   constructor(
     private quizService: QuizService,
@@ -26,42 +27,47 @@ export class SummaryComponent implements OnInit {
     private route: ActivatedRoute
   ) { }
 
+  private jsConfetti: JSConfetti | null = null;
+
   ngOnInit(): void {
+    console.log('[Summary] QuizService Stats:', {
+      correct: this.quizService.correctCount,
+      answered: this.quizService.answeredCount,
+      total: this.quizService.totalWordsInPass,
+      mode: this.quizService.currentMode
+    });
+
     this.correctCount = this.quizService.correctCount;
     this.totalCount = this.quizService.answeredCount;
     this.isReview = this.quizService.currentMode === 'review';
 
-    // Check for quest completion
+    // Check for quest completion or general celebration
     this.questCompleted = this.route.snapshot.queryParamMap.get('questCompleted') === 'true';
-    if (this.questCompleted) {
+    this.returnSource = this.route.snapshot.queryParamMap.get('from');
+
+    // Celebrate if they finished (quest or not) and got at least one right
+    if (this.questCompleted || (this.totalCount > 0 && this.correctCount > 0)) {
       this.fireConfetti();
     }
   }
 
   fireConfetti() {
-    // Simple custom confetti
-    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-
-    for (let i = 0; i < 100; i++) {
-      const confetti = document.createElement('div');
-      confetti.className = 'confetti';
-      confetti.style.left = Math.random() * 100 + 'vw';
-      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-      confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
-
-      document.body.appendChild(confetti);
-
-      setTimeout(() => {
-        confetti.remove();
-      }, 5000);
+    if (!this.jsConfetti) {
+      this.jsConfetti = new JSConfetti();
     }
+
+    // Use standard confetti colors/shapes for better performance than emojis
+    this.jsConfetti.addConfetti({
+      confettiColors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'],
+      confettiNumber: 150,
+    });
   }
 
   async onFinish() {
     this.loading = true;
     try {
       await this.quizService.finishPass(false); // Don't clear missed words
-      this.router.navigate(['/lists']);
+      this.navigateBack();
     } catch (err) {
       console.error(err);
       alert('Error finishing pass');
@@ -73,11 +79,20 @@ export class SummaryComponent implements OnInit {
     this.loading = true;
     try {
       await this.quizService.finishPass(true); // Clear missed words
-      this.router.navigate(['/lists']);
+      this.navigateBack();
     } catch (err) {
       console.error(err);
       alert('Error clearing corrected words');
       this.loading = false;
+    }
+  }
+
+
+  private navigateBack() {
+    if (this.returnSource === 'quests') {
+      this.router.navigate(['/quests']);
+    } else {
+      this.router.navigate(['/lists']);
     }
   }
 }

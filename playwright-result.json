@@ -1,0 +1,173 @@
+﻿{
+  "config": {
+    "configFile": "C:\\Users\\carme\\Documents\\Projects\\vocab\\playwright.config.ts",
+    "rootDir": "C:/Users/carme/Documents/Projects/vocab/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/carme/Documents/Projects/vocab/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/carme/Documents/Projects/vocab/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.57.0",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run start:test",
+      "url": "http://localhost:4200",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "recognition.spec.ts",
+      "file": "recognition.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Audio Recognition Integration",
+          "file": "recognition.spec.ts",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should recognize seed (en-US) - en-US-seed-2026-01-11T17-13-51-669Z.webm",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 1818,
+                      "error": {
+                        "message": "Error: page.evaluate: Error: Failed to fetch audio: Not Found\n    at eval (eval at evaluate (:290:30), <anonymous>:15:33)\n    at async <anonymous>:316:30",
+                        "stack": "Error: page.evaluate: Error: Failed to fetch audio: Not Found\n    at eval (eval at evaluate (:290:30), <anonymous>:15:33)\n    at async <anonymous>:316:30\n    at eval (eval at evaluate (:290:30), <anonymous>:15:33)\n    at async <anonymous>:316:30\n    at C:\\Users\\carme\\Documents\\Projects\\vocab\\e2e\\recognition.spec.ts:36:39",
+                        "location": {
+                          "file": "eval at evaluate (:290:30), <anonymous>",
+                          "column": 33,
+                          "line": 15
+                        }
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "eval at evaluate (:290:30), <anonymous>",
+                            "column": 33,
+                            "line": 15
+                          },
+                          "message": "Error: page.evaluate: Error: Failed to fetch audio: Not Found\n    at eval (eval at evaluate (:290:30), <anonymous>:15:33)\n    at async <anonymous>:316:30\n    at eval (eval at evaluate (:290:30), <anonymous>:15:33)\n    at async <anonymous>:316:30\n    at C:\\Users\\carme\\Documents\\Projects\\vocab\\e2e\\recognition.spec.ts:36:39"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "[Browser] [vite] connecting...\n"
+                        },
+                        {
+                          "text": "[Browser] Angular is running in development mode.\n"
+                        },
+                        {
+                          "text": "[Browser] NavigatorLockAcquireTimeoutError: Acquiring an exclusive Navigator LockManager lock \"lock:sb-api-auth-token\" immediately failed\n    at http://localhost:4200/@fs/C:/Users/carme/Documents/Projects/vocab/.angular/cache/19.2.19/vocab/vite/deps/@supabase_supabase-js.js?v=90f34c97:9282:17\n    at Generator.next (<anonymous>)\n    at http://localhost:4200/@fs/C:/Users/carme/Documents/Projects/vocab/.angular/cache/19.2.19/vocab/vite/deps/chunk-G5EABTYZ.js?v=90f34c97:92:61\n    at new ZoneAwarePromise (http://localhost:4200/polyfills.js:2166:23)\n    at __async (http://localhost:4200/@fs/C:/Users/carme/Documents/Projects/vocab/.angular/cache/19.2.19/vocab/vite/deps/chunk-G5EABTYZ.js?v=90f34c97:76:10)\n    at http://localhost:4200/@fs/C:/Users/carme/Documents/Projects/vocab/.angular/cache/19.2.19/vocab/vite/deps/@supabase_supabase-js.js?v=90f34c97:9265:18\n"
+                        },
+                        {
+                          "text": "[Browser] [vite] connected.\n"
+                        },
+                        {
+                          "text": "[Browser] [Test] Fetching audio: /assets/test-recordings/en-US-seed-2026-01-11T17-13-51-669Z.webm\n"
+                        },
+                        {
+                          "text": "[Browser] Failed to load resource: the server responded with a status of 404 (Not Found)\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-11T17:58:02.289Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\carme\\Documents\\Projects\\vocab\\test-results\\recognition-Audio-Recognit-24645-26-01-11T17-13-51-669Z-webm-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\carme\\Documents\\Projects\\vocab\\test-results\\recognition-Audio-Recognit-24645-26-01-11T17-13-51-669Z-webm-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "eval at evaluate (:290:30), <anonymous>",
+                        "column": 33,
+                        "line": 15
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "b5a3d5cd6db37d206f69-cd0608fe936b768309bd",
+              "file": "recognition.spec.ts",
+              "line": 25,
+              "column": 13
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-01-11T17:58:00.987Z",
+    "duration": 4047.01,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

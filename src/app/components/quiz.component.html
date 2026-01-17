@@ -1,8 +1,23 @@
 <div class="quiz-container">
   <app-top-nav (back)="onExit()" (settings)="onSettings()"></app-top-nav>
 
+  <!-- Model Loading Modal -->
+  <div class="model-loading-overlay" *ngIf="isLoadingModel">
+    <div class="model-loading-modal">
+      <mat-icon class="loading-icon">cloud_download</mat-icon>
+      <h2>Preparing Quiz Audio</h2>
+      <p>Buffering high-quality voice files for instant playback...</p>
+      <mat-progress-bar mode="determinate" [value]="modelLoadProgress"></mat-progress-bar>
+      <p class="progress-text">{{ modelLoadProgress | number:'1.0-0' }}%</p>
+      <button mat-stroked-button color="warn" (click)="cancelModelLoad()">
+        <mat-icon>cancel</mat-icon> Cancel
+      </button>
+    </div>
+  </div>
+
   <!-- Mode Selection -->
-  <div class="mode-selection" *ngIf="!quizStarted && isMathQuiz">
+  <!-- Math Mode Selection -->
+  <div class="mode-selection" *ngIf="!quizStarted && isMathQuiz && !isLoadingModel">
     <h2>Choose Quiz Mode</h2>
     <div class="mode-cards">
       <mat-card class="mode-card" (click)="startWithMode('speak')">
@@ -19,6 +34,30 @@
     </div>
   </div>
 
+  <!-- Sight Word Mode Selection -->
+  <div class="mode-selection" *ngIf="!quizStarted && isSightWordQuiz && !isLoadingModel">
+    <h2>Choose Quiz Mode</h2>
+    <div class="mode-cards">
+      <mat-card class="mode-card" (click)="startWithMode('read')">
+        <mat-icon class="mode-icon">record_voice_over</mat-icon>
+        <h3>Read Mode</h3>
+        <p>See the word, then say it out loud</p>
+      </mat-card>
+
+      <mat-card class="mode-card" (click)="startWithMode('listen')">
+        <mat-icon class="mode-icon">hearing</mat-icon>
+        <h3>Listen Mode</h3>
+        <p>Hear the word, then pick the correct one</p>
+      </mat-card>
+
+      <mat-card class="mode-card" (click)="startWithMode('spell')">
+        <mat-icon class="mode-icon">keyboard</mat-icon>
+        <h3>Spell Mode</h3>
+        <p>Hear the word, then spell it</p>
+      </mat-card>
+    </div>
+  </div>
+
   <ng-container *ngIf="quizStarted">
     <div class="progress-section">
       <mat-progress-bar mode="determinate" [value]="progressPercent" class="quiz-progress"></mat-progress-bar>
@@ -29,16 +68,39 @@
       <div class="missed-label">{{ missedLabel }}</div>
     </div>
 
-    <div class="word-display" *ngIf="currentQuestion">
-      <!-- Image/Definition Quiz: Show image -->
+    <!-- Waiting for auto-recording to activate -->
+    <div class="preparing-record" *ngIf="waitingForRecording && interactionMode === 'speak'">
+      <mat-icon class="loading-icon spinning">mic</mat-icon>
+      <p>Preparing to record...</p>
+    </div>
+
+    <div class="delay-container" *ngIf="delayingAnswers">
+      <div class="delay-text">Think about the answer...</div>
+      <mat-progress-bar mode="determinate" [value]="delayTimerProgress" class="delay-progress"></mat-progress-bar>
+    </div>
+
+    <div class="word-display" *ngIf="currentQuestion && !waitingForRecording && !feedbackVisible">
+
+      <!-- Listen Mode: Play Button -->
+      <div class="listen-display" *ngIf="interactionMode === 'multiple-choice' && isSightWordQuiz">
+        <button mat-fab extended color="primary" (click)="isPlaying ? onStopSpeaking() : playWord()" class="speak-btn">
+          <mat-icon>{{ isPlaying ? 'stop' : 'volume_up' }}</mat-icon>
+          {{ isPlaying ? 'Stop' : 'Play Word' }}
+        </button>
+        <p class="hint-text">Listen then choose based on sound</p>
+      </div>
+
+      <!-- Image Quiz: Show image -->
       <img *ngIf="isImageQuiz && currentQuestion.wordToQuiz.imageUrl" [src]="currentQuestion.wordToQuiz.imageUrl"
         alt="Quiz image" class="quiz-image">
-      <!-- Word/Definition Quiz: Show text -->
-      <span *ngIf="!isImageQuiz" [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
+
+      <!-- Text/Math Quiz: Show text (Only if NOT listen mode for Sight Words) -->
+      <span *ngIf="!isImageQuiz && (!isSightWordQuiz || interactionMode === 'speak')"
+        [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
     </div>
 
     <!-- Multi-Choice Options -->
-    <div class="answer-options" *ngIf="interactionMode === 'multiple-choice' && currentQuestion">
+    <div class="answer-options" *ngIf="interactionMode === 'multiple-choice' && currentQuestion && !delayingAnswers">
       <button *ngFor="let option of currentQuestion.options" mat-raised-button class="answer-button"
         (click)="!feedbackVisible && onAnswer(option)" [ngClass]="{
               'correct': feedbackVisible && option === currentQuestion.correctAnswer,
@@ -49,24 +111,84 @@
     </div>
 
     <!-- Speak Mode UI -->
-    <div class="speak-interface" *ngIf="interactionMode === 'speak' && currentQuestion && !feedbackVisible">
-      <button mat-fab extended color="primary" class="record-btn" (click)="isListening ? onStopListening() : onRecord()"
-        [disabled]="isProcessing">
-        <mat-icon>{{ isListening ? 'stop' : 'mic' }}</mat-icon>
-        {{ isProcessing ? 'Processing...' : (isListening ? 'Stop' : 'Record') }}
-      </button>
+    <div class="speak-interface" *ngIf="interactionMode === 'spell' && currentQuestion && !feedbackVisible">
+
+      <div class="word-display">
+        <button mat-fab extended color="primary" (click)="isPlaying ? onStopSpeaking() : playWord()" class="speak-btn">
+          <mat-icon>{{ isPlaying ? 'stop' : 'volume_up' }}</mat-icon>
+          {{ isPlaying ? 'Stop' : 'Play Word' }}
+        </button>
+      </div>
+
+      <div class="spelling-area">
+        <mat-form-field appearance="outline" class="spelling-input">
+          <mat-label>Type the word...</mat-label>
+          <input matInput type="text" name="spell_input_email_hack" [(ngModel)]="spellingInput"
+            (keyup.enter)="checkSpelling()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            inputmode="email" aria-autocomplete="none" novalidate>
+          <button *ngIf="spellingInput" matSuffix mat-icon-button aria-label="Clear" (click)="spellingInput=''">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+
+      <div class="action-buttons">
+        <button mat-fab extended color="primary" class="check-btn" (click)="checkSpelling()"
+          [disabled]="!spellingInput">
+          <mat-icon>check</mat-icon>
+          Check
+        </button>
+
+        <button mat-fab extended color="accent" (click)="onDontKnow()" class="action-btn">
+          <mat-icon>help_outline</mat-icon>
+          Don't Know
+        </button>
+      </div>
+    </div>
+
+    <!-- Speak Mode UI -->
+    <div class="speak-interface"
+      *ngIf="interactionMode === 'speak' && currentQuestion && !feedbackVisible && !waitingForRecording">
+
+      <div class="action-buttons">
+        <button mat-fab extended color="primary" class="record-btn"
+          (click)="isListening ? onStopListening() : onRecord()" [disabled]="isProcessing">
+          <mat-icon>{{ isListening ? 'stop' : 'mic' }}</mat-icon>
+          {{ isProcessing ? 'Processing...' : (isListening ? 'Stop' : 'Record') }}
+        </button>
+
+        <button mat-fab extended color="accent" (click)="onDontKnow()" class="action-btn">
+          <mat-icon>help_outline</mat-icon>
+          Don't Know
+        </button>
+      </div>
+
       <p *ngIf="recognizedText" class="spoken-text">You said: "{{ recognizedText }}"</p>
+      <div *ngIf="recognizedAlternatives && recognizedAlternatives.length > 1" class="debug-alternatives-live"
+        style="margin-top: 4px; font-size: 0.8rem; font-style: italic; color: #888; text-align: center;">
+        (Debug) Alternatives: {{ recognizedAlternatives.join(', ') }}
+      </div>
+      <p *ngIf="speechErrorMessage" class="speech-error">
+        <mat-icon>warning</mat-icon> {{ speechErrorMessage }}
+      </p>
     </div>
 
     <div class="feedback-controls" *ngIf="feedbackVisible">
-      <!-- Feedback Text for Speak Mode -->
-      <div *ngIf="interactionMode === 'speak'" class="speak-feedback">
-        <div class="feedback-status" [class.correct]="isCorrect" [class.incorrect]="!isCorrect">
-          <mat-icon>{{ isCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
-          <span>{{ isCorrect ? 'Correct!' : 'Keep trying!' }}</span>
+      <!-- Unified Feedback Card Style -->
+      <div class="feedback-card" [class.correct]="isCorrect" [class.incorrect]="!isCorrect">
+        <mat-icon class="feedback-icon">{{ isCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
+        <div class="feedback-text">
+          {{ isCorrect ? 'Great Job!' : 'Keep Practicing!' }}
         </div>
-        <p *ngIf="!isCorrect">Correct answer: <strong>{{ currentQuestion?.correctAnswer }}</strong></p>
-        <p class="you-said">You said: "{{ recognizedText }}"</p>
+
+        <div *ngIf="!isCorrect" class="correction-details">
+          <p>Correct Answer: <strong>{{ currentQuestion?.correctAnswer }}</strong></p>
+          <p *ngIf="recognizedText" class="you-said">You said: "{{ recognizedText }}"</p>
+          <div *ngIf="recognizedAlternatives && recognizedAlternatives.length > 1" class="debug-alternatives"
+            style="margin-top: 8px; font-size: 0.8rem; color: #666;">
+            <strong>Heard Details:</strong> {{ recognizedAlternatives.join(', ') }}
+          </div>
+        </div>
       </div>
 
       <mat-progress-bar *ngIf="!isPaused && timerProgress > 0" mode="determinate" [value]="timerProgress"

@@ -69,30 +69,65 @@ describe('SpeechService wordsMatch logic', () => {
         return (longer.length - editDistance) / longer.length;
     }
 
-    function wordsMatch(recognized: string, target: string): boolean {
-        const cleanRecognized = recognized.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+    function wordsMatch(recognized: string | string[], target: string): boolean {
         const cleanTarget = target.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
 
-        if (cleanRecognized === cleanTarget) return true;
-        if (cleanRecognized.includes(cleanTarget)) return true;
+        const checkSingleMatch = (rec: string): boolean => {
+            const cleanRecognized = rec.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
 
-        const targetHomophones = homophones[cleanTarget];
-        if (targetHomophones && targetHomophones.some(h => h.toLowerCase() === cleanRecognized)) {
-            return true;
-        }
+            if (cleanRecognized === cleanTarget) return true;
+            if (cleanRecognized.includes(cleanTarget)) return true;
 
-        for (const [key, values] of Object.entries(homophones)) {
-            if (key === cleanRecognized && values.some(v => v.toLowerCase() === cleanTarget)) {
+            const targetHomophones = homophones[cleanTarget];
+            if (targetHomophones && targetHomophones.some(h => h.toLowerCase() === cleanRecognized)) {
                 return true;
             }
-            if (values.includes(cleanRecognized) && (key === cleanTarget || values.includes(cleanTarget))) {
-                return true;
+
+            for (const [key, values] of Object.entries(homophones)) {
+                if (key === cleanRecognized && values.some(v => v.toLowerCase() === cleanTarget)) {
+                    return true;
+                }
+                if (values.includes(cleanRecognized) && (key === cleanTarget || values.includes(cleanTarget))) {
+                    return true;
+                }
             }
+
+            // Calculate simple similarity for near-matches
+            const similarity = calculateSimilarity(cleanRecognized, cleanTarget);
+            if (similarity >= 0.8) return true;
+
+            // Updated logic to match service
+            if (cleanTarget.length >= 4) {
+                const dist = levenshteinDistance(cleanRecognized, cleanTarget);
+                if (dist <= 1) return true;
+            }
+            return false;
+        };
+
+        if (Array.isArray(recognized)) {
+            return recognized.some(rec => checkSingleMatch(rec));
         }
 
-        const similarity = calculateSimilarity(cleanRecognized, cleanTarget);
-        return similarity >= 0.8;
+        return checkSingleMatch(recognized);
     }
+
+    describe('N-Best Alternatives matching', () => {
+        it('should match if ANY alternative is correct', () => {
+            expect(wordsMatch(['ah', 'uh', 'at'], 'at')).toBe(true);
+        });
+
+        it('should match if ANY alternative is a homophone', () => {
+            expect(wordsMatch(['too', 'tue', 'foo'], 'two')).toBe(true);
+        });
+
+        it('should match if ANY alternative is similar enough', () => {
+            expect(wordsMatch(['hello', 'hallow', 'yellow'], 'hallo')).toBe(true);
+        });
+
+        it('should fail if NO alternative matches', () => {
+            expect(wordsMatch(['cat', 'bat', 'hat'], 'dog')).toBe(false);
+        });
+    });
 
     describe('Exact matching', () => {
         it('should match identical words', () => {
@@ -142,6 +177,20 @@ describe('SpeechService wordsMatch logic', () => {
         it('should not match completely different words', () => {
             expect(wordsMatch('apple', 'orange')).toBe(false);
             expect(wordsMatch('cat', 'dog')).toBe(false);
+        });
+    });
+
+    describe('Refined Matching (Length >= 4)', () => {
+        it('should match words with <= 1 edit distance if length >= 4', () => {
+            expect(wordsMatch('see', 'seer')).toBe(true); // 4 chars target, 1 edit
+            expect(wordsMatch('fast', 'past')).toBe(true); // 4 chars, 1 edit
+            expect(wordsMatch('sleep', 'seep')).toBe(true); // 4 chars target, 1 edit
+        });
+
+        it('should NOT match words with 1 edit distance if length < 4', () => {
+            expect(wordsMatch('cat', 'bat')).toBe(false); // 3 chars, 1 edit - too risky
+            expect(wordsMatch('see', 'bee')).toBe(false); // 3 chars
+            expect(wordsMatch('dog', 'log')).toBe(false); // 3 chars
         });
     });
 

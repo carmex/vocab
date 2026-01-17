@@ -50,9 +50,9 @@ export class QuestsComponent {
 
     onPlayQuest(quest: Quest) {
         if (quest.is_completed) {
-            this.router.navigate(['/quiz', quest.list_id, 'main']);
+            this.router.navigate(['/quiz', quest.list_id, 'main'], { queryParams: { from: 'quests' } });
         } else {
-            this.router.navigate(['/quiz', quest.list_id, 'main'], { queryParams: { questId: quest.id } });
+            this.router.navigate(['/quiz', quest.list_id, 'main'], { queryParams: { questId: quest.id, from: 'quests' } });
         }
     }
 }

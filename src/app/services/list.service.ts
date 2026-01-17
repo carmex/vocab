@@ -24,6 +24,12 @@ export interface ListShare {
     word_lists?: WordList & { list_words: { count: number }[] }; // Joined data with count
     quiz_progress?: { state: any }; // Merged progress
     missed_word_count?: number; // Total missed words
+    audioStats?: {
+        progress: number;
+        isGenerating: boolean;
+        queuePosition: number;
+        estimatedWaitSeconds: number;
+    };
 }
 
 export interface ListDetails {
@@ -360,5 +366,18 @@ export class ListService {
                 return data as string; // returns list_id
             })
         );
+    }
+    /**
+     * Helper to get audio stats for a batch of lists
+     */
+    async getListAudioStats(listIds: string[]): Promise<any[]> {
+        // We can access SpeechService here but circular dependency might be an issue if SpeechService uses ListService.
+        // Better to use SupabaseService directly or inject SpeechService if safe.
+        // Actually, SpeechService doesn't import ListService, so it's safe to use SpeechService here?
+        // Wait, ListService is imported in SpeechService? No.
+        // Let's use direct Supabase call like in SpeechService to avoid any DI drama, or just cleaner:
+        const { data, error } = await this.supabase.client.rpc('get_lists_audio_stats', { p_list_ids: listIds });
+        if (error) throw error;
+        return data || [];
     }
 }

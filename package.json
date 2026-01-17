@@ -3,12 +3,14 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --host 0.0.0.0",
     "start:test": "ng serve --configuration=test",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "jest",
-    "test:e2e": "npx playwright test"
+    "test:e2e": "npx playwright test",
+    "test:audio": "npx playwright test e2e/recognition.spec.ts",
+    "update-manifest": "node scripts/update-test-manifest.js"
   },
   "private": true,
   "dependencies": {
@@ -26,13 +28,16 @@
     "@angular/service-worker": "^19.2.0",
     "@huggingface/transformers": "^3.8.1",
     "@supabase/supabase-js": "^2.86.0",
+    "@types/double-metaphone": "^1.0.0",
     "@types/twemoji": "^13.1.1",
     "angularx-qrcode": "^21.0.4",
+    "double-metaphone": "^2.0.1",
     "js-confetti": "^0.13.1",
     "jsqr": "^1.4.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "twemoji": "^14.0.2",
+    "vosk-browser": "^0.0.8",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {

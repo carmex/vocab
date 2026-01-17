@@ -102,12 +102,46 @@ import { TopNavComponent } from './top-nav/top-nav.component';
         </div>
       </div>
 
+
+      <div class="settings-section">
+        <h3>Answer Display</h3>
+        
+        <div class="setting-item">
+          <mat-checkbox [(ngModel)]="delayAnswers" (ngModelChange)="autoSave()" color="primary">
+            Delay answer choices
+          </mat-checkbox>
+          <p class="setting-description">Wait before showing the multiple choice answers</p>
+        </div>
+
+        <div class="timer-settings" [class.disabled]="!delayAnswers">
+          <div class="timer-setting-item">
+            <mat-form-field appearance="fill" class="timer-setting">
+              <mat-label>Delay Duration (seconds)</mat-label>
+              <mat-select [(ngModel)]="delayAnswerTimer" (ngModelChange)="autoSave()" [disabled]="!delayAnswers">
+                <mat-option [value]="1">1 second</mat-option>
+                <mat-option [value]="2">2 seconds</mat-option>
+                <mat-option [value]="3">3 seconds</mat-option>
+                <mat-option [value]="5">5 seconds</mat-option>
+                <mat-option [value]="10">10 seconds</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+
       <div class="settings-section">
         <h3>Speech Settings</h3>
         
         <div class="setting-item">
-          <mat-slide-toggle [(ngModel)]="enhancedTTS" (ngModelChange)="autoSave()" color="primary">
-            Enhanced Text-to-Speech
+          <mat-slide-toggle [(ngModel)]="usePremiumVoice" (ngModelChange)="onPremiumToggleChange()" color="primary">
+            Premium Voice (Google Cloud)
+          </mat-slide-toggle>
+          <p class="setting-description">Use ultra-realistic cloud-generated voices (online only)</p>
+        </div>
+
+        <div class="setting-item">
+          <mat-slide-toggle [(ngModel)]="enhancedTTS" (ngModelChange)="autoSave()" color="primary" [disabled]="usePremiumVoice">
+            Enhanced Text-to-Speech (Local)
           </mat-slide-toggle>
           <p class="setting-description">Use high-quality AI voices (download required)</p>
 
@@ -117,7 +151,7 @@ import { TopNavComponent } from './top-nav/top-nav.component';
           </div>
         </div>
 
-        <div class="setting-item" *ngIf="enhancedTTS">
+        <div class="setting-item" *ngIf="enhancedTTS && !usePremiumVoice">
              <mat-form-field appearance="fill" style="width: 100%">
                <mat-label>Voice</mat-label>
                <mat-select [(ngModel)]="ttsVoice" (ngModelChange)="autoSave()">
@@ -129,7 +163,9 @@ import { TopNavComponent } from './top-nav/top-nav.component';
              </mat-form-field>
         </div>
       </div>
+
       
+ 
 
 
       <div class="settings-actions">
@@ -275,8 +311,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
   autoAdvance = true;
   correctAnswerTimer = 1;
   incorrectAnswerTimer = 5;
+  delayAnswers = true;
+  delayAnswerTimer = 3;
   darkMode = false;
   enhancedTTS = false;
+  usePremiumVoice = false;
   ttsVoice = 'cmu_us_slt_arctic-wav-arctic_a0001';
   loading = false;
   loadingProgress = 0;
@@ -337,20 +376,30 @@ export class SettingsComponent implements OnInit, OnDestroy {
     window.history.back();
   }
 
+  async onPremiumToggleChange() {
+    if (this.usePremiumVoice) {
+      this.enhancedTTS = false;
+    }
+    await this.autoSave();
+  }
+
   async autoSave() {
     const settings: AppSettings = {
       autoAdvance: this.autoAdvance,
       correctAnswerTimer: this.correctAnswerTimer,
       incorrectAnswerTimer: this.incorrectAnswerTimer,
+      delayAnswers: this.delayAnswers,
+      delayAnswerTimer: this.delayAnswerTimer,
       darkMode: this.darkMode,
       enhancedTTS: this.enhancedTTS,
+      usePremiumVoice: this.usePremiumVoice,
       ttsVoice: this.ttsVoice
     };
 
     // Silent save
     await this.settingsService.saveSettings(settings);
 
-    if (this.enhancedTTS) {
+    if (this.enhancedTTS && !this.usePremiumVoice) {
       this.speechService.preloadTTS();
     }
   }
@@ -360,8 +409,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.autoAdvance = defaultSettings.autoAdvance;
     this.correctAnswerTimer = defaultSettings.correctAnswerTimer;
     this.incorrectAnswerTimer = defaultSettings.incorrectAnswerTimer;
+    this.delayAnswers = defaultSettings.delayAnswers;
+    this.delayAnswerTimer = defaultSettings.delayAnswerTimer;
     this.darkMode = defaultSettings.darkMode;
     this.enhancedTTS = defaultSettings.enhancedTTS;
+    this.usePremiumVoice = defaultSettings.usePremiumVoice;
     this.ttsVoice = defaultSettings.ttsVoice;
     this.autoSave(); // Save defaults immediately
   }
@@ -371,8 +423,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.autoAdvance = settings.autoAdvance;
     this.correctAnswerTimer = settings.correctAnswerTimer;
     this.incorrectAnswerTimer = settings.incorrectAnswerTimer;
+    this.delayAnswers = settings.delayAnswers;
+    this.delayAnswerTimer = settings.delayAnswerTimer;
     this.darkMode = settings.darkMode;
     this.enhancedTTS = settings.enhancedTTS;
+    this.usePremiumVoice = settings.usePremiumVoice;
     this.ttsVoice = settings.ttsVoice;
   }
 }

@@ -1,0 +1,439 @@
+// Core Layout
+.editor-container {
+    max-width: 600px; // Reverted to 600px as requested
+    margin: 1.5rem auto;
+    padding: 0 1rem;
+    font-family: 'Inter', sans-serif;
+    animation: fadeIn 0.4s ease-out;
+    padding-bottom: 80px; // Space for fixed footer if needed, or just general breathing room
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+// Header Section
+.header-section {
+    margin-bottom: 1.5rem;
+
+    h1 {
+        font-size: 2rem; // Slightly smaller
+        font-weight: 700; // Less bold (was 800)
+        margin: 0 0 0.5rem 0;
+        color: #0f172a; // Solid color instead of gradient for cleaner look
+        letter-spacing: normal; // Reset spacing
+    }
+}
+
+.list-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f0f9ff;
+    color: #0369a1;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: 1px solid #bae6fd;
+
+    mat-icon {
+        font-size: 1.25rem;
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+}
+
+// Main Content Card
+.editor-card {
+    border-radius: 16px; // Reduced radius slightly
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); // Simpler shadow
+    overflow: visible; // Allow overflow for children if needed
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+.list-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+    padding: 1.25rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #f1f5f9;
+}
+
+.grid-2-col {
+    display: grid;
+    grid-template-columns: 1fr; // Stacked on mobile/small width (600px is narrow enough to stack)
+    gap: 1.25rem;
+
+    @media (min-width: 500px) {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+
+// Inputs Customization
+::ng-deep .mat-mdc-form-field-flex {
+    background-color: #fff !important;
+    border-radius: 8px !important;
+    // Removed duplicate border: border: 1px solid #e2e8f0;
+}
+
+::ng-deep .mat-mdc-text-field-wrapper {
+    background: #fff;
+    padding: 0;
+}
+
+// Toggle
+.toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+// Items Section
+.words-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0 1rem 0;
+
+    h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0;
+    }
+}
+
+// Replaced Virtual Scroll with standard list
+.words-list-container {
+    min-height: 200px;
+    background: transparent; // Let the background show through
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.word-row-wrapper {
+    // No padding wrapper needed if flex gap is used
+}
+
+// Word Cards
+.word-card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+
+    &:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    &.focused-card {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 11px 11px 0 0;
+
+    .card-number {
+        font-family: 'DM Mono', monospace;
+        font-weight: 700;
+        color: #64748b;
+        font-size: 0.8rem;
+        background: #e2e8f0;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+}
+
+.card-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    flex: 1;
+}
+
+// Compact Mode
+.compact-row {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+
+    &:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+}
+
+.compact-number {
+    font-family: 'DM Mono', monospace;
+    color: #64748b;
+    width: 35px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.compact-word {
+    font-weight: 500;
+    color: #1e293b;
+    font-size: 1rem;
+}
+
+// Images
+.image-upload-section {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 2px dashed #e2e8f0;
+    transition: all 0.2s;
+
+    &:hover {
+        border-color: #cbd5e1;
+        background: #f1f5f9;
+    }
+}
+
+.image-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 0;
+    cursor: pointer;
+
+    mat-icon {
+        font-size: 1.5rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        color: #94a3b8;
+        margin-bottom: 0.5rem;
+    }
+
+    span {
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+}
+
+// Bulk Paste
+.bulk-paste-section {
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    background: #f0f9ff;
+    border-radius: 12px;
+    border: 1px solid #bae6fd;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.quick-add-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+
+    .quick-add-icon {
+        color: #0284c7;
+    }
+
+    h4 {
+        margin: 0;
+        color: #0c4a6e;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+}
+
+.quick-add-hint {
+    margin: 0 0 0.75rem 0;
+    color: #0369a1;
+    font-size: 0.9rem;
+}
+
+.quick-add-input {
+    ::ng-deep .mat-mdc-form-field-wrapper {
+        margin-bottom: 0;
+    }
+
+    textarea {
+        resize: vertical;
+        min-height: 60px;
+    }
+}
+
+.quick-add-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}
+
+// Actions Bar
+.actions-bar {
+    display: flex;
+    flex-wrap: wrap; // Allow wrapping on small screens
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem; // Added padding bottom so it doesn't touch the footer divider
+    border-top: 1px solid #f1f5f9;
+}
+
+.add-btn {
+    height: 48px;
+    padding: 0 24px;
+    border-radius: 24px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.action-btn {
+    height: 48px; // 40px is better for non-FAB items, but 48 is standard tap target
+    border-radius: 24px;
+}
+
+// Progress
+.progress-container {
+    margin-top: 1rem;
+    background: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+// Form Actions at Bottom
+.main-actions {
+    padding: 1.5rem 2rem 3rem 2rem;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    border-radius: 0 0 16px 16px;
+}
+
+.footer-btn {
+    height: 48px !important;
+    padding: 0 2rem !important;
+    font-size: 1rem !important;
+    border-radius: 24px !important;
+    min-width: 140px; // Ensure they are the same width roughly
+}
+
+.cancel-btn {
+    color: #475569 !important;
+    background-color: #f1f5f9 !important; // Light grey background so it doesn't blend in
+    border: 1px solid #cbd5e1 !important;
+
+    &:hover {
+        background-color: #e2e8f0 !important;
+    }
+}
+
+// Dark Mode
+:host-context(body.dark-mode) {
+    .header-section h1 {
+        color: #e2e8f0;
+    }
+
+    .list-type-badge {
+        background: #172554;
+        color: #93c5fd;
+        border-color: #1e3a8a;
+    }
+
+    .list-details {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+
+    .editor-card {
+        background: #252525;
+        border-color: #333;
+    }
+
+    .word-card {
+        background: #1e1e1e;
+        border-color: #333;
+
+        &:hover {
+            border-color: #4b5563;
+        }
+    }
+
+    .card-header {
+        background: #2a2a2a;
+        border-bottom-color: #333;
+
+        .card-number {
+            background: #333;
+            color: #94a3b8;
+        }
+    }
+
+    .compact-row {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+
+    ::ng-deep .mat-mdc-form-field-flex {
+        background-color: #2a2a2a !important;
+        border-color: #444 !important;
+    }
+
+    ::ng-deep .mat-mdc-text-field-wrapper {
+        background: #2a2a2a;
+    }
+
+    .image-upload-section {
+        background: #1e1e1e;
+        border-color: #444;
+
+        &:hover {
+            background: #252525;
+        }
+    }
+
+    .bulk-paste-section {
+        background: #1e293b;
+        border-color: #334155;
+    }
+
+    .main-actions {
+        background: #252525;
+        border-top-color: #333;
+    }
+}

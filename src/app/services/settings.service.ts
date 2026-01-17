@@ -5,8 +5,11 @@ export interface AppSettings {
   autoAdvance: boolean;
   correctAnswerTimer: number;
   incorrectAnswerTimer: number;
+  delayAnswers: boolean;
+  delayAnswerTimer: number;
   darkMode: boolean;
   enhancedTTS: boolean;
+  usePremiumVoice: boolean;
   ttsVoice: string;
 }
 
@@ -19,8 +22,11 @@ export class SettingsService {
     autoAdvance: true,
     correctAnswerTimer: 1,
     incorrectAnswerTimer: 5,
+    delayAnswers: true,
+    delayAnswerTimer: 3,
     darkMode: false,
-    enhancedTTS: false,
+    enhancedTTS: false, // Default to false since we prefer Premium now
+    usePremiumVoice: true, // Default to TRUE for everyone
     ttsVoice: 'cmu_us_slt_arctic-wav-arctic_a0001'
   };
 
