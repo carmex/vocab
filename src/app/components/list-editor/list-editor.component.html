@@ -144,6 +144,15 @@
                                     <input matInput [(ngModel)]="row.word" required placeholder="Type a word...">
                                 </mat-form-field>
                             </ng-container>
+
+                            <!-- Sentences Type -->
+                            <ng-container *ngIf="listType === ListType.SENTENCES">
+                                <mat-form-field appearance="outline" class="word-input full-width-input">
+                                    <mat-label>Sentence</mat-label>
+                                    <input matInput [(ngModel)]="row.word" required
+                                        placeholder="The cat sat on the mat.">
+                                </mat-form-field>
+                            </ng-container>
                         </div>
                     </div>
                 </div>
@@ -179,6 +188,11 @@
 
                 <button mat-stroked-button color="accent" class="action-btn" (click)="openMathGenModal()"
                     *ngIf="listType === ListType.MATH">
+                    <mat-icon>auto_fix_high</mat-icon> Generator
+                </button>
+
+                <button mat-stroked-button color="accent" class="action-btn" (click)="openGenerateSentencesModal()"
+                    *ngIf="listType === ListType.SENTENCES">
                     <mat-icon>auto_fix_high</mat-icon> Generator
                 </button>
 

@@ -94,8 +94,16 @@
       <img *ngIf="isImageQuiz && currentQuestion.wordToQuiz.imageUrl" [src]="currentQuestion.wordToQuiz.imageUrl"
         alt="Quiz image" class="quiz-image">
 
-      <!-- Text/Math Quiz: Show text (Only if NOT listen mode for Sight Words) -->
-      <span *ngIf="!isImageQuiz && (!isSightWordQuiz || interactionMode === 'speak')"
+      <!-- Sentences Quiz: interactive words -->
+      <div *ngIf="isSentencesQuiz && !isImageQuiz" class="sentence-container">
+        <span *ngFor="let item of currentSentenceWords" class="sentence-word"
+          (click)="playSentenceWord(item.cleanWord); $event.stopPropagation()">
+          {{ item.word }}
+        </span>
+      </div>
+
+      <!-- Text/Math Quiz: Show text (Only if NOT listen mode for Sight Words AND NOT Sentences) -->
+      <span *ngIf="!isImageQuiz && !isSentencesQuiz && (!isSightWordQuiz || interactionMode === 'speak')"
         [innerHTML]="currentQuestion.wordToQuiz.word | twemoji"></span>
     </div>
 

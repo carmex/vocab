@@ -1,221 +1,219 @@
-/**
- * Unit tests for QuizService
- * 
- * Tests the core quiz logic: question generation, distractor selection,
- * answer submission, and progress tracking.
- */
+import { TestBed } from '@angular/core/testing';
+import { QuizService } from './quiz.service';
+import { SupabaseService } from './supabase.service';
+import { ListType } from '../models/list-type.enum';
 
-describe('QuizService Logic Tests', () => {
-    // Recreate core logic for testing without Angular DI
+describe('QuizService', () => {
+    let service: QuizService;
+    let supabaseMock: any;
+    let dbMock: any;
 
-    interface ListWord {
-        id: string;
-        word: string;
-        definition: string;
-        image_url?: string;
-    }
+    const mockWord = {
+        id: '1',
+        word: 'apple',
+        definition: 'A fruit',
+        image_url: 'apple.png'
+    };
 
-    function shuffleArray<T>(array: T[]): T[] {
-        const result = [...array];
-        for (let i = result.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [result[i], result[j]] = [result[j], result[i]];
-        }
-        return result;
-    }
+    const mockWord2 = {
+        id: '2',
+        word: 'banana',
+        definition: 'Another fruit',
+        image_url: 'banana.png'
+    };
 
-    function getDistractors(target: ListWord, fullList: ListWord[]): string[] {
-        // 1. Filter out words that have the SAME definition as the target
-        const validCandidates = fullList.filter(w =>
-            w.id !== target.id && w.definition !== target.definition
-        );
+    const mockWordList = [mockWord, mockWord2,
+        { id: '3', word: 'cat', definition: 'A pet' },
+        { id: '4', word: 'dog', definition: 'Another pet' }];
 
-        const shuffled = shuffleArray(validCandidates);
+    beforeEach(() => {
+        // Create a chainable mock for Supabase query builder
+        dbMock = {
+            from: jest.fn().mockReturnThis(),
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            in: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnThis(),
+            maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+            single: jest.fn().mockResolvedValue({ data: null, error: null }),
+            delete: jest.fn().mockReturnThis(),
+            insert: jest.fn().mockReturnThis(),
+            rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
+            then: jest.fn().mockImplementation((callback) => Promise.resolve({ data: [], error: null }).then(callback))
+            // Note: .then implementation might be tricky if we want to await the chain. 
+            // Usually we just mock the terminal methods (single, maybeSingle, or just await the chain if it's a promise-like)
+            // supabase-js returning a PromiseLike builder.
+        };
 
-        // 2. Select unique definitions
-        const selectedDefinitions = new Set<string>();
-        const distractors: string[] = [];
+        // Enhance dbMock execution for list responses (default array response)
+        // When awaited, the builder returns { data, error }
+        // We can simulate this by making the methods return a Promise-like object OR just checking how the service calls it.
+        // Service: await this.supabase.client.from(...).select(...).eq(...)
+        // If we mock return values of the terminal calls like .single() it works.
+        // But .select().eq() returns a PostgrestFilterBuilder which is then awaited.
+        // We need to make the chain return a thenable if no terminal method is called?
+        // Actually, usually we mock the chain to return the mock itself, and give the mock a 'then' method 
+        // OR we configure specific mock implementations for specific sequences.
 
-        for (const candidate of shuffled) {
-            if (!selectedDefinitions.has(candidate.definition)) {
-                selectedDefinitions.add(candidate.definition);
-                distractors.push(candidate.definition);
-                if (distractors.length >= 3) break;
+        // Simpler approach: Mock specific implementations for 'then' based on previous calls? Hard.
+        // Let's rely on the terminal methods being called: .single(), .maybeSingle().
+        // For the list fetch: .select('*').eq('list_id', listId) -> it IS the terminal.
+        // So .eq needs to return a Promise-like value if it is the last call.
+        // BUT it is also chainable.
+        // Providing a 'then' method on the mock object handles the await.
+        dbMock.then = (resolve: any) => resolve({ data: mockWordList, error: null });
+
+        supabaseMock = {
+            client: {
+                from: jest.fn().mockReturnValue(dbMock),
+                rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
+                auth: {
+                    getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'test-user' } } })
+                }
             }
-        }
+        };
 
-        return distractors;
-    }
-
-    // Sample test data
-    const sampleWords: ListWord[] = [
-        { id: '1', word: 'apple', definition: 'A round fruit that is red, green, or yellow' },
-        { id: '2', word: 'banana', definition: 'A long curved fruit with yellow skin' },
-        { id: '3', word: 'cherry', definition: 'A small round fruit that is usually red' },
-        { id: '4', word: 'date', definition: 'A sweet brown fruit from a palm tree' },
-        { id: '5', word: 'elderberry', definition: 'A small dark purple berry' },
-        { id: '6', word: 'duplicate_apple', definition: 'A round fruit that is red, green, or yellow' }, // Same as apple
-        { id: '7', word: 'duplicate_banana', definition: 'A long curved fruit with yellow skin' }, // Same as banana
-    ];
-
-    describe('shuffleArray', () => {
-        it('should return an array of the same length', () => {
-            const input = [1, 2, 3, 4, 5];
-            const result = shuffleArray(input);
-            expect(result.length).toBe(input.length);
+        TestBed.configureTestingModule({
+            providers: [
+                QuizService,
+                { provide: SupabaseService, useValue: supabaseMock }
+            ]
         });
-
-        it('should contain all original elements', () => {
-            const input = [1, 2, 3, 4, 5];
-            const result = shuffleArray(input);
-            expect(result.sort()).toEqual(input.sort());
-        });
-
-        it('should not modify the original array', () => {
-            const input = [1, 2, 3, 4, 5];
-            const original = [...input];
-            shuffleArray(input);
-            expect(input).toEqual(original);
-        });
-
-        it('should handle empty arrays', () => {
-            const result = shuffleArray([]);
-            expect(result).toEqual([]);
-        });
-
-        it('should handle single element arrays', () => {
-            const result = shuffleArray([1]);
-            expect(result).toEqual([1]);
-        });
+        service = TestBed.inject(QuizService);
     });
 
-    describe('getDistractors', () => {
-        it('should return 3 distractors', () => {
-            const target = sampleWords[0];
-            const distractors = getDistractors(target, sampleWords);
-            expect(distractors.length).toBe(3);
-        });
+    it('should be created', () => {
+        expect(service).toBeTruthy();
+    });
 
-        it('should not include the target word definition', () => {
-            const target = sampleWords[0];
-            const distractors = getDistractors(target, sampleWords);
-            expect(distractors).not.toContain(target.definition);
-        });
-
-        it('should return definitions only', () => {
-            const target = sampleWords[0];
-            const distractors = getDistractors(target, sampleWords);
-            distractors.forEach(d => {
-                expect(typeof d).toBe('string');
-                expect(d.length).toBeGreaterThan(0);
+    describe('startQuiz', () => {
+        it('should fetch list details and words and initialize queue', async () => {
+            // Setup Mocks
+            // 1. List Details
+            dbMock.single.mockResolvedValueOnce({
+                data: { list_type: ListType.WORD_DEFINITION, language: 'en' },
+                error: null
             });
+            // 2. Words (handled by dbMock.then default)
+            // 3. Progress
+            dbMock.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+            const result = await service.startQuiz('list1', 'main');
+
+            expect(result.listType).toBe(ListType.WORD_DEFINITION);
+            expect(service.totalWordsInPass).toBe(4);
+            expect(service.getRemainingWords().length).toBe(4);
+            expect(supabaseMock.client.from).toHaveBeenCalledWith('word_lists');
+            expect(supabaseMock.client.from).toHaveBeenCalledWith('list_words');
         });
 
-        it('should handle list with exactly 4 words (target + 3 distractors)', () => {
-            const smallList = sampleWords.slice(0, 4);
-            const target = smallList[0];
-            const distractors = getDistractors(target, smallList);
-            expect(distractors.length).toBe(3);
+        it('should restore progress if available', async () => {
+            // Setup Mocks
+            // 1. List Details
+            dbMock.single.mockResolvedValueOnce({ data: { list_type: ListType.WORD_DEFINITION }, error: null });
+            // 2. Words (handled by dbMock.then default)
+            // 3. Progress
+            dbMock.maybeSingle.mockResolvedValueOnce({
+                data: { state: { answered_ids: ['1'], incorrect_ids: [] } },
+                error: null
+            });
+
+            await service.startQuiz('list1', 'main');
+
+            // 4 total, 1 answered -> 3 remaining
+            expect(service.answeredCount).toBe(1);
+            expect(service.getRemainingWords().length).toBe(3);
+            expect(service.getRemainingWords()).not.toContain('apple'); // id: 1
         });
 
-        it('should handle list with fewer than 4 words', () => {
-            const tinyList = sampleWords.slice(0, 2);
-            const target = tinyList[0];
-            const distractors = getDistractors(target, tinyList);
-            expect(distractors.length).toBe(1); // Only 1 other word available
-        });
-    });
+        it('should filter queue for review mode', async () => {
+            // Setup Mocks
+            // 1. List Details
+            dbMock.single.mockResolvedValueOnce({ data: { list_type: ListType.WORD_DEFINITION }, error: null });
+            // 2. Words (default)
+            // 3. Progress for review
+            dbMock.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+            // 4. Missed words fetch
+            // We need to customize the chain for the missed words query
+            // Query: .from('user_missed_words').select('word_id').eq(...)
+            // The dbMock.then default returns mockWordList (objects). 
+            // We want it to return [{word_id: '1'}, {word_id: '2'}]
+            // This is tricky with a shared dbMock.
+            // We can use `.mockImplementationOnce` on `supabaseMock.client.from` if we match the table name.
 
-    it('should not include distractors with same definition as target (even if different ID)', () => {
-        const target = sampleWords[0]; // apple
-        // duplicate_apple has same definition
-        const distractors = getDistractors(target, sampleWords);
-        expect(distractors).not.toContain(target.definition);
-        // Ensure duplicate_apple's definition (which is same as target) didn't sneak in
-        // Ideally we shouldn't see it at all.
-        // Since we filter by definition, it definitely should be gone.
-        expect(distractors.includes(target.definition)).toBe(false);
-    });
+            // Let's refactor the from mock to return specific mocks for specific tables?
+            // Or simpler: change dbMock.then implementation *before* the call?
+            // But startQuiz does all calls in one go.
 
-    it('should return unique distractors even if source list has duplicates', () => {
-        // Force a list where many items have same definition
-        const duplicateList = [
-            { id: '1', word: 'a', definition: 'def1' },
-            { id: '2', word: 'b', definition: 'def2' },
-            { id: '3', word: 'c', definition: 'def2' }, // duplicate def
-            { id: '4', word: 'd', definition: 'def3' },
-            { id: '5', word: 'e', definition: 'def3' }, // duplicate def
-            { id: '6', word: 'f', definition: 'def4' },
-        ];
-        const target = duplicateList[0];
-        const distractors = getDistractors(target, duplicateList);
+            // Better strategy:
+            // mock implementation of `from` to return different builders based on table.
 
-        // Should contain 3 distractors
-        // And they should be unique
-        const uniqueSet = new Set(distractors);
-        expect(uniqueSet.size).toBe(distractors.length);
-    });
+            const specificDbMock = { ...dbMock }; // clone basics
+            // Custom response for user_missed_words
+            specificDbMock.then = (resolve: any) => resolve({ data: [{ word_id: '2' }], error: null });
 
-    describe('Quiz Question Generation', () => {
-        function generateQuestion(currentWord: ListWord, fullList: ListWord[]) {
-            const distractors = getDistractors(currentWord, fullList);
-            const options = shuffleArray([currentWord.definition, ...distractors]);
+            supabaseMock.client.from.mockImplementation((table: string) => {
+                if (table === 'user_missed_words') return specificDbMock;
+                return dbMock;
+            });
 
-            return {
-                wordToQuiz: {
-                    word: currentWord.word,
-                    definition: currentWord.definition,
-                    id: currentWord.id,
-                },
-                options,
-                correctAnswer: currentWord.definition
-            };
-        }
+            await service.startQuiz('list1', 'review');
 
-        it('should generate a question with 4 options', () => {
-            const question = generateQuestion(sampleWords[0], sampleWords);
-            expect(question.options.length).toBe(4);
-        });
-
-        it('should include the correct answer in options', () => {
-            const question = generateQuestion(sampleWords[0], sampleWords);
-            expect(question.options).toContain(question.correctAnswer);
-        });
-
-        it('should have wordToQuiz matching the current word', () => {
-            const currentWord = sampleWords[2];
-            const question = generateQuestion(currentWord, sampleWords);
-            expect(question.wordToQuiz.word).toBe(currentWord.word);
-            expect(question.wordToQuiz.id).toBe(currentWord.id);
+            // Should only contain word 2 (banana)
+            expect(service.getRemainingWords().length).toBe(1);
+            expect(service.getRemainingWords()[0]).toBe('banana');
+            expect(service.currentMode).toBe('review');
         });
     });
 
-    describe('Progress Tracking Logic', () => {
-        it('should correctly identify answered words', () => {
-            const answeredIds = ['1', '2'];
-            const remainingWords = sampleWords.filter(w => !answeredIds.includes(w.id));
-            expect(remainingWords.length).toBe(5);
+    describe('getNextQuestion', () => {
+        beforeEach(async () => {
+            // Initialize quiz with data
+            dbMock.single.mockResolvedValue({ data: { list_type: ListType.WORD_DEFINITION }, error: null });
+            await service.startQuiz('list1', 'main');
         });
 
-        it('should correctly calculate correct count', () => {
-            const answeredIds = ['1', '2', '3', '4'];
-            const incorrectIds = ['2', '4'];
-            const correctCount = answeredIds.length - incorrectIds.length;
-            expect(correctCount).toBe(2);
+        it('should return a question with options', () => {
+            const q = service.getNextQuestion();
+            expect(q).toBeTruthy();
+            expect(q?.options.length).toBeGreaterThan(0);
+            expect(q?.options).toContain(q?.correctAnswer!);
+        });
+    });
+
+    describe('submitAnswer', () => {
+        beforeEach(async () => {
+            dbMock.single.mockResolvedValue({ data: { list_type: ListType.WORD_DEFINITION }, error: null });
+            await service.startQuiz('list1', 'main');
         });
 
-        it('should correctly filter review mode words', () => {
-            const missedIds = ['2', '4'];
-            const reviewWords = sampleWords.filter(w => missedIds.includes(w.id));
-            expect(reviewWords.length).toBe(2);
-            expect(reviewWords.map(w => w.id)).toEqual(['2', '4']);
+        it('should remove word from queue and call RPC', async () => {
+            const initialLen = service.getRemainingWords().length;
+            const wordToAnswer = service.getRemainingWords()[0];
+            const wordId = mockWordList.find(w => w.word === wordToAnswer)?.id || 'unknown';
+
+            await service.submitAnswer(wordId, true);
+
+            expect(service.getRemainingWords().length).toBe(initialLen - 1);
+            expect(supabaseMock.client.rpc).toHaveBeenCalledWith('update_quiz_progress', expect.objectContaining({
+                p_word_id: wordId,
+                p_is_correct: true
+            }));
+        });
+    });
+
+    describe('finishPass', () => {
+        beforeEach(async () => {
+            dbMock.single.mockResolvedValue({ data: { list_type: ListType.WORD_DEFINITION }, error: null });
+            await service.startQuiz('list1', 'main');
         });
 
-        it('should calculate score percentage correctly', () => {
-            const correctCount = 7;
-            const totalCount = 10;
-            const scorePercent = Math.round((correctCount / totalCount) * 100);
-            expect(scorePercent).toBe(70);
+        it('should call finish_quiz_pass RPC', async () => {
+            await service.finishPass();
+            expect(supabaseMock.client.rpc).toHaveBeenCalledWith('finish_quiz_pass', expect.objectContaining({
+                p_list_id: 'list1',
+                p_pass_type: 'main'
+            }));
         });
     });
 });

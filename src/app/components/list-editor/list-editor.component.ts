@@ -15,6 +15,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MathGenModalComponent } from '../modals/math-gen-modal/math-gen-modal.component';
+import { GenerateSentencesModalComponent } from '../modals/generate-sentences-modal/generate-sentences-modal.component';
 
 import { AuthService } from '../../services/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -150,6 +151,7 @@ export class ListEditorComponent implements OnInit {
       case ListType.IMAGE_DEFINITION: return 'image';
       case ListType.SIGHT_WORDS: return 'record_voice_over';
       case ListType.MATH: return 'calculate';
+      case ListType.SENTENCES: return 'auto_stories';
       default: return 'text_fields';
     }
   }
@@ -160,6 +162,7 @@ export class ListEditorComponent implements OnInit {
       case ListType.IMAGE_DEFINITION: return 'Image / Definition';
       case ListType.SIGHT_WORDS: return 'Sight Words';
       case ListType.MATH: return 'Math Problems';
+      case ListType.SENTENCES: return 'Sentences';
       default: return 'Word / Definition';
     }
   }
@@ -170,6 +173,7 @@ export class ListEditorComponent implements OnInit {
       case ListType.IMAGE_DEFINITION: return 'e.g. US State Shapes';
       case ListType.SIGHT_WORDS: return 'e.g. Kindergarten Sight Words';
       case ListType.MATH: return 'e.g. Simple Addition';
+      case ListType.SENTENCES: return 'e.g. Simple Sentences';
       default: return 'e.g. Spanish Verbs';
     }
   }
@@ -233,6 +237,8 @@ export class ListEditorComponent implements OnInit {
         return this.words.every(w => w.word.trim().length > 0);
       case ListType.MATH:
         return this.words.every(w => w.word.trim().length > 0 && w.definition.trim().length > 0);
+      case ListType.SENTENCES:
+        return this.words.every(w => w.word.trim().length > 0);
       default:
         return false;
     }
@@ -268,9 +274,25 @@ export class ListEditorComponent implements OnInit {
           imageUrl: w.imageUrl
         })), this.deletedWordIds).toPromise();
 
-        // Queue all words for audio if Sight Words
-        if (this.listType === ListType.SIGHT_WORDS) {
-          await this.queueWordsForAudio(this.words.map(w => w.word));
+        // Queue all words for audio if Sight Words or Sentences
+        if (this.listType === ListType.SIGHT_WORDS || this.listType === ListType.SENTENCES) {
+          let wordsToQueue = this.words.map(w => w.word);
+
+          // For Sentences, also queue individual words
+          if (this.listType === ListType.SENTENCES) {
+            const individualWords: string[] = [];
+            wordsToQueue.forEach(sentence => {
+              // Split by spaces and strip punctuation
+              const parts = sentence.split(/\s+/);
+              parts.forEach(p => {
+                const clean = p.replace(/[.,!?;:()"]/g, '').trim();
+                if (clean.length > 0) individualWords.push(clean);
+              });
+            });
+            wordsToQueue = [...wordsToQueue, ...individualWords];
+          }
+
+          await this.queueWordsForAudio(wordsToQueue);
         }
 
         this.router.navigate(['/lists']);
@@ -291,9 +313,25 @@ export class ListEditorComponent implements OnInit {
             imageUrl: w.imageUrl
           }))).toPromise();
 
-          // Queue all words for audio if Sight Words
-          if (this.listType === ListType.SIGHT_WORDS) {
-            await this.queueWordsForAudio(this.words.map(w => w.word));
+          // Queue all words for audio if Sight Words or Sentences
+          if (this.listType === ListType.SIGHT_WORDS || this.listType === ListType.SENTENCES) {
+            let wordsToQueue = this.words.map(w => w.word);
+
+            // For Sentences, also queue individual words
+            if (this.listType === ListType.SENTENCES) {
+              const individualWords: string[] = [];
+              wordsToQueue.forEach(sentence => {
+                // Split by spaces and strip punctuation
+                const parts = sentence.split(/\s+/);
+                parts.forEach(p => {
+                  const clean = p.replace(/[.,!?;:()"]/g, '').trim();
+                  if (clean.length > 0) individualWords.push(clean);
+                });
+              });
+              wordsToQueue = [...wordsToQueue, ...individualWords];
+            }
+
+            await this.queueWordsForAudio(wordsToQueue);
           }
 
           this.router.navigate(['/dashboard']); // Go to dashboard (My Lists) so they can see progress
@@ -383,6 +421,21 @@ export class ListEditorComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
+        this.words = result;
+        if (this.words.length === 0) this.words.push({ word: '', definition: '' });
+      }
+    });
+  }
+
+  openGenerateSentencesModal() {
+    const dialogRef = this.dialog.open(GenerateSentencesModalComponent, {
+      width: '500px',
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && Array.isArray(result)) {
+        // Result is array of { word, definition }
         this.words = result;
         if (this.words.length === 0) this.words.push({ word: '', definition: '' });
       }

@@ -31,6 +31,7 @@ import { MatInputModule } from '@angular/material/input';
 })
 export class QuizComponent implements OnInit, OnDestroy {
   isSightWordQuiz = false;
+  isSentencesQuiz = false;
   quizMode: 'main' | 'review' = 'main';
   listId: string = '';
   currentQuestion: QuizQuestion | null = null;
@@ -58,6 +59,8 @@ export class QuizComponent implements OnInit, OnDestroy {
   isLoadingModel = false;
   modelLoadProgress = 0;
   modelLoadCancelled = false;
+
+  currentSentenceWords: { word: string, cleanWord: string }[] = [];
 
   // Feedback UI State
   feedbackVisible = false;
@@ -115,6 +118,7 @@ export class QuizComponent implements OnInit, OnDestroy {
       this.isImageQuiz = listType === ListType.IMAGE_DEFINITION;
       this.isSightWordQuiz = listType === ListType.SIGHT_WORDS;
       this.isMathQuiz = listType === ListType.MATH;
+      this.isSentencesQuiz = listType === ListType.SENTENCES;
 
       if (this.isMathQuiz) {
         // Build vocabulary for speech recognition
@@ -123,11 +127,15 @@ export class QuizComponent implements OnInit, OnDestroy {
 
       // Check support for speech if needed (Math always needs it available, Sight Words might needs it for specific modes)
       this.speechSupported = this.speechService.isSTTSupported();
-      if (!this.speechService.isNativeSupported() && this.speechSupported && (this.isMathQuiz || this.isSightWordQuiz)) {
+      if (!this.speechService.isNativeSupported() && this.speechSupported && (this.isMathQuiz || this.isSightWordQuiz || this.isSentencesQuiz)) {
         this.speechService.preloadModel();
       }
 
-      if (this.isMathQuiz || this.isSightWordQuiz) {
+      if (this.isMathQuiz || this.isSightWordQuiz || this.isSentencesQuiz) {
+        if (this.isSentencesQuiz) {
+          this.startWithMode('read');
+          return;
+        }
         this.quizStarted = false; // Will start after mode selection
         return;
       }
@@ -152,6 +160,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     if (this.isSightWordQuiz) {
       return this.activeMode === 'listen' || this.activeMode === 'spell';
     }
+    if (this.isSentencesQuiz) return true;
     return false; // Default for all other types (Math, Word/Def, Image/Def)
   }
 
@@ -174,7 +183,7 @@ export class QuizComponent implements OnInit, OnDestroy {
 
     // 1. Vosk Model (for Speak Mode)
     if (this.interactionMode === 'speak' && !this.speechService.isVoskReady()) {
-      loadingTasks.push(this.speechService.preloadVoskModel());
+      loadingTasks.push(this.speechService.preloadVoskModel(this.quizService.currentLanguage));
     }
 
     // 2. Premium Audio Pre-fetch (if enabled)
@@ -183,9 +192,23 @@ export class QuizComponent implements OnInit, OnDestroy {
       const words = this.quizService.getRemainingWords();
       // Prefetch first 20 words if any
       if (words.length > 0) {
+        const slice = words.slice(0, 20);
+        let wordsToFetch = slice;
+
+        if (this.isSentencesQuiz) {
+          const individualWords: string[] = [];
+          slice.forEach(s => {
+            s.split(/\s+/).forEach(p => {
+              const clean = p.replace(/[.,!?;:()"]/g, '').trim();
+              if (clean) individualWords.push(clean);
+            });
+          });
+          wordsToFetch = [...slice, ...individualWords];
+        }
+
         loadingTasks.push(
           this.speechService.prefetchAudio(
-            words.slice(0, 20),
+            wordsToFetch,
             this.quizService.currentLanguage
           )
         );
@@ -218,7 +241,7 @@ export class QuizComponent implements OnInit, OnDestroy {
 
       // Subscribe to tasks
       if (this.interactionMode === 'speak' && !this.speechService.isVoskReady()) {
-        this.speechService.preloadVoskModel().subscribe({
+        this.speechService.preloadVoskModel(this.quizService.currentLanguage).subscribe({
           next: (p) => {
             if (p.status === 'done') {
               voskFinished = true;
@@ -267,7 +290,6 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.displayNextQuestion();
   }
 
-  // Helper for Sight Words Listen Mode
   async playWord() {
     this.autoPlayEnabled = true;
 
@@ -278,6 +300,19 @@ export class QuizComponent implements OnInit, OnDestroy {
       } finally {
         this.isPlaying = false;
       }
+    }
+  }
+
+  async playSentenceWord(word: string) {
+    if (!word) return;
+    try {
+      // Don't set isPlaying global flag to avoid toggling the big play button state
+      // or set it if we want to show global playing state. Let's set it local if possible, 
+      // but simpler to share state for now.
+      this.isPlaying = true;
+      await this.speechService.speak(word, this.quizService.currentLanguage);
+    } finally {
+      this.isPlaying = false;
     }
   }
 
@@ -300,7 +335,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.recognizedText = "Don't Know"; // Fallback for UI
 
     // Play correct answer if in Read Mode (or if useful for learning)
-    if (this.isSightWordQuiz && this.activeMode === 'read' && this.currentQuestion.wordToQuiz.word) {
+    if ((this.isSightWordQuiz || this.isSentencesQuiz) && this.activeMode === 'read' && this.currentQuestion.wordToQuiz.word) {
       this.speechService.speak(this.currentQuestion.wordToQuiz.word, this.quizService.currentLanguage);
     }
 
@@ -385,14 +420,38 @@ export class QuizComponent implements OnInit, OnDestroy {
       setTimeout(() => this.playWord(), 500);
     }
 
+    // Populate sentence words for clickable display
+    if (this.isSentencesQuiz && this.currentQuestion) {
+      this.currentSentenceWords = this.currentQuestion.wordToQuiz.word.split(' ').map(part => ({
+        word: part,
+        cleanWord: part.replace(/[.,!?;:()"]/g, '').trim()
+      }));
+    } else {
+      this.currentSentenceWords = [];
+    }
+
     // Background Audio Prefetching (Lazy Buffer)
     const settings = this.settingsService.getSettings();
     if (settings.usePremiumVoice && this.currentQuestion && this.shouldPreloadAudio) {
       // Ensure the next 15 words are cached
-      const remainingWords = this.quizService.getRemainingWords();
-      if (remainingWords.length > 0) {
+      const remainingWords = this.quizService.getRemainingWords().slice(0, 15);
+
+      let wordsToFetch = remainingWords;
+      if (this.isSentencesQuiz) {
+        // Also fetch individual words for sentences
+        const individualWords: string[] = [];
+        remainingWords.forEach(s => {
+          s.split(/\s+/).forEach(p => {
+            const clean = p.replace(/[.,!?;:()"]/g, '').trim();
+            if (clean) individualWords.push(clean);
+          });
+        });
+        wordsToFetch = [...remainingWords, ...individualWords];
+      }
+
+      if (wordsToFetch.length > 0) {
         this.speechService.prefetchAudio(
-          remainingWords.slice(0, 15),
+          wordsToFetch,
           this.quizService.currentLanguage
         ).subscribe(); // Subscribe to trigger, ignore result
       }
@@ -401,7 +460,7 @@ export class QuizComponent implements OnInit, OnDestroy {
 
     // Check delay settings
 
-    if (settings.delayAnswers) {
+    if (settings.delayAnswers && !this.isSentencesQuiz && this.activeMode !== 'read') {
       this.startDelayTimer(settings.delayAnswerTimer);
     }
   }
@@ -659,6 +718,11 @@ export class QuizComponent implements OnInit, OnDestroy {
         this.currentQuestion.wordToQuiz.word
       );
     }
+    // Play audio for correction in read mode (Sentences or Sight Words)
+    if ((this.isSightWordQuiz || this.isSentencesQuiz) && this.activeMode === 'read' && this.currentQuestion.wordToQuiz.word) {
+      this.speechService.speak(this.currentQuestion.wordToQuiz.word, this.quizService.currentLanguage);
+    }
+
     this.updateProgress();
 
     // Auto Advance

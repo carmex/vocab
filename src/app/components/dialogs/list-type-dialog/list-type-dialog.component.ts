@@ -43,6 +43,12 @@ import { ListType } from '../../../models/list-type.enum';
           <h3>Math</h3>
           <p>Practice math problems (Add, Sub, Mult, Div)</p>
         </mat-card>
+
+        <mat-card class="type-card" (click)="select(ListType.SENTENCES)">
+          <mat-icon class="type-icon">auto_stories</mat-icon>
+          <h3>Sentences</h3>
+          <p>Practice reading full sentences</p>
+        </mat-card>
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">

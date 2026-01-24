@@ -1,0 +1,299 @@
+npm warn Unknown user config "always-auth" (//packages.infragistics.com/npm/js-licensed/:always-auth). This will stop working in the next major version of npm.
+
+> vocab@0.0.0 test
+> jest src/app/services/state.service.spec.ts --verbose
+
+
+            Running 'ngcc' is not required for Angular 16+ projects. This 'ngcc-jest-processor' script will be removed in the next major version of 'jest-preset-angular'.
+            Tip: To avoid this message you can remove 'jest-preset-angular/global-setup' from your jest config
+        
+  console.warn
+    
+        Importing "setup-jest.js" directly is deprecated. The file "setup-jest.js" will be removed in the future.
+        Please use "setupZoneTestEnv" function instead. Example:
+    
+        // setup-jest.ts
+        import { setupZoneTestEnv } from 'jest-preset-angular/setup-env/zone';
+    
+        setupZoneTestEnv();
+
+    [0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m [32m'jest-preset-angular/setup-jest'[39m[33m;[39m
+     [90m   |[39m [31m[1m^[22m[39m
+     [90m 2 |[39m[0m
+
+      at Object.<anonymous> (node_modules/jest-preset-angular/setup-jest.js:1:111)
+      at Object.<anonymous> (setup-jest.ts:1:1)
+
+FAIL src/app/services/state.service.spec.ts
+  StateService
+    × should be created (3 ms)
+    Initialization
+      × should load initial state when local storage is empty (1 ms)
+      × should load saved state from local storage (1 ms)
+  StateService with saved state
+    × should initialize with data from local storage (1 ms)
+  StateService Logic
+    answerWord
+      × should update correct answer in MAIN mode
+      × should update incorrect answer in MAIN mode
+      × should update correct answer in REVIEW mode
+      × should update incorrect answer in REVIEW mode (1 ms)
+      × should handle pass completion in MAIN mode (1 ms)
+      × should handle pass completion in REVIEW mode
+    Management methods
+      × should clear current pass
+      × should clear review pass (1 ms)
+      × should clear corrected words from cumulative missed
+
+  ● StateService › should be created
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 30 |[39m         [90m// Mock LocalStorage[39m
+     [90m 31 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 32 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m {
+     [90m    |[39m         [31m[1m^[22m[39m
+     [90m 33 |[39m             [36mreturn[39m localStorageMock[key] [33m||[39m [36mnull[39m[33m;[39m
+     [90m 34 |[39m         })[33m;[39m
+     [90m 35 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {[0m
+
+      at src/app/services/state.service.spec.ts:32:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService › Initialization › should load initial state when local storage is empty
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 30 |[39m         [90m// Mock LocalStorage[39m
+     [90m 31 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 32 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m {
+     [90m    |[39m         [31m[1m^[22m[39m
+     [90m 33 |[39m             [36mreturn[39m localStorageMock[key] [33m||[39m [36mnull[39m[33m;[39m
+     [90m 34 |[39m         })[33m;[39m
+     [90m 35 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {[0m
+
+      at src/app/services/state.service.spec.ts:32:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService › Initialization › should load saved state from local storage
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 30 |[39m         [90m// Mock LocalStorage[39m
+     [90m 31 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 32 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m {
+     [90m    |[39m         [31m[1m^[22m[39m
+     [90m 33 |[39m             [36mreturn[39m localStorageMock[key] [33m||[39m [36mnull[39m[33m;[39m
+     [90m 34 |[39m         })[33m;[39m
+     [90m 35 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {[0m
+
+      at src/app/services/state.service.spec.ts:32:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService with saved state › should initialize with data from local storage
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 115 |[39m         }[33m;[39m
+     [90m 116 |[39m
+    [31m[1m>[22m[39m[90m 117 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m {
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 118 |[39m             [36mreturn[39m localStorageMock[key] [33m||[39m [36mnull[39m[33m;[39m
+     [90m 119 |[39m         })[33m;[39m
+     [90m 120 |[39m[0m
+
+      at src/app/services/state.service.spec.ts:117:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › answerWord › should update correct answer in MAIN mode
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › answerWord › should update incorrect answer in MAIN mode
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › answerWord › should update correct answer in REVIEW mode
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › answerWord › should update incorrect answer in REVIEW mode
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › answerWord › should handle pass completion in MAIN mode
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › answerWord › should handle pass completion in REVIEW mode
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › Management methods › should clear current pass
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › Management methods › should clear review pass
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+  ● StateService Logic › Management methods › should clear corrected words from cumulative missed
+
+    ReferenceError: spyOn is not defined
+
+    [0m [90m 145 |[39m     beforeEach(() [33m=>[39m {
+     [90m 146 |[39m         localStorageMock [33m=[39m {}[33m;[39m
+    [31m[1m>[22m[39m[90m 147 |[39m         spyOn(localStorage[33m,[39m [32m'getItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string) [33m=>[39m localStorageMock[key] [33m||[39m [36mnull[39m)[33m;[39m
+     [90m     |[39m         [31m[1m^[22m[39m
+     [90m 148 |[39m         spyOn(localStorage[33m,[39m [32m'setItem'[39m)[33m.[39mand[33m.[39mcallFake((key[33m:[39m string[33m,[39m value[33m:[39m string) [33m=>[39m {
+     [90m 149 |[39m             localStorageMock[key] [33m=[39m value[33m;[39m
+     [90m 150 |[39m         })[33m;[39m[0m
+
+      at src/app/services/state.service.spec.ts:147:9
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:410:32)
+      at ProxyZoneSpec.Object.<anonymous>.ProxyZoneSpec.onInvoke (node_modules/zone.js/bundles/zone-testing.umd.js:2219:43)
+      at _ZoneDelegate.invoke (node_modules/zone.js/bundles/zone.umd.js:409:38)
+      at ZoneImpl.run (node_modules/zone.js/bundles/zone.umd.js:145:47)
+      at Object.wrappedFunc (node_modules/zone.js/bundles/zone-testing.umd.js:449:38)
+
+Test Suites: 1 failed, 1 total
+Tests:       13 failed, 13 total
+Snapshots:   0 total
+Time:        1.968 s, estimated 2 s
+Ran all test suites matching /src\\app\\services\\state.service.spec.ts/i.

@@ -50,15 +50,15 @@ export class ListsComponent implements OnInit {
                 timer(0, 5000).pipe(
                     switchMap(() => this.listService.getMyLists(user!.id)),
                     switchMap(lists => {
-                        // Get IDs of Sight Word lists
-                        const sightWordListIds = lists
-                            .filter(l => l.word_lists?.list_type === ListType.SIGHT_WORDS)
+                        // Get IDs of Sight Word or Sentences lists
+                        const eligibleListIds = lists
+                            .filter(l => l.word_lists?.list_type === ListType.SIGHT_WORDS || l.word_lists?.list_type === ListType.SENTENCES)
                             .map(l => l.word_list_id);
 
-                        if (sightWordListIds.length === 0) return of(lists);
+                        if (eligibleListIds.length === 0) return of(lists);
 
                         // Fetch audio stats
-                        return this.listService.getListAudioStats(sightWordListIds).then(stats => {
+                        return this.listService.getListAudioStats(eligibleListIds).then(stats => {
                             const statsMap = new Map(stats.map(s => [s.list_id, s]));
 
                             return lists.map(list => {

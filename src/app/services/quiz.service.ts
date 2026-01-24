@@ -128,8 +128,8 @@ export class QuizService {
 
     // Generate Options
     const distractors = this.getDistractors(currentWord);
-    // For Sight Words, the answer is the word itself. For Defs, it's the definition.
-    const answer = this.currentListType === ListType.SIGHT_WORDS ? currentWord.word : currentWord.definition;
+    // For Sight Words and Sentences, the answer is the word itself. For Defs, it's the definition.
+    const answer = (this.currentListType === ListType.SIGHT_WORDS || this.currentListType === ListType.SENTENCES) ? currentWord.word : currentWord.definition;
 
     // For Sight Words, options are words. For Defs, options are definitions.
     const options = this.shuffleArray([answer, ...distractors]);
@@ -309,12 +309,12 @@ export class QuizService {
   }
 
   private getDistractors(target: ListWord): string[] {
-    const isSightWord = this.currentListType === ListType.SIGHT_WORDS;
+    const isSightWordLike = this.currentListType === ListType.SIGHT_WORDS || this.currentListType === ListType.SENTENCES;
 
     // 1. Filter out words that have the SAME answer as the target
     const validCandidates = this.fullList.filter(w => {
       if (w.id === target.id) return false;
-      if (isSightWord) {
+      if (isSightWordLike) {
         return w.word !== target.word;
       } else {
         return w.definition !== target.definition;
@@ -328,7 +328,7 @@ export class QuizService {
     const distractors: string[] = [];
 
     for (const candidate of validCandidates) {
-      const answer = isSightWord ? candidate.word : candidate.definition;
+      const answer = isSightWordLike ? candidate.word : candidate.definition;
       if (!selectedAnswers.has(answer)) {
         selectedAnswers.add(answer);
         distractors.push(answer);
