@@ -1,11 +1,10 @@
 /// <reference lib="webworker" />
 
 // Vosk model URLs by language - using hosted tar.gz archives
-// English: Hosted on ccoreilly's GitHub Pages CDN
+// English: Self-hosted in app assets for fast, reliable loading
 // Spanish: Self-hosted in app assets (download from alphacephei.com, convert zip to tar.gz)
 const MODEL_URLS: { [key: string]: string } = {
-    'en': 'https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz',
-    // Spanish model hosted alongside the app - place in src/assets/models/
+    'en': '/assets/models/vosk-model-small-en-us-0.15.tar.gz',
     'es': '/assets/models/vosk-model-small-es-0.42.tar.gz'
 };
 
@@ -16,9 +15,10 @@ let model: any = null;
 let recognizer: any = null;
 let lastResult: string = ''; // Track last received result
 let currentLanguage: string = DEFAULT_LANGUAGE; // Track loaded language
+let currentSessionId: number = 0; // Track active session to tag outgoing messages
 
 self.addEventListener('message', async (event) => {
-    const { type, audio, sampleRate } = event.data;
+    const { type, audio, sampleRate, sessionId } = event.data;
 
     if (type === 'load') {
         try {
@@ -64,8 +64,26 @@ self.addEventListener('message', async (event) => {
     }
 
     if (type === 'start') {
+        const { sampleRate, vocabulary } = event.data;
+        const sessionId = event.data.sessionId;
+
+        console.log(`[VoskWorker] Starting session #${sessionId} with ${vocabulary ? vocabulary.length : 'full'} vocab words`);
+
+        // Update active session immediately
+        currentSessionId = sessionId;
+
+        if (recognizer) {
+            console.log('[VoskWorker] Freeing old recognizer');
+            try {
+                recognizer.remove(); // Use remove() if available, or free()
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+            recognizer = null;
+        }
+
         if (!model) {
-            self.postMessage({ type: 'error', error: 'Model not loaded' });
+            self.postMessage({ type: 'error', error: 'Model not loaded', sessionId });
             return;
         }
 
@@ -76,15 +94,13 @@ self.addEventListener('message', async (event) => {
             // Create recognizer with sample rate (default 16000)
             const rate = sampleRate || 16000;
 
-            // Get vocabulary list if provided for grammar constraints
-            const vocabulary = event.data.vocabulary;
-
             if (vocabulary && vocabulary.length > 0) {
                 // Create grammar string - Vosk expects JSON array format
                 const grammarJson = JSON.stringify(vocabulary);
-                console.log('[VoskWorker] Using grammar:', grammarJson);
+                console.log('[VoskWorker] Creating recognizer with grammar (partial):', vocabulary.slice(0, 5));
                 recognizer = new model.KaldiRecognizer(rate, grammarJson);
             } else {
+                console.log('[VoskWorker] Creating recognizer with FULL model');
                 recognizer = new model.KaldiRecognizer(rate);
             }
 
@@ -110,7 +126,8 @@ self.addEventListener('message', async (event) => {
                             type: 'result',
                             text: alts[0], // Keep best text for compat
                             alternatives: alts,
-                            confidence: result.alternatives[0]?.confidence || 1.0
+                            confidence: result.alternatives[0]?.confidence || 1.0,
+                            sessionId: currentSessionId // Echo ID
                         });
                         return;
                     }
@@ -123,7 +140,8 @@ self.addEventListener('message', async (event) => {
                         type: 'result',
                         text: result.text,
                         alternatives: [result.text],
-                        confidence: 1.0
+                        confidence: 1.0,
+                        sessionId: currentSessionId // Echo ID
                     });
                 }
             });
@@ -131,27 +149,34 @@ self.addEventListener('message', async (event) => {
             recognizer.on('partialresult', (message: any) => {
                 const partial = message.result;
                 if (partial && partial.partial) {
-                    // console.log('[VoskWorker] Partial:', partial.partial); // limit spam
                     lastResult = partial.partial; // Also track partials
                     self.postMessage({
                         type: 'partial',
-                        text: partial.partial
+                        text: partial.partial,
+                        sessionId: currentSessionId // Echo ID
                     });
                 }
             });
 
-            self.postMessage({ type: 'started' });
+            self.postMessage({ type: 'started', sessionId: currentSessionId });
         } catch (err: any) {
             console.error('[VoskWorker] Failed to start recognizer:', err);
-            self.postMessage({ type: 'error', error: err.message });
+            self.postMessage({ type: 'error', error: err.message, sessionId: currentSessionId });
         }
         return;
     }
 
     if (type === 'audio') {
-        if (!recognizer) {
+        if (!recognizer) return;
+
+        // FILTER: Ignore audio packets from old sessions
+        if (event.data.sessionId !== undefined && event.data.sessionId !== currentSessionId) {
+            // console.warn(`[VoskWorker] Dropping stale audio from session #${event.data.sessionId} (current: #${currentSessionId})`);
             return;
         }
+
+        const audio = event.data.audio;
+        if (!audio) return;
 
         try {
             // Vosk expects an AudioBuffer-like object with getChannelData method
@@ -172,6 +197,10 @@ self.addEventListener('message', async (event) => {
 
     if (type === 'stop') {
         if (recognizer) {
+            // Capture session ID at stop time to ensure delayed messages 
+            // are tagged with the specific session they belong to
+            const stoppingSessionId = sessionId !== undefined ? sessionId : currentSessionId;
+
             // Give Vosk time to process any remaining audio buffers
             // This delay is critical for short utterances
             setTimeout(() => {
@@ -201,7 +230,8 @@ self.addEventListener('message', async (event) => {
                             type: 'result',
                             text: textToSend,
                             alternatives: finalResult?.alternatives?.map((a: any) => a.text) || [textToSend],
-                            confidence: 1.0
+                            confidence: 1.0,
+                            sessionId: stoppingSessionId // Use captured ID
                         });
                     }
 
@@ -211,13 +241,13 @@ self.addEventListener('message', async (event) => {
                     lastResult = '';
                 } catch (err: any) {
                     console.error('[VoskWorker] Stop error:', err);
-                    self.postMessage({ type: 'error', error: err.message });
+                    self.postMessage({ type: 'error', error: err.message, sessionId: stoppingSessionId });
                 }
 
-                self.postMessage({ type: 'stopped' });
+                self.postMessage({ type: 'stopped', sessionId: stoppingSessionId });
             }, 500); // Wait 500ms for Vosk to finish processing
         } else {
-            self.postMessage({ type: 'stopped' });
+            self.postMessage({ type: 'stopped', sessionId: currentSessionId });
         }
         return;
     }

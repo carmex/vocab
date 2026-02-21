@@ -62,7 +62,8 @@ self.addEventListener('message', async (event) => {
             // Map language codes to Whisper language codes
             const langMap: { [key: string]: string } = {
                 'en': 'english',
-                'es': 'spanish'
+                'es': 'spanish',
+                'ja': 'japanese'
             };
             const whisperLang = langMap[language] || 'english';
 

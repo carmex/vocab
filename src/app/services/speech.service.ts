@@ -4,6 +4,14 @@ import { SettingsService } from './settings.service';
 import { SupabaseService } from './supabase.service';
 import { doubleMetaphone } from 'double-metaphone';
 
+const getImportMetaUrl = () => {
+    try {
+        return new Function('return import.meta.url')();
+    } catch (e) {
+        return '';
+    }
+};
+
 @Injectable({
     providedIn: 'root'
 })
@@ -34,6 +42,8 @@ export class SpeechService {
     private voskCurrentLanguage: string = 'en'; // Track currently loaded language model
     private currentAudio: HTMLAudioElement | null = null; // Track currently playing audio for cancellation
     private currentProvider: 'native' | 'vosk' | 'whisper' | null = null; // Track active recognition provider
+    private isVoskProcessing = false; // Track if we're currently processing buffered audio
+    private voskSessionId = 0; // Session counter to track and filter stale messages
 
 
     constructor(
@@ -69,7 +79,8 @@ export class SpeechService {
 
     private initWorker() {
         if (typeof Worker !== 'undefined') {
-            this.worker = new Worker(new URL('../workers/whisper.worker', import.meta.url));
+            const metaUrl = getImportMetaUrl();
+            this.worker = new Worker(new URL('../workers/whisper.worker', metaUrl));
             this.worker.onmessage = (event) => {
                 const { type, data, text, error } = event.data;
                 if (type === 'progress') {
@@ -98,13 +109,15 @@ export class SpeechService {
 
     private initVoskWorker() {
         if (typeof Worker !== 'undefined' && !this.voskWorker) {
-            this.voskWorker = new Worker(new URL('../workers/vosk.worker', import.meta.url));
+            const metaUrl = getImportMetaUrl();
+            this.voskWorker = new Worker(new URL('../workers/vosk.worker', metaUrl));
             this.voskWorker.onmessage = (event) => {
                 const { type, data, error } = event.data;
+                console.log('[SpeechService] Vosk worker message:', type, data || error || '');
                 if (type === 'progress') {
                     this.ngZone.run(() => this.modelLoadingSubject.next(data));
                 } else if (type === 'ready') {
-                    // console.log('[SpeechService] Vosk model ready');
+                    console.log('[SpeechService] Vosk model ready!');
                     this.voskModelReady = true;
                     this.voskModelCached = true;
                     this.voskModelLoading = false;
@@ -112,9 +125,12 @@ export class SpeechService {
                     localStorage.setItem('voskModelCached', 'true');
                     // Resolve any pending waitForVoskReady promises
                     if (this.voskReadyResolve) {
+                        console.log('[SpeechService] Resolving voskReadyPromise');
                         this.voskReadyResolve();
                         this.voskReadyResolve = null;
                         this.voskReadyPromise = null;
+                    } else {
+                        console.log('[SpeechService] No voskReadyResolve to call (model ready before listen called)');
                     }
                     this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'done', progress: 100 }));
                 } else if (type === 'error') {
@@ -285,7 +301,8 @@ export class SpeechService {
             // Set language based on parameter
             const langMap: { [key: string]: string } = {
                 'en': 'en-US',
-                'es': 'es-ES'
+                'es': 'es-ES',
+                'ja': 'ja-JP'
             };
             utterance.lang = langMap[language] || 'en-US';
 
@@ -296,6 +313,9 @@ export class SpeechService {
             if (language === 'es') {
                 // For Spanish, find a Spanish voice
                 selectedVoice = voices.find(v => v.lang.startsWith('es'));
+            } else if (language === 'ja') {
+                // For Japanese, find a Japanese voice
+                selectedVoice = voices.find(v => v.lang.startsWith('ja'));
             } else {
                 // For English, prefer female voices
                 selectedVoice = voices.find(v =>
@@ -500,13 +520,49 @@ export class SpeechService {
         }
     }
 
+    async forceRegenerateAudio(text: string, language: string): Promise<string> {
+        const key = `${language}-${text.toLowerCase().trim()}`;
+        console.log(`[SpeechService] Force regenerating audio for: "${text}" (${language})`);
+
+        // 1. Call Edge Function with force=true
+        const { data, error } = await this.supabase.client.functions.invoke('generate-audio', {
+            body: { word: text, language: language, force: true }
+        });
+
+        if (error) throw error;
+
+        // 2. Construct Public URL
+        const filename = `audio/${language}-${text.toLowerCase().trim()}.wav`;
+        const { data: publicData } = this.supabase.client
+            .storage
+            .from('quiz-audio')
+            .getPublicUrl(filename);
+
+        if (!publicData || !publicData.publicUrl) throw new Error('Could not generate audio URL');
+
+        // Append timestamp to bust cache logic
+        const bustUrl = `${publicData.publicUrl}?t=${Date.now()}`;
+
+        // 3. Fetch Blob to update local cache
+        const response = await fetch(bustUrl);
+        if (!response.ok) throw new Error(`Failed to download audio: ${response.statusText}`);
+
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Update cache
+        this.audioCache.set(key, blobUrl);
+        return blobUrl;
+    }
+
     preloadTTS() {
         this.initTTSWorker();
     }
 
     private initTTSWorker() {
         if (!this.ttsWorker && typeof Worker !== 'undefined') {
-            this.ttsWorker = new Worker(new URL('../workers/tts.worker', import.meta.url));
+            const metaUrl = getImportMetaUrl();
+            this.ttsWorker = new Worker(new URL('../workers/tts.worker', metaUrl));
             this.ttsWorker.onmessage = (event) => {
                 const { type, data } = event.data;
                 if (type === 'progress') {
@@ -667,22 +723,29 @@ export class SpeechService {
 
                 // Create a promise that resolves when model is ready
                 if (!this.voskReadyPromise) {
+                    console.log('[SpeechService] Creating new voskReadyPromise');
                     this.voskReadyPromise = new Promise<void>(resolve => {
                         this.voskReadyResolve = resolve;
                     });
+                } else {
+                    console.log('[SpeechService] voskReadyPromise already exists, reusing');
                 }
 
                 // If already ready (race condition check), start immediately
                 if (this.voskModelReady) {
+                    console.log('[SpeechService] Model already ready, starting immediately');
                     voskSub = this.listenWithVosk(targetWord, vocabulary, captureAudio).subscribe(observer);
                     return () => voskSub?.unsubscribe();
                 }
 
+                console.log('[SpeechService] Model not ready, waiting on promise...');
+
                 // Wait for ready, then start listening
                 this.voskReadyPromise.then(() => {
-                    // console.log('[SpeechService] Vosk now ready, starting recognition...');
+                    console.log('[SpeechService] Vosk now ready (promise resolved), starting recognition...');
                     voskSub = this.listenWithVosk(targetWord, vocabulary, captureAudio).subscribe(observer);
                 }).catch(err => {
+                    console.error('[SpeechService] voskReadyPromise rejected:', err);
                     observer.next({ error: 'Failed to load Vosk model' });
                     observer.complete();
                 });
@@ -721,15 +784,25 @@ export class SpeechService {
     private listenWithVosk(targetWord?: string, vocabulary?: string[], captureAudio: boolean = false): Observable<{ result: string; alternatives?: string[]; confidence: number; audioBlob?: Blob } | { error: string } | { status: string }> {
         return new Observable(observer => {
             if (!this.voskWorker || !this.voskModelReady) {
+                console.warn('[SpeechService] Vosk model not ready', { worker: !!this.voskWorker, ready: this.voskModelReady });
                 observer.next({ error: 'Vosk model not ready' });
                 observer.complete();
                 return;
             }
+            console.log('[SpeechService] listenWithVosk starting...');
 
             // console.log('[SpeechService] Starting Vosk listening...', vocabulary ? `with ${vocabulary.length} vocabulary words` : '');
             this.currentProvider = 'vosk';
             let hasEmitted = false;
             let bestResult = '';
+
+            // Increment session ID for this new listening session
+            this.voskSessionId++;
+            const currentSessionId = this.voskSessionId;
+            console.log(`[SpeechService] Starting Vosk session #${currentSessionId}`);
+
+            // Emit preparing immediately
+            this.ngZone.run(() => observer.next({ status: 'preparing' }));
 
             // Store vocabulary for use in startVoskAudioCapture
             this.voskVocabulary = vocabulary;
@@ -738,9 +811,20 @@ export class SpeechService {
             let mediaRecorder: MediaRecorder | null = null;
             let audioChunks: Blob[] = [];
 
-
             // Set up message handler for this session
             const messageHandler = (event: MessageEvent) => {
+                // strict session check: ignore messages if a new session has started
+                if (currentSessionId !== this.voskSessionId) {
+                    console.warn(`[SpeechService] Ignoring stale message for session #${currentSessionId} (active: #${this.voskSessionId})`);
+                    return;
+                }
+
+                // Check for worker-echoed session ID mismatch (handles delayed results from previous session)
+                if (event.data.sessionId !== undefined && event.data.sessionId !== currentSessionId) {
+                    console.warn(`[SpeechService] Ignoring message from session #${event.data.sessionId} (expected #${currentSessionId})`);
+                    return;
+                }
+
                 const { type, text, alternatives, error } = event.data;
 
                 if (type === 'started') {
@@ -764,7 +848,7 @@ export class SpeechService {
                         emitResult(text, alternatives || [text], 1.0);
                     }
                 } else if (type === 'stopped') {
-                    console.log('[SpeechService] Vosk stopped');
+                    console.log('[SpeechService] Vosk stopped (session #' + currentSessionId + ')');
                     this.playStopSound(); // TONG
                     cleanup();
                     if (!hasEmitted) {
@@ -813,6 +897,14 @@ export class SpeechService {
                     blob = new Blob(audioChunks, { type: 'audio/webm' });
                 }
 
+                // Mark that THIS session is stopping (so messageHandler knows to handle 'stopped')
+                // Mark that THIS session is stopping (so messageHandler knows to handle 'stopped')
+                // localHasStopped = true; // REMOVED: Using session ID check instead
+
+                // CRITICAL: Remove event listener IMMEDIATELY to prevent stale results
+                // from being picked up by the next word's handler
+                this.voskWorker?.removeEventListener('message', messageHandler);
+
                 this.stopVoskListening();
                 this.ngZone.run(() => {
                     observer.next({ result: text.toLowerCase().trim(), alternatives: alts, confidence, audioBlob: blob });
@@ -830,15 +922,19 @@ export class SpeechService {
 
             this.voskWorker.addEventListener('message', messageHandler);
 
-            this.voskWorker.addEventListener('message', messageHandler);
-
             // Play sound BEFORE starting capture to prevent feedback loop ("c c c c")
+            console.log('[SpeechService] Playing listening sound...');
             this.playListeningSound();
 
             // Wait for sound to finish (300ms) before opening mic
             setTimeout(() => {
                 if (observer.closed) return; // Handle quick cancel
-                this.startVoskAudioCapture().then(stream => {
+                this.startVoskAudioCapture((status) => {
+                    this.ngZone.run(() => observer.next({ status }));
+                }).then(stream => {
+                    // Emit listening IMMEDIATELY so UI shows controls
+                    this.ngZone.run(() => observer.next({ status: 'listening' }));
+
                     if (captureAudio && stream) {
                         try {
                             mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
@@ -857,6 +953,12 @@ export class SpeechService {
                     observer.complete();
                 });
             }, 350);
+
+            // Teardown logic
+            return () => {
+                console.log('[SpeechService] Observable teardown (session #' + currentSessionId + ')');
+                cleanup();
+            };
         });
     }
 
@@ -866,7 +968,8 @@ export class SpeechService {
         this.debugInputStream = stream;
     }
 
-    private async startVoskAudioCapture(): Promise<MediaStream> {
+    private async startVoskAudioCapture(onStatus?: (status: string) => void): Promise<MediaStream> {
+        const captureSessionId = this.voskSessionId; // CAPTURE ID to prevent race conditions
         let stream: MediaStream;
 
         if (this.debugInputStream) {
@@ -881,62 +984,240 @@ export class SpeechService {
         this.audioContext = new AudioContext({ sampleRate: 16000 });
         const source = this.audioContext.createMediaStreamSource(stream);
 
-        // Tell worker to start recognizer with vocabulary if available
-        this.voskWorker?.postMessage({
-            type: 'start',
-            sampleRate: 16000,
-            vocabulary: this.voskVocabulary
-        });
+        // Buffer for collecting audio chunks before processing
+        const audioChunks: Float32Array[] = [];
+        let isSpeaking = false;
+        let silenceStart = 0;
+        const SILENCE_THRESHOLD = 0.02; // RMS threshold for speech detection
+        const SILENCE_DURATION = 600; // ms of silence before processing
+        const recordingStartTime = Date.now();
+
+        // Flag to prevent multiple processAndSendAudio calls
+        let hasProcessed = false;
+
+        // Process and send buffered audio to Vosk
+        const processAndSendAudio = () => {
+            // Prevent multiple calls
+            if (hasProcessed) {
+                console.log('[SpeechService] Already processed, skipping...');
+                return;
+            }
+            if (audioChunks.length === 0) {
+                console.log('[SpeechService] No audio chunks to process');
+                return;
+            }
+
+            hasProcessed = true; // Mark as processed to prevent re-entry
+
+            // Set processing flag to prevent premature stop signal
+            this.isVoskProcessing = true;
+
+            // Concatenate all chunks
+            const totalLength = audioChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+            const fullAudio = new Float32Array(totalLength);
+            let offset = 0;
+            for (const chunk of audioChunks) {
+                fullAudio.set(chunk, offset);
+                offset += chunk.length;
+            }
+
+            // Clear chunks to prevent re-processing
+            audioChunks.length = 0;
+
+            // Calculate RMS for auto-normalization
+            let sumSquares = 0;
+            for (let i = 0; i < fullAudio.length; i++) {
+                sumSquares += fullAudio[i] * fullAudio[i];
+            }
+            const rms = Math.sqrt(sumSquares / fullAudio.length);
+            const targetRms = 0.15;
+            // INCREASED max amplification to 8x (was 6x) - matches sandbox
+            const amplification = rms > 0.001 ? Math.min(8.0, targetRms / rms) : 4.0;
+            console.log(`[SpeechService] Audio RMS: ${rms.toFixed(4)}, amplification: ${amplification.toFixed(2)}x`);
+
+            // Apply amplification
+            const normalizedAudio = new Float32Array(fullAudio.length);
+            for (let i = 0; i < fullAudio.length; i++) {
+                normalizedAudio[i] = Math.max(-1, Math.min(1, fullAudio[i] * amplification));
+            }
+
+            // PRODUCTION BALANCE:
+            // Using 3x repetitions with 500ms silence padding
+            // This is a good balance between accuracy and performance for real users
+            const repetitions = 3;
+            const silenceSamples = 8000; // 0.5s of silence before and after
+            console.log(`[SpeechService] Processed audio: ${amplification.toFixed(2)}x gain, ${repetitions}x repetitions, 0.5s padding`);
+
+            // Create final audio with silence padding + repetitions + silence padding
+            const finalLength = silenceSamples + (normalizedAudio.length * repetitions) + silenceSamples;
+            const finalAudio = new Float32Array(finalLength);
+
+            let audioOffset = silenceSamples;
+            for (let r = 0; r < repetitions; r++) {
+                finalAudio.set(normalizedAudio, audioOffset);
+                audioOffset += normalizedAudio.length;
+            }
+            // Trailing silence is already zeros
+
+            console.log(`[SpeechService] Sending ${finalAudio.length} samples (${(finalAudio.length / 16000).toFixed(2)}s) to Vosk`);
+
+            // Notify UI that we are processing (post-recording) - emit immediately before streaming starts
+            if (onStatus) {
+                console.log('[SpeechService] Emitting status: processing');
+                onStatus('processing');
+            }
+
+            // Tell worker to start recognizer with vocabulary
+            this.voskWorker?.postMessage({
+                type: 'start',
+                sampleRate: 16000,
+                vocabulary: this.voskVocabulary,
+                sessionId: captureSessionId // Use captured ID
+            });
+
+            // Stream processed audio at real-time rate using setTimeout
+            // This gives Vosk time to process each chunk properly
+            const CHUNK_SIZE = 4096;
+            const CHUNK_DURATION_MS = (CHUNK_SIZE / 16000) * 1000; // ~256ms per chunk
+            let chunkIndex = 0;
+
+            const sendNextChunk = () => {
+                if (chunkIndex * CHUNK_SIZE >= finalAudio.length) {
+                    // All chunks sent - wait for Vosk to process before sending stop
+                    console.log('[SpeechService] All buffered audio sent to Vosk, waiting for processing...');
+
+
+
+                    // Give Vosk time to process the audio queue before sending stop
+                    setTimeout(() => {
+                        console.log('[SpeechService] Sending stop signal to Vosk');
+                        this.voskWorker?.postMessage({ type: 'stop', sessionId: captureSessionId }); // Use captured ID
+                        this.isVoskProcessing = false;
+                        // DO NOT call stopAudioCapture() here - it kills the global context which might be used by a new session!
+                    }, 1000); // Wait 1 second for Vosk to process
+
+                    return;
+                }
+
+                const start = chunkIndex * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, finalAudio.length);
+                const chunk = finalAudio.slice(start, end);
+
+                this.voskWorker?.postMessage({
+                    type: 'audio',
+                    audio: chunk,
+                    sampleRate: 16000,
+                    sessionId: captureSessionId // Use captured ID
+                });
+
+                chunkIndex++;
+                // Schedule next chunk at approximately real-time rate
+                setTimeout(sendNextChunk, CHUNK_DURATION_MS * 0.5); // 50% faster than real-time
+            };
+
+            // Start streaming
+            sendNextChunk();
+        };
+
+        // Handle incoming audio chunk
+        const handleAudioChunk = (audioData: Float32Array) => {
+            // Store chunk
+            audioChunks.push(new Float32Array(audioData));
+
+            // Voice activity detection
+            let sum = 0;
+            for (let i = 0; i < audioData.length; i++) {
+                sum += audioData[i] * audioData[i];
+            }
+            const chunkRms = Math.sqrt(sum / audioData.length);
+
+            if (chunkRms > SILENCE_THRESHOLD) {
+                isSpeaking = true;
+                silenceStart = 0;
+            } else if (isSpeaking) {
+                if (silenceStart === 0) {
+                    silenceStart = Date.now();
+                } else if (Date.now() - silenceStart > SILENCE_DURATION) {
+                    // Silence detected after speech - process audio
+                    console.log('[SpeechService] Silence detected, processing buffered audio...');
+                    processAndSendAudio();
+                    return;
+                }
+            }
+
+            const elapsed = Date.now() - recordingStartTime;
+
+            // Minimum recording time fallback (for continuous audio streams like looped test files)
+            // If we've been recording for 2+ seconds and detected speech, process audio
+            const MIN_RECORDING_TIME = 2000; // 2 seconds minimum before processing
+            if (isSpeaking && elapsed > MIN_RECORDING_TIME) {
+                console.log(`[SpeechService] Min recording time (${MIN_RECORDING_TIME}ms) reached, processing...`);
+                processAndSendAudio();
+                return;
+            }
+
+            // Max recording time check
+            if (elapsed > 8000) {
+                console.log('[SpeechService] Max recording time reached, processing...');
+                processAndSendAudio();
+            }
+        };
 
         // Use AudioWorklet instead of ScriptProcessor
         try {
+            console.log('[SpeechService] Setting up AudioWorklet...');
             await this.audioContext.audioWorklet.addModule('assets/audio-processor.js');
             const workletNode = new AudioWorkletNode(this.audioContext, 'audio-processor');
             this.audioWorkletNode = workletNode;
 
+            let chunkCount = 0;
             workletNode.port.onmessage = (event) => {
-                const audioData = event.data; // Float32Array from Worklet
-                // Send to Vosk worker
-                this.voskWorker?.postMessage({
-                    type: 'audio',
-                    audio: audioData,
-                    sampleRate: 16000
-                });
+                chunkCount++;
+                if (chunkCount <= 3 || chunkCount % 50 === 0) {
+                    console.log(`[SpeechService] AudioWorklet chunk #${chunkCount}, samples: ${event.data?.length}`);
+                }
+                handleAudioChunk(event.data);
             };
 
             source.connect(workletNode);
             workletNode.connect(this.audioContext.destination);
+            console.log('[SpeechService] AudioWorklet connected successfully');
 
         } catch (err) {
             console.error('[SpeechService] Failed to load AudioWorklet:', err);
-            // Fallback to ScriptProcessor if Worklet fails (e.g. file not found)
             console.warn('[SpeechService] Falling back to ScriptProcessorNode');
 
             const processor = this.audioContext.createScriptProcessor(4096, 1, 1);
             this.audioProcessor = processor;
 
+            let chunkCount = 0;
             processor.onaudioprocess = (e) => {
+                chunkCount++;
                 const inputData = e.inputBuffer.getChannelData(0);
-                const audioCopy = new Float32Array(inputData);
-                this.voskWorker?.postMessage({ type: 'audio', audio: audioCopy, sampleRate: 16000 });
+                if (chunkCount <= 3 || chunkCount % 50 === 0) {
+                    console.log(`[SpeechService] ScriptProcessor chunk #${chunkCount}, samples: ${inputData.length}`);
+                }
+                handleAudioChunk(new Float32Array(inputData));
             };
 
             source.connect(processor);
             processor.connect(this.audioContext.destination);
+            console.log('[SpeechService] ScriptProcessor connected successfully');
         }
 
-        // Auto-stop after 10 seconds
+        // Auto-stop after 10 seconds (safety timeout)
         if (this.voskTimeoutId) {
             clearTimeout(this.voskTimeoutId);
         }
         this.voskTimeoutId = setTimeout(() => {
+            if (audioChunks.length > 0 && isSpeaking) {
+                processAndSendAudio();
+            }
             this.stopVoskListening();
         }, 10000);
 
         return stream;
     }
-
-
 
     private stopVoskListening() {
         // Clear the timeout
@@ -944,7 +1225,14 @@ export class SpeechService {
             clearTimeout(this.voskTimeoutId);
             this.voskTimeoutId = null;
         }
-        this.voskWorker?.postMessage({ type: 'stop' });
+
+        // If we are currently processing/streaming buffered audio, 
+        // DON'T send stop signal yet - the processing function will do it when done.
+        // If we are NOT processing, send stop signal to finish recognition.
+        if (!this.isVoskProcessing) {
+            this.voskWorker?.postMessage({ type: 'stop' });
+        }
+
         this.stopAudioCapture();
     }
 
@@ -1202,7 +1490,8 @@ export class SpeechService {
         this.currentProvider = 'native';
         const langMap: { [key: string]: string } = {
             'en': 'en-US',
-            'es': 'es-US'
+            'es': 'es-US',
+            'ja': 'ja-JP'
         };
         this.recognition.lang = langMap[language] || 'en-US';
 
@@ -1505,6 +1794,28 @@ export class SpeechService {
         'your': ["you're", 'youre', 'ur'],
         'were': ['where', 'wear'],
         'where': ['were', 'wear'],
+
+        // Child Speech Variations (common mispronunciations and phonetic matches)
+        'a': ['ah', 'uh', 'ay'],
+        'the': ['da', 'duh', 'tha', 'de', 'thee'],
+        'me': ['my', 'mi', 'mee', 'may'],
+        'he': ['hee', 'hi'],
+        'we': ['wee', 'wi'],
+        'in': ['an', 'un', 'en'],
+        'it': ['at', 'et'],
+        'up': ['oop', 'op'],
+        'on': ['an', 'un'],
+        'or': ['er', 'ore', 'oar'],
+        'not': ['nod', 'nat', 'nut'],
+        'do': ['doo', 'dew', 'due'],
+        'has': ['as', 'haz'],
+        'is': ['as', 'iz', 'es'],
+        'at': ['et', 'uh'],
+        'but': ['bud', 'bat'],
+        'from': ['frum', 'fom'],
+        'they': ['de', 'dey', 'thay'],
+        'then': ['den', 'then'],
+        'what': ['wut', 'wat'],
     };
 
     /**
@@ -1512,11 +1823,17 @@ export class SpeechService {
      * Uses homophone matching and fuzzy matching to account for recognition errors
      */
     wordsMatch(recognized: string | string[], target: string): boolean {
-        const cleanTarget = target.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+        // Use a regex that preserves letters (including Japanese) and numbers, stripping common punctuation
+        const cleanTarget = target.toLowerCase().replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '').trim();
 
         // Helper to check single string match
         const checkSingleMatch = (rec: string): boolean => {
-            const cleanRecognized = rec.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+            const cleanRecognized = rec.toLowerCase().replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '').trim();
+
+            if (!cleanRecognized || !cleanTarget) {
+                // If either is empty after cleaning, only match if they were already identical (e.g. both empty or same symbols)
+                return rec.trim() === target.trim();
+            }
 
             // Exact match
             if (cleanRecognized === cleanTarget) return true;

@@ -65,6 +65,8 @@ serve(async (req) => {
         let languageCode = 'en-US'
         if (language === 'es') {
             languageCode = 'es-US' // Spanish (US)
+        } else if (language === 'ja') {
+            languageCode = 'ja-JP' // Japanese (Japan)
         }
 
         // 3. Authenticate with Service Account
@@ -96,6 +98,8 @@ serve(async (req) => {
 
         if (languageCode.startsWith('es')) {
             pronunciationPrompt = "Eres un presentador de noticias profesional. Pronuncia la palabra de forma clara y nítida. Utiliza un tono estándar y neutro en español. No alargues las vocales; mantén la duración de la palabra corta y natural.";
+        } else if (languageCode.startsWith('ja')) {
+            pronunciationPrompt = "あなたはプロのニュースキャスターです。言葉をはっきりと、明瞭に発音してください。標準的で中立的な日本語のトーンを使用してください。母音を引き伸ばさず、単語の長さを短く、自然に保ってください。";
         }
 
         console.log(`[TTS] Generating "${word}" (${languageCode}). Prompt: "${pronunciationPrompt}"`);

@@ -367,12 +367,16 @@
   margin: 30px 0;
 
   .record-btn {
-    min-width: 160px;
+    min-width: 180px;
     min-height: 56px;
     font-size: 1.2rem;
+    padding: 0 24px;
+    width: auto;
+    overflow: visible;
 
     mat-icon {
-      margin-right: 8px;
+      margin-right: 12px;
+      overflow: visible;
     }
   }
 
@@ -515,6 +519,7 @@
     color: #b0b0b0;
   }
 }
+
 .sentence-container {
   display: flex;
   flex-wrap: wrap;

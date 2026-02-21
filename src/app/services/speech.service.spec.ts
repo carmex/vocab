@@ -1,3 +1,8 @@
+import { TestBed } from '@angular/core/testing';
+import { SpeechService } from './speech.service';
+import { SettingsService } from './settings.service';
+import { SupabaseService } from './supabase.service';
+
 /**
  * Unit tests for SpeechService - Testing pure logic functions
  * 
@@ -6,7 +11,7 @@
  * tested indirectly through wordsMatch.
  */
 
-// Simple standalone tests for the matching logic
+// Simple standalone tests for the matching logic (Legacy tests preserved)
 describe('SpeechService wordsMatch logic', () => {
     // Recreate the core matching logic for testing without Angular DI
     const homophones: { [key: string]: string[] } = {
@@ -70,10 +75,17 @@ describe('SpeechService wordsMatch logic', () => {
     }
 
     function wordsMatch(recognized: string | string[], target: string): boolean {
-        const cleanTarget = target.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+        // Use a regex that preserves letters (including Hiragana) and numbers, stripping only punctuation
+        const cleanTarget = target.toLowerCase().replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '').trim();
 
         const checkSingleMatch = (rec: string): boolean => {
-            const cleanRecognized = rec.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+            const cleanRecognized = rec.toLowerCase().replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '').trim();
+
+            if (!cleanRecognized || !cleanTarget) {
+                // If either is empty after cleaning, only match if both were already very short
+                // This prevents "" matching "" erroneously for unsupported char sets
+                return rec.trim() === target.trim();
+            }
 
             if (cleanRecognized === cleanTarget) return true;
             if (cleanRecognized.includes(cleanTarget)) return true;
@@ -180,6 +192,26 @@ describe('SpeechService wordsMatch logic', () => {
         });
     });
 
+    describe('Japanese (Hiragana) matching', () => {
+        it('should match Hiragana characters exactly', () => {
+            expect(wordsMatch('あ', 'あ')).toBe(true);
+            expect(wordsMatch('い', 'い')).toBe(true);
+        });
+
+        it('should match Hiragana with punctuation', () => {
+            expect(wordsMatch('あ！', 'あ')).toBe(true);
+            expect(wordsMatch('う、', 'う')).toBe(true);
+        });
+
+        it('should match multiple Hiragana characters', () => {
+            expect(wordsMatch('あいう', 'あいう')).toBe(true);
+        });
+
+        it('should fail if Hiragana characters do not match', () => {
+            expect(wordsMatch('あ', 'い')).toBe(false);
+        });
+    });
+
     describe('Refined Matching (Length >= 4)', () => {
         it('should match words with <= 1 edit distance if length >= 4', () => {
             expect(wordsMatch('see', 'seer')).toBe(true); // 4 chars target, 1 edit
@@ -230,6 +262,73 @@ describe('SpeechService wordsMatch logic', () => {
             const similarity = calculateSimilarity('hello', 'hallo');
             expect(similarity).toBeGreaterThan(0);
             expect(similarity).toBeLessThan(1);
+        });
+    });
+});
+
+describe('SpeechService (Angular)', () => {
+    let service: SpeechService;
+    let mockSupabaseService: any;
+    let mockSettingsService: any;
+    let mockFunctionsInvoke: any;
+    let mockStorageFrom: any;
+    let mockGetPublicUrl: any;
+
+    beforeEach(() => {
+        mockFunctionsInvoke = jest.fn();
+        mockGetPublicUrl = jest.fn();
+        mockStorageFrom = jest.fn().mockReturnValue({ getPublicUrl: mockGetPublicUrl });
+
+        mockSupabaseService = {
+            client: {
+                functions: { invoke: mockFunctionsInvoke },
+                storage: { from: mockStorageFrom }
+            }
+        };
+
+        mockSettingsService = {
+            getSettings: jest.fn().mockReturnValue({ usePremiumVoice: false, enhancedTTS: false })
+        };
+
+        TestBed.configureTestingModule({
+            providers: [
+                SpeechService,
+                { provide: SupabaseService, useValue: mockSupabaseService },
+                { provide: SettingsService, useValue: mockSettingsService }
+            ]
+        });
+
+        service = TestBed.inject(SpeechService);
+    });
+
+    it('should be created', () => {
+        expect(service).toBeTruthy();
+    });
+
+    describe('forceRegenerateAudio', () => {
+        it('should call generate-audio edge function and return new url', async () => {
+            // Mock successful edge function response
+            mockFunctionsInvoke.mockResolvedValue({ data: { success: true }, error: null });
+
+            // Mock successful public URL generation
+            const mockUrl = 'https://example.com/audio/en-cat.wav?t=123';
+            mockGetPublicUrl.mockReturnValue({ data: { publicUrl: mockUrl } });
+
+            // Mock fetch (global)
+            global.fetch = jest.fn().mockResolvedValue({
+                ok: true,
+                blob: () => Promise.resolve(new Blob(['fake-audio'], { type: 'audio/wav' }))
+            });
+
+            // Mock URL.createObjectURL (global)
+            global.URL.createObjectURL = jest.fn().mockReturnValue('blob:test');
+
+            const result = await (service as any).forceRegenerateAudio('cat', 'en');
+
+            expect(mockFunctionsInvoke).toHaveBeenCalledWith('generate-audio', {
+                body: { word: 'cat', language: 'en', force: true }
+            });
+            expect(result).toBe('blob:test');
         });
     });
 });

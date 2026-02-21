@@ -30,6 +30,9 @@
                             <mat-option value="es">
                                 <span class="fi fi-es"></span> Spanish
                             </mat-option>
+                            <mat-option value="ja">
+                                <span class="fi fi-jp"></span> Japanese (Hiragana)
+                            </mat-option>
                         </mat-select>
                     </mat-form-field>
                 </div>
@@ -139,19 +142,45 @@
 
                             <!-- Sight Words Type -->
                             <ng-container *ngIf="listType === ListType.SIGHT_WORDS">
-                                <mat-form-field appearance="outline" class="word-input full-width-input">
-                                    <mat-label>Word</mat-label>
-                                    <input matInput [(ngModel)]="row.word" required placeholder="Type a word...">
-                                </mat-form-field>
+                                <div class="row-audio-actions">
+                                    <mat-form-field appearance="outline" class="word-input full-width-input">
+                                        <mat-label>Word</mat-label>
+                                        <input matInput [(ngModel)]="row.word" required placeholder="Type a word...">
+                                    </mat-form-field>
+                                    <button mat-icon-button color="primary"
+                                        (click)="playAudio(i); $event.stopPropagation()" matTooltip="Play Audio"
+                                        [disabled]="!row.word" class="audio-btn">
+                                        <mat-icon>volume_up</mat-icon>
+                                    </button>
+                                    <button mat-icon-button color="accent"
+                                        (click)="regenerateAudio(i); $event.stopPropagation()"
+                                        matTooltip="Regenerate Audio" [disabled]="!row.word || row.isRegeneratingAudio"
+                                        class="audio-btn">
+                                        <mat-icon [class.spin]="row.isRegeneratingAudio">refresh</mat-icon>
+                                    </button>
+                                </div>
                             </ng-container>
 
                             <!-- Sentences Type -->
                             <ng-container *ngIf="listType === ListType.SENTENCES">
-                                <mat-form-field appearance="outline" class="word-input full-width-input">
-                                    <mat-label>Sentence</mat-label>
-                                    <input matInput [(ngModel)]="row.word" required
-                                        placeholder="The cat sat on the mat.">
-                                </mat-form-field>
+                                <div class="row-audio-actions">
+                                    <mat-form-field appearance="outline" class="word-input full-width-input">
+                                        <mat-label>Sentence</mat-label>
+                                        <input matInput [(ngModel)]="row.word" required
+                                            placeholder="The cat sat on the mat.">
+                                    </mat-form-field>
+                                    <button mat-icon-button color="primary"
+                                        (click)="playAudio(i); $event.stopPropagation()" matTooltip="Play Audio"
+                                        [disabled]="!row.word" class="audio-btn">
+                                        <mat-icon>volume_up</mat-icon>
+                                    </button>
+                                    <button mat-icon-button color="accent"
+                                        (click)="regenerateAudio(i); $event.stopPropagation()"
+                                        matTooltip="Regenerate Audio" [disabled]="!row.word || row.isRegeneratingAudio"
+                                        class="audio-btn">
+                                        <mat-icon [class.spin]="row.isRegeneratingAudio">refresh</mat-icon>
+                                    </button>
+                                </div>
                             </ng-container>
                         </div>
                     </div>

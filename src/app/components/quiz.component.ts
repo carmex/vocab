@@ -21,6 +21,7 @@ import { ListType } from '../models/list-type.enum';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 @Component({
   selector: 'app-quiz',
@@ -38,13 +39,14 @@ export class QuizComponent implements OnInit, OnDestroy {
   isImageQuiz = false;
   isMathQuiz = false;
   quizStarted = true;
-  interactionMode: 'multiple-choice' | 'speak' | 'spell' = 'multiple-choice';
-  activeMode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | null = null;
 
-  // Speech State
+  // Speech states
   isListening = false;
   isProcessing = false;
+  isPreparing = false; // New state for initial delay
   isPlaying = false; // Audio playback state
+  interactionMode: 'multiple-choice' | 'speak' | 'spell' = 'multiple-choice';
+  activeMode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | null = null;
   recognizedText = '';
   recognizedAlternatives: string[] = []
   spellingInput = ''; // For Spell Mode
@@ -181,10 +183,8 @@ export class QuizComponent implements OnInit, OnDestroy {
     // For speak mode, ensure Vosk model is loaded first
     const loadingTasks: Observable<any>[] = [];
 
-    // 1. Vosk Model (for Speak Mode)
-    if (this.interactionMode === 'speak' && !this.speechService.isVoskReady()) {
-      loadingTasks.push(this.speechService.preloadVoskModel(this.quizService.currentLanguage));
-    }
+    // Note: Vosk model loading is handled separately below (lines 243-256) with direct subscription
+    // Do NOT add it to loadingTasks as well to avoid duplicate downloads
 
     // 2. Premium Audio Pre-fetch (if enabled)
     const settings = this.settingsService.getSettings();
@@ -215,7 +215,9 @@ export class QuizComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (loadingTasks.length > 0) {
+    // Show loading if we need to load Vosk model OR if we have other loading tasks
+    const needsVoskLoad = this.interactionMode === 'speak' && !this.speechService.isVoskReady();
+    if (loadingTasks.length > 0 || needsVoskLoad) {
       this.isLoadingModel = true;
       this.modelLoadProgress = 0;
       this.modelLoadCancelled = false;
@@ -610,7 +612,9 @@ export class QuizComponent implements OnInit, OnDestroy {
     // Enable auto-recording after first manual record press
     this.autoRecordEnabled = true;
 
-    this.isListening = true;
+    // Reset states
+    this.isListening = false;
+    this.isPreparing = true; // Show preparing state immediately
     this.recognizedText = '';
     this.speechErrorMessage = ''; // Clear any previous error
 
@@ -631,21 +635,36 @@ export class QuizComponent implements OnInit, OnDestroy {
             console.error('Speech error:', result.error);
             this.isListening = false;
             this.isProcessing = false;
+            this.isPreparing = false;
             // Show error message to user
             this.speechErrorMessage = "Didn't catch that. Please try again.";
             return;
           }
 
-          if ('status' in result && result.status === 'processing') {
-            this.isProcessing = true;
-            this.isListening = false;
-            return;
+          if ('status' in result) {
+            if (result.status === 'preparing') {
+              this.isPreparing = true;
+              this.isListening = false;
+              return;
+            }
+            if (result.status === 'listening') {
+              this.isPreparing = false;
+              this.isListening = true;
+              return;
+            }
+            if (result.status === 'processing') {
+              this.isProcessing = true;
+              this.isListening = false;
+              this.isPreparing = false;
+              return;
+            }
           }
 
           if ('result' in result) {
             console.log('[Quiz] Got result:', result.result, 'correct answer:', this.currentQuestion?.correctAnswer);
             this.isListening = false;
             this.isProcessing = false;
+            this.isPreparing = false;
             this.recognizedText = result.result;
             console.log('[Quiz] recognizedText set to:', this.recognizedText);
 

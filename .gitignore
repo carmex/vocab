@@ -42,3 +42,9 @@ testem.log
 Thumbs.db
 src/environments/environment.ts
 supabase-self-host-*.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/test-results.json
+/test-summary.txt

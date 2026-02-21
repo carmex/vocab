@@ -9,7 +9,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "jest",
     "test:e2e": "npx playwright test",
-    "test:audio": "npx playwright test e2e/recognition.spec.ts",
+    "test:audio": "npx playwright test e2e/recognition.spec.ts --workers=1 --reporter=list",
     "update-manifest": "node scripts/update-test-manifest.js"
   },
   "private": true,

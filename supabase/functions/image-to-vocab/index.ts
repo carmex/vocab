@@ -57,9 +57,10 @@ Deno.serve(async (req) => {
             })
             prompt =
                 "Analyze the provided image and extract all sight words or vocabulary words. " +
+                "The words may be in English, Spanish, or Japanese Hiragana characters. " +
                 "Return ONLY a comma-separated list of the words, nothing else. " +
                 "Do not include definitions, numbers, or any other text. " +
-                "Example output: the, and, is, was, are, you"
+                "Example output: the, and, い, あ, was, are"
         } else {
             // Vocab mode: JSON schema for word/definition pairs
             const vocabSchema = {

@@ -36,10 +36,11 @@ test.describe('Audio Recognition Integration', () => {
     for (const [language, languageRecordings] of Object.entries(recordingsByLanguage)) {
         test.describe(`${language.toUpperCase()} Language Tests`, () => {
             // Run tests in this group serially to share model
-            test.describe.configure({ mode: 'serial' });
+
 
             for (const rec of languageRecordings) {
                 test(`should recognize ${rec.word} (${rec.language}) - ${rec.filename}`, async ({ page }) => {
+
 
                     test.setTimeout(90000); // Allow time for model download/load
                     page.on('console', msg => {
@@ -161,11 +162,11 @@ test.describe('Audio Recognition Integration', () => {
                                 }
                             });
 
-                            // Failsafe timeout
+                            // Failsafe timeout - increased for buffered audio processing
                             setTimeout(() => {
                                 sub.unsubscribe();
                                 resolve({ error: 'Timeout waiting for recognition' });
-                            }, 15000);
+                            }, 30000);
                         });
 
                     }, { filename: rec.filename, word: rec.word, language: rec.language });

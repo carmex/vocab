@@ -160,9 +160,9 @@
 
       <div class="action-buttons">
         <button mat-fab extended color="primary" class="record-btn"
-          (click)="isListening ? onStopListening() : onRecord()" [disabled]="isProcessing">
-          <mat-icon>{{ isListening ? 'stop' : 'mic' }}</mat-icon>
-          {{ isProcessing ? 'Processing...' : (isListening ? 'Stop' : 'Record') }}
+          (click)="isListening ? onStopListening() : onRecord()" [disabled]="isProcessing || isPreparing">
+          <mat-icon>{{ isPreparing ? 'hourglass_empty' : (isListening ? 'stop' : 'mic') }}</mat-icon>
+          {{ isPreparing ? 'Preparing...' : (isProcessing ? 'Processing...' : (isListening ? 'Stop' : 'Record')) }}
         </button>
 
         <button mat-fab extended color="accent" (click)="onDontKnow()" class="action-btn">

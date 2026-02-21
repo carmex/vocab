@@ -127,9 +127,7 @@
     gap: 1rem;
 }
 
-.word-row-wrapper {
-    // No padding wrapper needed if flex gap is used
-}
+
 
 // Word Cards
 .word-card {
@@ -435,5 +433,59 @@
     .main-actions {
         background: #252525;
         border-top-color: #333;
+    }
+}
+
+.row-audio-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+
+    // Ensure the input takes available space
+    mat-form-field {
+        flex: 1;
+    }
+
+    .audio-btn {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        background: #f1f5f9; // Light background for visibility
+        border: 1px solid #e2e8f0;
+
+        &:hover {
+            background: #e2e8f0;
+        }
+
+        &[disabled] {
+            opacity: 0.5;
+            background: transparent;
+        }
+    }
+}
+
+:host-context(body.dark-mode) .row-audio-actions .audio-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #cbd5e1;
+
+    &:hover {
+        background: #475569;
+    }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
     }
 }

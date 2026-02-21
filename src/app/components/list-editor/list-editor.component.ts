@@ -25,6 +25,15 @@ import { environment } from '../../../environments/environment';
 import { TopNavComponent } from '../top-nav/top-nav.component';
 import { TwemojiPipe } from '../../pipes/twemoji.pipe';
 import { ListType } from '../../models/list-type.enum';
+import { SpeechService } from '../../services/speech.service';
+
+const getImportMetaUrl = () => {
+  try {
+    return new Function('return import.meta.url')();
+  } catch (e) {
+    return '';
+  }
+};
 
 export interface WordRow {
   id?: string;
@@ -33,6 +42,7 @@ export interface WordRow {
   imageUrl?: string;
   imageFile?: File;
   imagePreview?: string;
+  isRegeneratingAudio?: boolean;
 }
 
 @Component({
@@ -96,7 +106,8 @@ export class ListEditorComponent implements OnInit {
     private route: ActivatedRoute,
     private auth: AuthService,
     private supabaseService: SupabaseService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private speechService: SpeechService
   ) { }
 
   ngOnInit(): void {
@@ -457,7 +468,7 @@ export class ListEditorComponent implements OnInit {
         return;
       }
 
-      const worker = new Worker(new URL('../../workers/list-upload.worker', import.meta.url));
+      const worker = new Worker(new URL('../../workers/list-upload.worker', getImportMetaUrl()));
 
       worker.onmessage = ({ data }) => {
         if (data.type === 'progress') {
@@ -500,7 +511,7 @@ export class ListEditorComponent implements OnInit {
       const reader = new FileReader();
       reader.onload = (e: any) => {
         if (typeof Worker !== 'undefined') {
-          const worker = new Worker(new URL('../../workers/json-import.worker', import.meta.url));
+          const worker = new Worker(new URL('../../workers/json-import.worker', getImportMetaUrl()));
 
           worker.onmessage = ({ data }) => {
             if (data.type === 'progress') {
@@ -720,5 +731,37 @@ export class ListEditorComponent implements OnInit {
       this.handleImageBlob(file, index);
     }
     event.target.value = '';
+  }
+
+  async playAudio(index: number) {
+    if (this.words[index]) {
+      const word = this.words[index].word;
+      if (word) {
+        try {
+          await this.speechService.playPremium(word, this.language);
+        } catch (e) {
+          console.error('Failed to play audio:', e);
+        }
+      }
+    }
+  }
+
+  async regenerateAudio(index: number) {
+    if (this.words[index]) {
+      const word = this.words[index].word;
+      if (word) {
+        this.words[index].isRegeneratingAudio = true;
+        try {
+          await this.speechService.forceRegenerateAudio(word, this.language);
+          // Optionally play it immediately to confirm?
+          await this.speechService.playPremium(word, this.language);
+        } catch (e) {
+          console.error('Failed to regenerate audio:', e);
+          alert('Failed to regenerate audio.');
+        } finally {
+          this.words[index].isRegeneratingAudio = false;
+        }
+      }
+    }
   }
 }
