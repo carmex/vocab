@@ -26,9 +26,18 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
+        // Generate a safe filename for storage (ASCII-only)
+        // We use a hash of the word to ensure it's always a valid key, even for non-Latin characters.
+        const trimmedWord = word.toLowerCase().trim();
+        const encoder = new TextEncoder();
+        const data = encoder.encode(trimmedWord);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const wordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
         // 1. Check Cache
         // Include language in filename to prevent collisions and support multi-lingual lists
-        const filename = `audio/${language}-${word.toLowerCase().trim()}.wav`
+        const filename = `audio/${language}-${wordHash}.wav`
         const { data: existingData } = await supabaseAdmin
             .storage
             .from('quiz-audio')

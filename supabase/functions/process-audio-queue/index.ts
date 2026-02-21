@@ -66,7 +66,15 @@ serve(async (req) => {
                     .update({ status: 'processing', updated_at: new Date() })
                     .eq('id', item.id);
 
-                const filename = `audio/${item.language}-${item.word.toLowerCase().trim()}.wav`;
+                // Generate a safe filename for storage (ASCII-only)
+                // We use a hash of the word to ensure it's always a valid key, even for non-Latin characters.
+                const trimmedWord = item.word.toLowerCase().trim();
+                const encoder = new TextEncoder();
+                const data = encoder.encode(trimmedWord);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const wordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                const filename = `audio/${item.language}-${wordHash}.wav`;
 
                 // Check if already exists (skip generation if so)
                 // We use HEAD check logic or just existing public URL check

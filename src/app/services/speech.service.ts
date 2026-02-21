@@ -435,6 +435,16 @@ export class SpeechService {
         return data;
     }
 
+    private async getAudioFilename(text: string, language: string): Promise<string> {
+        const trimmedWord = text.toLowerCase().trim();
+        const encoder = new TextEncoder();
+        const data = encoder.encode(trimmedWord);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const wordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return `audio/${language}-${wordHash}.wav`;
+    }
+
     private async fetchAndCache(text: string, language: string): Promise<string> {
         const key = `${language}-${text.toLowerCase().trim()}`;
 
@@ -453,7 +463,7 @@ export class SpeechService {
         if (error) throw error;
 
         // 2. Construct Public URL
-        const filename = `audio/${language}-${text.toLowerCase().trim()}.wav`;
+        const filename = await this.getAudioFilename(text, language);
         const { data: publicData } = this.supabase.client
             .storage
             .from('quiz-audio')
@@ -532,7 +542,7 @@ export class SpeechService {
         if (error) throw error;
 
         // 2. Construct Public URL
-        const filename = `audio/${language}-${text.toLowerCase().trim()}.wav`;
+        const filename = await this.getAudioFilename(text, language);
         const { data: publicData } = this.supabase.client
             .storage
             .from('quiz-audio')
