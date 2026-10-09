@@ -17,11 +17,17 @@ if [ ! -f "src/environments/environment.ts" ]; then
     SUPABASE_URL=${SUPABASE_URL:-""}
     SUPABASE_KEY=${SUPABASE_KEY:-""}
     
-    if [ -z "$SUPABASE_URL" ]; then
-        read -p "Enter Supabase URL (e.g., https://api.crmx.pw): " SUPABASE_URL
-    fi
-    if [ -z "$SUPABASE_KEY" ]; then
-        read -p "Enter Supabase Anon Key: " SUPABASE_KEY
+    if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+        if [ ! -t 0 ]; then
+            echo "Error: SUPABASE_URL and SUPABASE_KEY environment variables must be provided in non-interactive / CI mode." >&2
+            exit 1
+        fi
+        if [ -z "$SUPABASE_URL" ]; then
+            read -p "Enter Supabase URL (e.g., https://api.crmx.pw): " SUPABASE_URL
+        fi
+        if [ -z "$SUPABASE_KEY" ]; then
+            read -p "Enter Supabase Anon Key: " SUPABASE_KEY
+        fi
     fi
 
     echo "Creating src/environments/environment.ts..."
