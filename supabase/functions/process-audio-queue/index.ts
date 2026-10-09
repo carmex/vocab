@@ -119,6 +119,9 @@ serve(async (req) => {
 
                 console.log(`[Queue] Generating "${item.word}" (${languageCode}). Prompt: "${pronunciationPrompt}"`);
 
+                const cleanWord = item.word.trim().replace(/^["']|["']$/g, '').replace(/\.+$/, '');
+                const textToSynthesize = `"${cleanWord}".`;
+
                 const ttsResponse = await fetch(ttsUrl, {
                     method: 'POST',
                     headers: {
@@ -127,7 +130,7 @@ serve(async (req) => {
                         'x-goog-user-project': JSON.parse(serviceAccountJson).project_id
                     },
                     body: JSON.stringify({
-                        input: { text: item.word + ".", prompt: pronunciationPrompt },
+                        input: { text: textToSynthesize, prompt: pronunciationPrompt },
                         voice: { languageCode: languageCode, model_name: 'gemini-2.5-flash-tts', name: 'Kore' },
                         audioConfig: { audioEncoding: 'LINEAR16', sampleRateHertz: 24000 }
                     })
