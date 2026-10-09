@@ -131,9 +131,6 @@ export class QuizComponent implements OnInit, OnDestroy {
 
       // Check support for speech if needed (Math always needs it available, Sight Words might needs it for specific modes)
       this.speechSupported = this.speechService.isSTTSupported();
-      if (!this.speechService.isNativeSupported() && this.speechSupported && (this.isMathQuiz || this.isSightWordQuiz || this.isSentencesQuiz)) {
-        this.speechService.preloadModel();
-      }
 
       if (this.isMathQuiz || this.isSightWordQuiz || this.isSentencesQuiz) {
         if (this.isSentencesQuiz) {

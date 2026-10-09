@@ -71,30 +71,34 @@ export class SpeechService {
 
     private initWorker() {
         if (typeof Worker !== 'undefined') {
-            this.worker = new Worker(new URL('../workers/whisper.worker', import.meta.url), { type: 'module' });
-            this.worker.onmessage = (event) => {
-                const { type, data, text, error } = event.data;
-                if (type === 'progress') {
-                    this.ngZone.run(() => this.modelLoadingSubject.next(data));
-                } else if (type === 'ready') {
-                    console.log('[SpeechService] Model ready, running warm-up inference...');
-                    this.isWarmingUp = true;
-                    // Send 1s of silence to trigger init glitch
-                    this.worker?.postMessage({ type: 'process', audio: new Float32Array(16000), modelName: 'tiny' });
-                } else if (type === 'result') {
-                    if (this.isWarmingUp) {
-                        console.log('[SpeechService] Warm-up complete.');
-                        this.isWarmingUp = false;
-                        this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'done', progress: 100 }));
+            try {
+                this.worker = new Worker(new URL('../workers/whisper.worker', import.meta.url), { type: 'module' });
+                this.worker.onmessage = (event) => {
+                    const { type, data, text, error } = event.data;
+                    if (type === 'progress') {
+                        this.ngZone.run(() => this.modelLoadingSubject.next(data));
+                    } else if (type === 'ready') {
+                        console.log('[SpeechService] Model ready, running warm-up inference...');
+                        this.isWarmingUp = true;
+                        // Send 1s of silence to trigger init glitch
+                        this.worker?.postMessage({ type: 'process', audio: new Float32Array(16000), modelName: 'tiny' });
+                    } else if (type === 'result') {
+                        if (this.isWarmingUp) {
+                            console.log('[SpeechService] Warm-up complete.');
+                            this.isWarmingUp = false;
+                            this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'done', progress: 100 }));
+                        }
+                    } else if (type === 'error') {
+                        console.error('[SpeechService] Worker error:', error);
                     }
-                } else if (type === 'error') {
-                    console.error('[SpeechService] Worker error:', error);
-                }
-            };
+                };
 
-            // Trigger load to convert pipeline
-            const model = 'tiny'; // Always use tiny as fallback
-            this.worker.postMessage({ type: 'load', modelName: model });
+                // Trigger load to convert pipeline
+                const model = 'tiny'; // Always use tiny as fallback
+                this.worker.postMessage({ type: 'load', modelName: model });
+            } catch (err) {
+                console.error('[SpeechService] Failed to initialize Whisper worker:', err);
+            }
         }
     }
 
@@ -573,18 +577,22 @@ export class SpeechService {
 
     private initTTSWorker() {
         if (!this.ttsWorker && typeof Worker !== 'undefined') {
-            this.ttsWorker = new Worker(new URL('../workers/tts.worker', import.meta.url), { type: 'module' });
-            this.ttsWorker.onmessage = (event) => {
-                const { type, data } = event.data;
-                if (type === 'progress') {
-                    this.ngZone.run(() => this.modelLoadingSubject.next(data));
-                } else if (type === 'ready') {
-                    this.ttsReady = true;
-                    this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'done', progress: 100 }));
-                }
-            };
-            // Trigger load immediately to prepare
-            this.ttsWorker.postMessage({ type: 'load' });
+            try {
+                this.ttsWorker = new Worker(new URL('../workers/tts.worker', import.meta.url), { type: 'module' });
+                this.ttsWorker.onmessage = (event) => {
+                    const { type, data } = event.data;
+                    if (type === 'progress') {
+                        this.ngZone.run(() => this.modelLoadingSubject.next(data));
+                    } else if (type === 'ready') {
+                        this.ttsReady = true;
+                        this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'done', progress: 100 }));
+                    }
+                };
+                // Trigger load immediately to prepare
+                this.ttsWorker.postMessage({ type: 'load' });
+            } catch (err) {
+                console.error('[SpeechService] Failed to initialize TTS worker:', err);
+            }
         }
     }
 
@@ -779,13 +787,17 @@ export class SpeechService {
     }
 
     preloadModel() {
-        const model = 'tiny';
+        try {
+            const model = 'tiny';
 
-        if (!this.worker) {
-            this.initWorker();
-        } else {
-            // If already initialized, trigger load again just in case (worker handles robustness)
-            this.worker.postMessage({ type: 'load', modelName: model });
+            if (!this.worker) {
+                this.initWorker();
+            } else {
+                // If already initialized, trigger load again just in case (worker handles robustness)
+                this.worker.postMessage({ type: 'load', modelName: model });
+            }
+        } catch (err) {
+            console.error('[SpeechService] Failed to preload Whisper model:', err);
         }
     }
 

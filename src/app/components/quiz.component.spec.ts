@@ -85,6 +85,23 @@ describe('QuizComponent (Manual Instantiation)', () => {
             expect(mockSpeechService.prefetchAudio).not.toHaveBeenCalled();
         });
 
+        it('should NOT preload Whisper model on ngOnInit for Math quiz even if native speech is not supported', async () => {
+            mockRoute.snapshot.paramMap.get.mockImplementation((key: string) => {
+                if (key === 'listId') return 'math-123';
+                if (key === 'mode') return 'main';
+                return null;
+            });
+            mockSpeechService.isNativeSupported.mockReturnValue(false);
+            mockSpeechService.isSTTSupported.mockReturnValue(true);
+            mockQuizService.startQuiz.mockResolvedValue({ listType: ListType.MATH });
+
+            await component.ngOnInit();
+
+            expect(mockSpeechService.preloadModel).not.toHaveBeenCalled();
+            expect(component.isMathQuiz).toBe(true);
+            expect(component.quizStarted).toBe(false);
+        });
+
         it('should load Vosk model and show speech recognition loading state for Math quiz in speak mode', () => {
             component.isMathQuiz = true;
             component.isSightWordQuiz = false;
