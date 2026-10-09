@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, NgZone } from '@angular/core';
+import { Component, OnDestroy, OnInit, NgZone, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable, Subscription, forkJoin, merge } from 'rxjs';
 import { finalize } from 'rxjs/operators';
@@ -45,11 +45,12 @@ export class QuizComponent implements OnInit, OnDestroy {
   isProcessing = false;
   isPreparing = false; // New state for initial delay
   isPlaying = false; // Audio playback state
-  interactionMode: 'multiple-choice' | 'speak' | 'spell' = 'multiple-choice';
-  activeMode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | null = null;
+  interactionMode: 'multiple-choice' | 'speak' | 'spell' | 'keypad' = 'multiple-choice';
+  activeMode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | 'keypad' | null = null;
   recognizedText = '';
   recognizedAlternatives: string[] = []
   spellingInput = ''; // For Spell Mode
+  keypadInput = ''; // For Keypad Mode
   speechSupported = false;
   autoRecordEnabled = false; // Auto-record after first Record press
   autoPlayEnabled = false; // Auto-play after first Play press
@@ -165,7 +166,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     return false; // Default for all other types (Math, Word/Def, Image/Def)
   }
 
-  startWithMode(mode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell') {
+  startWithMode(mode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | 'keypad') {
     this.activeMode = mode;
 
     // Map Sight Words "Read" -> Speak Mode, "Listen" -> Multiple Choice Mode
@@ -175,6 +176,8 @@ export class QuizComponent implements OnInit, OnDestroy {
       this.interactionMode = 'multiple-choice';
     } else if (mode === 'spell') {
       this.interactionMode = 'spell';
+    } else if (mode === 'keypad') {
+      this.interactionMode = 'keypad';
     } else {
       this.interactionMode = mode as 'multiple-choice' | 'speak';
     }
@@ -403,6 +406,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.isPlaying = false;
     this.recognizedText = '';
     this.spellingInput = '';
+    this.keypadInput = '';
 
     this.currentQuestion = this.quizService.getNextQuestion();
 
@@ -803,6 +807,100 @@ export class QuizComponent implements OnInit, OnDestroy {
       this.totalTime = this.isCorrect ? settings.correctAnswerTimer * 1000 : settings.incorrectAnswerTimer * 1000;
       this.remainingTime = this.totalTime;
       this.startTimer();
+    }
+  }
+
+  appendKeypad(char: string): void {
+    if (this.feedbackVisible) return;
+    if (this.keypadInput.length >= 10) return;
+
+    if (this.keypadInput === '0' && char !== '.') {
+      this.keypadInput = char;
+    } else if (this.keypadInput === '-0' && char !== '.') {
+      this.keypadInput = '-' + char;
+    } else {
+      this.keypadInput += char;
+    }
+  }
+
+  toggleNegative(): void {
+    if (this.feedbackVisible) return;
+    if (this.keypadInput.startsWith('-')) {
+      this.keypadInput = this.keypadInput.substring(1);
+    } else {
+      this.keypadInput = '-' + this.keypadInput;
+    }
+  }
+
+  backspaceKeypad(): void {
+    if (this.feedbackVisible || !this.keypadInput) return;
+    this.keypadInput = this.keypadInput.slice(0, -1);
+    if (this.keypadInput === '-') {
+      this.keypadInput = '';
+    }
+  }
+
+  clearKeypad(): void {
+    if (this.feedbackVisible) return;
+    this.keypadInput = '';
+  }
+
+  submitKeypad(): void {
+    if (this.feedbackVisible || !this.currentQuestion) return;
+
+    const trimmed = this.keypadInput.trim();
+    if (!trimmed || trimmed === '-') return;
+
+    this.feedbackVisible = true;
+    this.selectedAnswer = trimmed;
+    this.recognizedText = trimmed;
+
+    const correctAnswer = this.currentQuestion.correctAnswer.trim();
+    const userNum = Number(trimmed);
+    const correctNum = Number(correctAnswer);
+
+    this.isCorrect = (trimmed === correctAnswer) ||
+      (!isNaN(userNum) && !isNaN(correctNum) && userNum === correctNum);
+
+    if (this.currentQuestion.wordToQuiz.id) {
+      this.quizService.submitAnswer(
+        this.currentQuestion.wordToQuiz.id,
+        this.isCorrect,
+        this.currentQuestion.wordToQuiz.word
+      );
+    }
+    this.updateProgress();
+
+    // Auto Advance
+    const settings = this.settingsService.getSettings();
+    if (settings.autoAdvance) {
+      this.totalTime = this.isCorrect ? settings.correctAnswerTimer * 1000 : settings.incorrectAnswerTimer * 1000;
+      this.remainingTime = this.totalTime;
+      this.startTimer();
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeydown(event: KeyboardEvent): void {
+    if (this.interactionMode !== 'keypad' || !this.quizStarted || this.feedbackVisible) {
+      return;
+    }
+
+    if (event.key >= '0' && event.key <= '9') {
+      event.preventDefault();
+      this.appendKeypad(event.key);
+    } else if (event.key === 'Backspace') {
+      event.preventDefault();
+      this.backspaceKeypad();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      this.submitKeypad();
+    } else if (event.key === '-' || event.key === 'Minus') {
+      event.preventDefault();
+      this.toggleNegative();
+    } else if (event.key === 'Escape' || event.key === 'c' || event.key === 'C') {
+      event.preventDefault();
+      this.clearKeypad();
     }
   }
 
