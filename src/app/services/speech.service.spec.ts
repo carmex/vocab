@@ -323,6 +323,15 @@ describe('SpeechService (Angular)', () => {
             // Mock URL.createObjectURL (global)
             global.URL.createObjectURL = jest.fn().mockReturnValue('blob:test');
 
+            if (!global.crypto) {
+                global.crypto = {} as any;
+            }
+            if (!global.crypto.subtle) {
+                (global.crypto as any).subtle = {
+                    digest: jest.fn().mockResolvedValue(new Uint8Array([1, 2, 3]).buffer)
+                };
+            }
+
             const result = await (service as any).forceRegenerateAudio('cat', 'en');
 
             expect(mockFunctionsInvoke).toHaveBeenCalledWith('generate-audio', {
@@ -331,4 +340,36 @@ describe('SpeechService (Angular)', () => {
             expect(result).toBe('blob:test');
         });
     });
+
+    describe('initVoskWorker and preloadVoskModel', () => {
+        let originalWorker: any;
+
+        beforeEach(() => {
+            originalWorker = (global as any).Worker;
+        });
+
+        afterEach(() => {
+            (global as any).Worker = originalWorker;
+        });
+
+        it('should initialize Vosk worker without throwing Invalid base URL', () => {
+            const mockPostMessage = jest.fn();
+            const mockWorkerInstance = {
+                postMessage: mockPostMessage,
+                onmessage: null as any
+            };
+            const mockWorkerConstructor = jest.fn().mockImplementation((url: URL) => {
+                expect(url).toBeDefined();
+                return mockWorkerInstance;
+            });
+            (global as any).Worker = mockWorkerConstructor;
+
+            expect(() => {
+                (service as any).initVoskWorker();
+            }).not.toThrow();
+
+            expect(mockWorkerConstructor).toHaveBeenCalled();
+        });
+    });
 });
+

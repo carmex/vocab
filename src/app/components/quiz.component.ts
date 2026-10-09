@@ -61,6 +61,8 @@ export class QuizComponent implements OnInit, OnDestroy {
   isLoadingModel = false;
   modelLoadProgress = 0;
   modelLoadCancelled = false;
+  modelLoadingTitle = 'Preparing Quiz Audio';
+  modelLoadingSubtitle = 'Buffering high-quality voice files for instant playback...';
 
   currentSentenceWords: { word: string, cleanWord: string }[] = [];
 
@@ -217,10 +219,23 @@ export class QuizComponent implements OnInit, OnDestroy {
 
     // Show loading if we need to load Vosk model OR if we have other loading tasks
     const needsVoskLoad = this.interactionMode === 'speak' && !this.speechService.isVoskReady();
+    const needsAudioPreload = !!(settings.usePremiumVoice && this.shouldPreloadAudio);
+
     if (loadingTasks.length > 0 || needsVoskLoad) {
       this.isLoadingModel = true;
       this.modelLoadProgress = 0;
       this.modelLoadCancelled = false;
+
+      if (needsVoskLoad && needsAudioPreload) {
+        this.modelLoadingTitle = 'Preparing Speech & Audio';
+        this.modelLoadingSubtitle = 'Setting up speech recognition and buffering voice audio...';
+      } else if (needsVoskLoad) {
+        this.modelLoadingTitle = 'Preparing Speech Recognition';
+        this.modelLoadingSubtitle = 'Setting up speech recognition for spoken answers...';
+      } else {
+        this.modelLoadingTitle = 'Preparing Quiz Audio';
+        this.modelLoadingSubtitle = 'Buffering high-quality voice files for instant playback...';
+      }
 
       let audioFinished = false;
       let voskFinished = false;
@@ -243,19 +258,28 @@ export class QuizComponent implements OnInit, OnDestroy {
 
       // Subscribe to tasks
       if (this.interactionMode === 'speak' && !this.speechService.isVoskReady()) {
-        this.speechService.preloadVoskModel(this.quizService.currentLanguage).subscribe({
-          next: (p) => {
-            if (p.status === 'done') {
-              voskFinished = true;
-              checkDone();
+        try {
+          this.speechService.preloadVoskModel(this.quizService.currentLanguage).subscribe({
+            next: (p) => {
+              if (p && p.progress !== undefined && !needsAudioPreload) {
+                this.modelLoadProgress = p.progress;
+              }
+              if (p && p.status === 'done') {
+                voskFinished = true;
+                checkDone();
+              }
+            },
+            error: (err) => {
+              console.error('[QuizComponent] Voice recognition failed:', err);
+              this.isLoadingModel = false;
+              alert('Voice recognition failed.');
             }
-            // We could separate progress bars but let's just show indeterminate or "Loading..."
-          },
-          error: () => {
-            this.isLoadingModel = false;
-            alert('Voice recognition failed.');
-          }
-        });
+          });
+        } catch (err) {
+          console.error('[QuizComponent] Failed to start voice recognition preload:', err);
+          this.isLoadingModel = false;
+          alert('Voice recognition failed.');
+        }
       }
 
       if (settings.usePremiumVoice && this.shouldPreloadAudio) {

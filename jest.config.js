@@ -1,5 +1,15 @@
+const { createCjsPreset } = require('jest-preset-angular/presets');
+
+const basePreset = createCjsPreset({
+    astTransformers: {
+        before: [
+            require.resolve('./jest-import-meta-transformer.js')
+        ]
+    }
+});
+
 module.exports = {
-    preset: 'jest-preset-angular',
+    ...basePreset,
     setupFilesAfterEnv: ['<rootDir>/setup-jest.ts'],
     globalSetup: 'jest-preset-angular/global-setup',
     testRegex: '.*\\.spec\\.ts$',
@@ -12,3 +22,4 @@ module.exports = {
     ],
     transformIgnorePatterns: ['node_modules/(?!(.*\\.mjs$|rxjs|vosk-browser|double-metaphone))'],
 };
+

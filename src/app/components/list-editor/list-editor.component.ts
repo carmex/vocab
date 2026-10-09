@@ -27,14 +27,6 @@ import { TwemojiPipe } from '../../pipes/twemoji.pipe';
 import { ListType } from '../../models/list-type.enum';
 import { SpeechService } from '../../services/speech.service';
 
-const getImportMetaUrl = () => {
-  try {
-    return new Function('return import.meta.url')();
-  } catch (e) {
-    return '';
-  }
-};
-
 export interface WordRow {
   id?: string;
   word: string;
@@ -468,7 +460,7 @@ export class ListEditorComponent implements OnInit {
         return;
       }
 
-      const worker = new Worker(new URL('../../workers/list-upload.worker', getImportMetaUrl()));
+      const worker = new Worker(new URL('../../workers/list-upload.worker', import.meta.url), { type: 'module' });
 
       worker.onmessage = ({ data }) => {
         if (data.type === 'progress') {
@@ -511,7 +503,7 @@ export class ListEditorComponent implements OnInit {
       const reader = new FileReader();
       reader.onload = (e: any) => {
         if (typeof Worker !== 'undefined') {
-          const worker = new Worker(new URL('../../workers/json-import.worker', getImportMetaUrl()));
+          const worker = new Worker(new URL('../../workers/json-import.worker', import.meta.url), { type: 'module' });
 
           worker.onmessage = ({ data }) => {
             if (data.type === 'progress') {
