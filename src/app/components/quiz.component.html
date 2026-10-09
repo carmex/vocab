@@ -20,16 +20,22 @@
   <div class="mode-selection" *ngIf="!quizStarted && isMathQuiz && !isLoadingModel">
     <h2>Choose Quiz Mode</h2>
     <div class="mode-cards">
-      <mat-card class="mode-card" (click)="startWithMode('speak')">
-        <mat-icon class="mode-icon">record_voice_over</mat-icon>
-        <h3>Speak Mode</h3>
-        <p>See the problem, say the answer</p>
+      <mat-card class="mode-card keypad-mode-card" (click)="startWithMode('keypad')">
+        <mat-icon class="mode-icon">dialpad</mat-icon>
+        <h3>Keypad Mode</h3>
+        <p>Type the answer using the keypad</p>
       </mat-card>
 
       <mat-card class="mode-card" (click)="startWithMode('multiple-choice')">
         <mat-icon class="mode-icon">touch_app</mat-icon>
         <h3>Multi-choice</h3>
         <p>Pick the correct answer</p>
+      </mat-card>
+
+      <mat-card class="mode-card" (click)="startWithMode('speak')">
+        <mat-icon class="mode-icon">record_voice_over</mat-icon>
+        <h3>Speak Mode</h3>
+        <p>See the problem, say the answer</p>
       </mat-card>
     </div>
   </div>
@@ -154,6 +160,53 @@
       </div>
     </div>
 
+    <!-- Keypad Mode UI -->
+    <div class="keypad-interface"
+      *ngIf="interactionMode === 'keypad' && currentQuestion && !feedbackVisible">
+
+      <div class="keypad-display-wrapper">
+        <div class="keypad-display" [class.has-value]="keypadInput">
+          <span class="keypad-value">{{ keypadInput || '?' }}</span>
+          <button *ngIf="keypadInput" type="button" class="keypad-clear-btn" (click)="clearKeypad()" aria-label="Clear">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="keypad-grid">
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('7')">7</button>
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('8')">8</button>
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('9')">9</button>
+
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('4')">4</button>
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('5')">5</button>
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('6')">6</button>
+
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('1')">1</button>
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('2')">2</button>
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('3')">3</button>
+
+        <button type="button" mat-raised-button class="keypad-btn keypad-fn-btn" (click)="toggleNegative()" aria-label="Negative / Minus">−</button>
+        <button type="button" mat-raised-button class="keypad-btn" (click)="appendKeypad('0')">0</button>
+        <button type="button" mat-raised-button class="keypad-btn keypad-fn-btn" (click)="backspaceKeypad()" aria-label="Backspace">
+          <mat-icon>backspace</mat-icon>
+        </button>
+      </div>
+
+      <div class="action-buttons">
+        <button mat-fab extended color="primary" class="check-btn" (click)="submitKeypad()"
+          [disabled]="!keypadInput || keypadInput === '-'">
+          <mat-icon>check</mat-icon>
+          Check
+        </button>
+
+        <button mat-fab extended color="accent" (click)="onDontKnow()" class="action-btn">
+          <mat-icon>help_outline</mat-icon>
+          Don't Know
+        </button>
+      </div>
+    </div>
+
     <!-- Speak Mode UI -->
     <div class="speak-interface"
       *ngIf="interactionMode === 'speak' && currentQuestion && !feedbackVisible && !waitingForRecording">
@@ -191,7 +244,7 @@
 
         <div *ngIf="!isCorrect" class="correction-details">
           <p>Correct Answer: <strong>{{ currentQuestion?.correctAnswer }}</strong></p>
-          <p *ngIf="recognizedText" class="you-said">You said: "{{ recognizedText }}"</p>
+          <p *ngIf="recognizedText" class="you-said">{{ interactionMode === 'speak' ? 'You said:' : 'Your Answer:' }} "{{ recognizedText }}"</p>
           <div *ngIf="recognizedAlternatives && recognizedAlternatives.length > 1" class="debug-alternatives"
             style="margin-top: 8px; font-size: 0.8rem; color: #666;">
             <strong>Heard Details:</strong> {{ recognizedAlternatives.join(', ') }}

@@ -554,3 +554,155 @@
     }
   }
 }
+
+// Keypad Interface Styles
+.keypad-interface {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: 10px auto;
+  width: 100%;
+  max-width: 320px;
+}
+
+.keypad-display-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.keypad-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  max-width: 280px;
+  min-height: 58px;
+  border: 2px solid #ddd;
+  border-radius: 12px;
+  background: #fafafa;
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: #aaa;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s, background-color 0.2s;
+
+  &.has-value {
+    border-color: #3f51b5;
+    background: #fff;
+    color: #1a237e;
+
+    .keypad-value {
+      color: #3f51b5;
+    }
+  }
+
+  .keypad-value {
+    letter-spacing: 2px;
+  }
+
+  .keypad-clear-btn {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 50%;
+    transition: background-color 0.2s, color 0.2s;
+
+    &:hover {
+      color: #333;
+      background: #eee;
+    }
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
+
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.keypad-btn {
+  height: 58px;
+  font-size: 1.6rem;
+  font-weight: 600;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.1s, box-shadow 0.1s;
+
+  &:active {
+    transform: scale(0.95);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.keypad-fn-btn {
+  background-color: #f0f0f0 !important;
+  color: #555 !important;
+  font-size: 1.5rem;
+
+  mat-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+:host-context(body.dark-mode) {
+  .keypad-display {
+    background: #252525;
+    border-color: #444;
+    color: #777;
+
+    &.has-value {
+      background: #2d2d2d;
+      border-color: #7986cb;
+      color: #9fa8da;
+
+      .keypad-value {
+        color: #9fa8da;
+      }
+    }
+
+    .keypad-clear-btn {
+      color: #aaa;
+
+      &:hover {
+        color: #fff;
+        background: #444;
+      }
+    }
+  }
+
+  .keypad-btn {
+    background: #333;
+    color: #f0f0f0;
+  }
+
+  .keypad-fn-btn {
+    background-color: #282828 !important;
+    color: #bbb !important;
+  }
+}

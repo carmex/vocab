@@ -358,4 +358,191 @@ describe('QuizComponent (Manual Instantiation)', () => {
             // The code I wrote strictly checks activeMode === 'read'.
         });
     });
+
+    describe('Keypad Mode Logic', () => {
+        beforeEach(() => {
+            component.isMathQuiz = true;
+            component.currentQuestion = {
+                wordToQuiz: { id: 'm1', word: '7 + 5', imageUrl: '', type: 'math', definition: '12' },
+                options: ['12', '10', '14', '11'],
+                correctAnswer: '12'
+            };
+            component.quizStarted = true;
+            component.activeMode = 'keypad';
+            component.interactionMode = 'keypad';
+        });
+
+        it('should switch to keypad mode and start quiz immediately without audio preloading', () => {
+            component.quizStarted = false;
+            component.startWithMode('keypad');
+
+            expect(component.activeMode).toBe('keypad');
+            expect(component.interactionMode).toBe('keypad');
+            expect(component.quizStarted).toBe(true);
+            expect(component.isLoadingModel).toBe(false);
+            expect(mockSpeechService.preloadVoskModel).not.toHaveBeenCalled();
+            expect(mockSpeechService.prefetchAudio).not.toHaveBeenCalled();
+        });
+
+        it('should append digits to keypadInput', () => {
+            component.keypadInput = '';
+            component.appendKeypad('1');
+            component.appendKeypad('2');
+            expect(component.keypadInput).toBe('12');
+        });
+
+        it('should replace leading 0 when appending non-zero digit', () => {
+            component.keypadInput = '0';
+            component.appendKeypad('5');
+            expect(component.keypadInput).toBe('5');
+        });
+
+        it('should not allow multiple leading zeros', () => {
+            component.keypadInput = '0';
+            component.appendKeypad('0');
+            expect(component.keypadInput).toBe('0');
+        });
+
+        it('should toggle negative sign with toggleNegative', () => {
+            component.keypadInput = '';
+            component.toggleNegative();
+            expect(component.keypadInput).toBe('-');
+
+            component.toggleNegative();
+            expect(component.keypadInput).toBe('');
+
+            component.keypadInput = '15';
+            component.toggleNegative();
+            expect(component.keypadInput).toBe('-15');
+
+            component.toggleNegative();
+            expect(component.keypadInput).toBe('15');
+        });
+
+        it('should backspace the last entered character', () => {
+            component.keypadInput = '123';
+            component.backspaceKeypad();
+            expect(component.keypadInput).toBe('12');
+
+            component.backspaceKeypad();
+            expect(component.keypadInput).toBe('1');
+
+            component.backspaceKeypad();
+            expect(component.keypadInput).toBe('');
+
+            component.backspaceKeypad();
+            expect(component.keypadInput).toBe('');
+        });
+
+        it('should clear negative sign if only minus remains after backspace', () => {
+            component.keypadInput = '-5';
+            component.backspaceKeypad();
+            expect(component.keypadInput).toBe('');
+        });
+
+        it('should clear all keypad input with clearKeypad', () => {
+            component.keypadInput = '999';
+            component.clearKeypad();
+            expect(component.keypadInput).toBe('');
+        });
+
+        it('should submit correct answer and mark isCorrect=true', () => {
+            component.keypadInput = '12';
+            component.submitKeypad();
+
+            expect(component.isCorrect).toBe(true);
+            expect(component.selectedAnswer).toBe('12');
+            expect(component.recognizedText).toBe('12');
+            expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('m1', true, '7 + 5');
+            expect(component.feedbackVisible).toBe(true);
+        });
+
+        it('should accept numerically equivalent answers (e.g. 012 for 12)', () => {
+            component.keypadInput = '012';
+            component.submitKeypad();
+
+            expect(component.isCorrect).toBe(true);
+            expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('m1', true, '7 + 5');
+        });
+
+        it('should submit incorrect answer and mark isCorrect=false', () => {
+            component.keypadInput = '13';
+            component.submitKeypad();
+
+            expect(component.isCorrect).toBe(false);
+            expect(component.selectedAnswer).toBe('13');
+            expect(component.recognizedText).toBe('13');
+            expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('m1', false, '7 + 5');
+            expect(component.feedbackVisible).toBe(true);
+        });
+
+        it('should ignore submit when keypadInput is empty or only a minus sign', () => {
+            component.keypadInput = '';
+            component.submitKeypad();
+            expect(mockQuizService.submitAnswer).not.toHaveBeenCalled();
+            expect(component.feedbackVisible).toBe(false);
+
+            component.keypadInput = '-';
+            component.submitKeypad();
+            expect(mockQuizService.submitAnswer).not.toHaveBeenCalled();
+            expect(component.feedbackVisible).toBe(false);
+        });
+
+        it('should ignore submit when feedback is already visible', () => {
+            component.feedbackVisible = true;
+            component.keypadInput = '12';
+            component.submitKeypad();
+            expect(mockQuizService.submitAnswer).not.toHaveBeenCalled();
+        });
+
+        it('should reset keypadInput on displayNextQuestion', () => {
+            component.keypadInput = '42';
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 'm2', word: '3 + 3', imageUrl: '', type: 'math', definition: '6' },
+                options: ['6', '5', '4', '7'],
+                correctAnswer: '6'
+            });
+
+            component.onNext();
+            expect(component.keypadInput).toBe('');
+        });
+
+        it('should handle keyboard events in keypad mode', () => {
+            component.keypadInput = '';
+
+            // Number key
+            const event1 = { key: '7', preventDefault: jest.fn() } as any;
+            component.handleKeydown(event1);
+            expect(component.keypadInput).toBe('7');
+            expect(event1.preventDefault).toHaveBeenCalled();
+
+            // Minus key
+            const event2 = { key: '-', preventDefault: jest.fn() } as any;
+            component.handleKeydown(event2);
+            expect(component.keypadInput).toBe('-7');
+
+            // Backspace key
+            const event3 = { key: 'Backspace', preventDefault: jest.fn() } as any;
+            component.handleKeydown(event3);
+            expect(component.keypadInput).toBe('');
+
+            // Type 12 and press Enter
+            component.handleKeydown({ key: '1', preventDefault: jest.fn() } as any);
+            component.handleKeydown({ key: '2', preventDefault: jest.fn() } as any);
+            const enterEvent = { key: 'Enter', preventDefault: jest.fn() } as any;
+            component.handleKeydown(enterEvent);
+            expect(component.isCorrect).toBe(true);
+            expect(component.feedbackVisible).toBe(true);
+        });
+
+        it('should ignore keyboard events when not in keypad mode', () => {
+            component.interactionMode = 'speak';
+            component.keypadInput = '';
+            const event = { key: '7', preventDefault: jest.fn() } as any;
+            component.handleKeydown(event);
+            expect(component.keypadInput).toBe('');
+            expect(event.preventDefault).not.toHaveBeenCalled();
+        });
+    });
 });
+
