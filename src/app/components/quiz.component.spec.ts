@@ -1,5 +1,5 @@
 import { QuizComponent } from './quiz.component';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { ListType } from '../models/list-type.enum';
 
 // Mock the speech service module
@@ -83,6 +83,35 @@ describe('QuizComponent (Manual Instantiation)', () => {
 
             // Check usage in startWithMode
             expect(mockSpeechService.prefetchAudio).not.toHaveBeenCalled();
+        });
+
+        it('should load Vosk model and show speech recognition loading state for Math quiz in speak mode', () => {
+            component.isMathQuiz = true;
+            component.isSightWordQuiz = false;
+            mockSpeechService.isVoskReady.mockReturnValue(false);
+            const progressSubject = new Subject<any>();
+            mockSpeechService.preloadVoskModel.mockReturnValue(progressSubject.asObservable());
+
+            component.startWithMode('speak');
+
+            // Audio prefetch should NOT be called
+            expect(mockSpeechService.prefetchAudio).not.toHaveBeenCalled();
+            // Preload Vosk should be called
+            expect(mockSpeechService.preloadVoskModel).toHaveBeenCalled();
+            // Loading modal should be displayed
+            expect(component.isLoadingModel).toBe(true);
+            // Loading title and message should indicate Speech Recognition, not quiz audio playback!
+            expect(component.modelLoadingTitle).toBe('Preparing Speech Recognition');
+            expect(component.modelLoadingSubtitle).toContain('speech recognition');
+
+            // Progress emission should update modelLoadProgress
+            progressSubject.next({ status: 'loading', progress: 45 });
+            expect(component.modelLoadProgress).toBe(45);
+
+            // Done should complete loading and start quiz
+            progressSubject.next({ status: 'done', progress: 100 });
+            expect(component.isLoadingModel).toBe(false);
+            expect(component.quizStarted).toBe(true);
         });
 
         it('should NOT preload audio for Sight Word Read mode', () => {

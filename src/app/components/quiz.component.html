@@ -5,8 +5,8 @@
   <div class="model-loading-overlay" *ngIf="isLoadingModel">
     <div class="model-loading-modal">
       <mat-icon class="loading-icon">cloud_download</mat-icon>
-      <h2>Preparing Quiz Audio</h2>
-      <p>Buffering high-quality voice files for instant playback...</p>
+      <h2>{{ modelLoadingTitle }}</h2>
+      <p>{{ modelLoadingSubtitle }}</p>
       <mat-progress-bar mode="determinate" [value]="modelLoadProgress"></mat-progress-bar>
       <p class="progress-text">{{ modelLoadProgress | number:'1.0-0' }}%</p>
       <button mat-stroked-button color="warn" (click)="cancelModelLoad()">

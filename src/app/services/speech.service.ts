@@ -4,14 +4,6 @@ import { SettingsService } from './settings.service';
 import { SupabaseService } from './supabase.service';
 import { doubleMetaphone } from 'double-metaphone';
 
-const getImportMetaUrl = () => {
-    try {
-        return new Function('return import.meta.url')();
-    } catch (e) {
-        return '';
-    }
-};
-
 @Injectable({
     providedIn: 'root'
 })
@@ -79,8 +71,7 @@ export class SpeechService {
 
     private initWorker() {
         if (typeof Worker !== 'undefined') {
-            const metaUrl = getImportMetaUrl();
-            this.worker = new Worker(new URL('../workers/whisper.worker', metaUrl));
+            this.worker = new Worker(new URL('../workers/whisper.worker', import.meta.url), { type: 'module' });
             this.worker.onmessage = (event) => {
                 const { type, data, text, error } = event.data;
                 if (type === 'progress') {
@@ -109,36 +100,47 @@ export class SpeechService {
 
     private initVoskWorker() {
         if (typeof Worker !== 'undefined' && !this.voskWorker) {
-            const metaUrl = getImportMetaUrl();
-            this.voskWorker = new Worker(new URL('../workers/vosk.worker', metaUrl));
-            this.voskWorker.onmessage = (event) => {
-                const { type, data, error } = event.data;
-                console.log('[SpeechService] Vosk worker message:', type, data || error || '');
-                if (type === 'progress') {
-                    this.ngZone.run(() => this.modelLoadingSubject.next(data));
-                } else if (type === 'ready') {
-                    console.log('[SpeechService] Vosk model ready!');
-                    this.voskModelReady = true;
-                    this.voskModelCached = true;
-                    this.voskModelLoading = false;
-                    // Persist cached state to localStorage
-                    localStorage.setItem('voskModelCached', 'true');
-                    // Resolve any pending waitForVoskReady promises
-                    if (this.voskReadyResolve) {
-                        console.log('[SpeechService] Resolving voskReadyPromise');
-                        this.voskReadyResolve();
-                        this.voskReadyResolve = null;
-                        this.voskReadyPromise = null;
-                    } else {
-                        console.log('[SpeechService] No voskReadyResolve to call (model ready before listen called)');
+            try {
+                this.voskWorker = new Worker(new URL('../workers/vosk.worker', import.meta.url), { type: 'module' });
+                this.voskWorker.onmessage = (event) => {
+                    const { type, data, error } = event.data;
+                    console.log('[SpeechService] Vosk worker message:', type, data || error || '');
+                    if (type === 'progress') {
+                        this.ngZone.run(() => this.modelLoadingSubject.next(data));
+                    } else if (type === 'ready') {
+                        console.log('[SpeechService] Vosk model ready!');
+                        this.voskModelReady = true;
+                        this.voskModelCached = true;
+                        this.voskModelLoading = false;
+                        // Persist cached state to localStorage
+                        localStorage.setItem('voskModelCached', 'true');
+                        // Resolve any pending waitForVoskReady promises
+                        if (this.voskReadyResolve) {
+                            console.log('[SpeechService] Resolving voskReadyPromise');
+                            this.voskReadyResolve();
+                            this.voskReadyResolve = null;
+                            this.voskReadyPromise = null;
+                        } else {
+                            console.log('[SpeechService] No voskReadyResolve to call (model ready before listen called)');
+                        }
+                        this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'done', progress: 100 }));
+                    } else if (type === 'error') {
+                        console.error('[SpeechService] Vosk worker error:', error);
+                        this.voskModelLoading = false;
+                        this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'error', progress: 0 }));
                     }
-                    this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'done', progress: 100 }));
-                } else if (type === 'error') {
-                    console.error('[SpeechService] Vosk worker error:', error);
+                };
+                this.voskWorker.onerror = (err) => {
+                    console.error('[SpeechService] Vosk worker onerror:', err);
                     this.voskModelLoading = false;
                     this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'error', progress: 0 }));
-                }
-            };
+                };
+            } catch (err) {
+                console.error('[SpeechService] Failed to create Vosk worker:', err);
+                this.voskModelLoading = false;
+                this.ngZone.run(() => this.modelLoadingSubject.next({ status: 'error', progress: 0 }));
+                throw err;
+            }
         }
     }
 
@@ -185,7 +187,7 @@ export class SpeechService {
 
         // If model is cached, it will load very quickly - don't show progress UI
         // Just init the worker and loading will happen fast in background
-        if (this.voskModelCached || this.voskModelReady === false) {
+        if (this.voskModelCached) {
             if (!this.voskModelLoading && !this.voskWorker) {
                 this.voskModelLoading = true;
                 this.initVoskWorker();
@@ -571,8 +573,7 @@ export class SpeechService {
 
     private initTTSWorker() {
         if (!this.ttsWorker && typeof Worker !== 'undefined') {
-            const metaUrl = getImportMetaUrl();
-            this.ttsWorker = new Worker(new URL('../workers/tts.worker', metaUrl));
+            this.ttsWorker = new Worker(new URL('../workers/tts.worker', import.meta.url), { type: 'module' });
             this.ttsWorker.onmessage = (event) => {
                 const { type, data } = event.data;
                 if (type === 'progress') {

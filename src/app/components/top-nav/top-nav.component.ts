@@ -153,7 +153,7 @@ export class TopNavComponent implements OnInit {
   }
 
   get showSettings(): boolean {
-    return !this.router.url.includes('/settings');
+    return !this.router.url?.includes('/settings');
   }
 
   onBack() {
