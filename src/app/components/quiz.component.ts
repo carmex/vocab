@@ -482,12 +482,10 @@ export class QuizComponent implements OnInit, OnDestroy {
           this.quizService.currentLanguage
         ).subscribe(); // Subscribe to trigger, ignore result
       }
-      return;
     }
 
     // Check delay settings
-
-    if (settings.delayAnswers && !this.isSentencesQuiz && this.activeMode !== 'read') {
+    if (settings.delayAnswers && this.interactionMode === 'multiple-choice') {
       this.startDelayTimer(settings.delayAnswerTimer);
     }
   }

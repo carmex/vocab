@@ -80,7 +80,7 @@
       <p>Preparing to record...</p>
     </div>
 
-    <div class="delay-container" *ngIf="delayingAnswers">
+    <div class="delay-container" *ngIf="delayingAnswers && interactionMode === 'multiple-choice'">
       <div class="delay-text">Think about the answer...</div>
       <mat-progress-bar mode="determinate" [value]="delayTimerProgress" class="delay-progress"></mat-progress-bar>
     </div>

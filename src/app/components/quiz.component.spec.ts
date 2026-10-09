@@ -544,5 +544,102 @@ describe('QuizComponent (Manual Instantiation)', () => {
             expect(event.preventDefault).not.toHaveBeenCalled();
         });
     });
+
+    describe('Delay Answer Choices Setting', () => {
+        beforeEach(() => {
+            mockSettingsService.getSettings.mockReturnValue({
+                delayAnswers: true,
+                delayAnswerTimer: 3,
+                usePremiumVoice: false,
+                autoAdvance: false
+            });
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 'm1', word: '3 + 4', imageUrl: '', type: 'math', definition: '7' },
+                options: ['7', '6', '8', '9'],
+                correctAnswer: '7'
+            });
+        });
+
+        it('should NOT start delay timer for Math quiz in keypad mode even when delayAnswers is true', () => {
+            component.isMathQuiz = true;
+            component.startWithMode('keypad');
+
+            expect(component.interactionMode).toBe('keypad');
+            expect(component.delayingAnswers).toBe(false);
+        });
+
+        it('should NOT start delay timer for Math quiz in speak mode even when delayAnswers is true', () => {
+            mockSpeechService.isVoskReady.mockReturnValue(true);
+            component.isMathQuiz = true;
+            component.startWithMode('speak');
+
+            expect(component.interactionMode).toBe('speak');
+            expect(component.delayingAnswers).toBe(false);
+        });
+
+        it('should start delay timer for Math quiz in multiple-choice mode when delayAnswers is true', () => {
+            component.isMathQuiz = true;
+            component.startWithMode('multiple-choice');
+
+            expect(component.interactionMode).toBe('multiple-choice');
+            expect(component.delayingAnswers).toBe(true);
+        });
+
+        it('should start delay timer for standard multiple-choice quiz when delayAnswers is true', async () => {
+            component.isMathQuiz = false;
+            component.isSightWordQuiz = false;
+            component.interactionMode = 'multiple-choice';
+
+            await (component as any).displayNextQuestion();
+
+            expect(component.delayingAnswers).toBe(true);
+        });
+
+        it('should NOT start delay timer when delayAnswers is false for multiple-choice quiz', async () => {
+            mockSettingsService.getSettings.mockReturnValue({
+                delayAnswers: false,
+                delayAnswerTimer: 3,
+                usePremiumVoice: false
+            });
+            component.interactionMode = 'multiple-choice';
+
+            await (component as any).displayNextQuestion();
+
+            expect(component.delayingAnswers).toBe(false);
+        });
+
+        it('should NOT start delay timer for sight words in spell mode', () => {
+            component.isSightWordQuiz = true;
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 'sw1', word: 'cat', imageUrl: '', type: 'sight_word', definition: 'cat' },
+                options: [],
+                correctAnswer: 'cat'
+            });
+
+            component.startWithMode('spell');
+
+            expect(component.interactionMode).toBe('spell');
+            expect(component.delayingAnswers).toBe(false);
+        });
+
+        it('should start delay timer for sight words in listen mode (multiple-choice) even if usePremiumVoice is true', () => {
+            mockSettingsService.getSettings.mockReturnValue({
+                delayAnswers: true,
+                delayAnswerTimer: 3,
+                usePremiumVoice: true
+            });
+            component.isSightWordQuiz = true;
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 'sw1', word: 'cat', imageUrl: '', type: 'sight_word', definition: 'cat' },
+                options: ['cat', 'dog', 'hat'],
+                correctAnswer: 'cat'
+            });
+
+            component.startWithMode('listen');
+
+            expect(component.interactionMode).toBe('multiple-choice');
+            expect(component.delayingAnswers).toBe(true);
+        });
+    });
 });
 
