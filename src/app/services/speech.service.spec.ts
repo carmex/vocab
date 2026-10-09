@@ -371,5 +371,47 @@ describe('SpeechService (Angular)', () => {
             expect(mockWorkerConstructor).toHaveBeenCalled();
         });
     });
+
+    describe('initWorker, preloadModel, and initTTSWorker error handling', () => {
+        let originalWorker: any;
+
+        beforeEach(() => {
+            originalWorker = (global as any).Worker;
+        });
+
+        afterEach(() => {
+            (global as any).Worker = originalWorker;
+        });
+
+        it('should handle URL or Worker constructor errors in initWorker without throwing', () => {
+            (global as any).Worker = jest.fn().mockImplementation(() => {
+                throw new TypeError('URL constructor:  is not a valid URL.');
+            });
+
+            expect(() => {
+                (service as any).initWorker();
+            }).not.toThrow();
+        });
+
+        it('should handle errors in preloadModel without throwing', () => {
+            (global as any).Worker = jest.fn().mockImplementation(() => {
+                throw new TypeError('URL constructor:  is not a valid URL.');
+            });
+
+            expect(() => {
+                service.preloadModel();
+            }).not.toThrow();
+        });
+
+        it('should handle URL or Worker constructor errors in initTTSWorker without throwing', () => {
+            (global as any).Worker = jest.fn().mockImplementation(() => {
+                throw new TypeError('URL constructor:  is not a valid URL.');
+            });
+
+            expect(() => {
+                (service as any).initTTSWorker();
+            }).not.toThrow();
+        });
+    });
 });
 
