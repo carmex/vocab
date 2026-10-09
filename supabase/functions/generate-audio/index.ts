@@ -113,6 +113,9 @@ serve(async (req) => {
 
         console.log(`[TTS] Generating "${word}" (${languageCode}). Prompt: "${pronunciationPrompt}"`);
 
+        const cleanWord = word.trim().replace(/^["']|["']$/g, '').replace(/\.+$/, '');
+        const textToSynthesize = `"${cleanWord}".`;
+
         const ttsResponse = await fetch(ttsUrl, {
             method: 'POST',
             headers: {
@@ -122,7 +125,7 @@ serve(async (req) => {
             },
             body: JSON.stringify({
                 input: {
-                    text: word + ".",
+                    text: textToSynthesize,
                     prompt: pronunciationPrompt
                 },
                 voice: {
