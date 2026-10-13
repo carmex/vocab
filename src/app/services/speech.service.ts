@@ -3,6 +3,7 @@ import { Observable, Subject } from 'rxjs';
 import { SettingsService } from './settings.service';
 import { SupabaseService } from './supabase.service';
 import { doubleMetaphone } from 'double-metaphone';
+import { wordsToNumber } from '../utils/number-words.util';
 
 @Injectable({
     providedIn: 'root'
@@ -1860,6 +1861,13 @@ export class SpeechService {
 
             // Exact match
             if (cleanRecognized === cleanTarget) return true;
+
+            // Check numeric equivalence (e.g. "twenty five" vs "25", "-5" vs "negative five")
+            const targetNum = wordsToNumber(cleanTarget);
+            const recNum = wordsToNumber(cleanRecognized);
+            if (targetNum !== null && recNum !== null) {
+                return targetNum === recNum;
+            }
 
             // Check if target is contained in recognized (for words like "a" that might be recognized as "a a")
             if (cleanRecognized.includes(cleanTarget)) return true;
