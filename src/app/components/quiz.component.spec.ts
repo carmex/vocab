@@ -54,6 +54,7 @@ describe('QuizComponent (Manual Instantiation)', () => {
         mockClassroomService = {};
         mockAuthService = { currentUser: { id: 'u1' } };
         mockSpeechService = new SpeechService() as any;
+        const mockSupabaseService = { uploadUserRecording: jest.fn().mockResolvedValue({ data: {}, error: null }) };
         mockNgZone = { run: jest.fn().mockImplementation((fn: any) => fn()) };
 
         component = new QuizComponent(
@@ -64,6 +65,7 @@ describe('QuizComponent (Manual Instantiation)', () => {
             mockClassroomService,
             mockAuthService,
             mockSpeechService as any,
+            mockSupabaseService as any,
             mockNgZone
         );
     });
@@ -641,5 +643,49 @@ describe('QuizComponent (Manual Instantiation)', () => {
             expect(component.delayingAnswers).toBe(true);
         });
     });
+
+    describe('Math Quiz Speak Mode', () => {
+        beforeEach(() => {
+            mockSpeechService.isVoskReady.mockReturnValue(true);
+            component.isMathQuiz = true;
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 'm1', word: '5 x 5', imageUrl: '', type: 'math', definition: '25' },
+                options: ['25', '20', '30', '15'],
+                correctAnswer: '25'
+            });
+            component.startWithMode('speak');
+        });
+
+        it('should mark answer correct when detected speech matches numeric answer', () => {
+            const listenSubject = new Subject<any>();
+            mockSpeechService.listen.mockReturnValue(listenSubject.asObservable());
+            mockSpeechService.wordsMatch.mockImplementation((rec, target) => {
+                return rec === 'twenty five' && target === '25';
+            });
+
+            component.onRecord();
+            listenSubject.next({ result: 'twenty five' });
+
+            expect(mockSpeechService.wordsMatch).toHaveBeenCalledWith('twenty five', '25');
+            expect(component.isCorrect).toBe(true);
+            expect(component.feedbackVisible).toBe(true);
+            expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('m1', true, '5 x 5');
+        });
+
+        it('should mark answer incorrect when detected speech does not match numeric answer', () => {
+            const listenSubject = new Subject<any>();
+            mockSpeechService.listen.mockReturnValue(listenSubject.asObservable());
+            mockSpeechService.wordsMatch.mockReturnValue(false);
+
+            component.onRecord();
+            listenSubject.next({ result: 'twenty four' });
+
+            expect(mockSpeechService.wordsMatch).toHaveBeenCalledWith('twenty four', '25');
+            expect(component.isCorrect).toBe(false);
+            expect(component.feedbackVisible).toBe(true);
+            expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('m1', false, '5 x 5');
+        });
+    });
 });
+
 

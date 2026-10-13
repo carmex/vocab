@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { SpeechService } from './speech.service';
 import { SettingsService } from './settings.service';
 import { SupabaseService } from './supabase.service';
+import { wordsToNumber } from '../utils/number-words.util';
 
 /**
  * Unit tests for SpeechService - Testing pure logic functions
@@ -88,6 +89,13 @@ describe('SpeechService wordsMatch logic', () => {
             }
 
             if (cleanRecognized === cleanTarget) return true;
+
+            const targetNum = wordsToNumber(cleanTarget);
+            const recNum = wordsToNumber(cleanRecognized);
+            if (targetNum !== null && recNum !== null) {
+                return targetNum === recNum;
+            }
+
             if (cleanRecognized.includes(cleanTarget)) return true;
 
             const targetHomophones = homophones[cleanTarget];
@@ -413,5 +421,40 @@ describe('SpeechService (Angular)', () => {
             }).not.toThrow();
         });
     });
+
+    describe('wordsMatch with spoken numbers', () => {
+        it('should match spoken "twenty five" to target "25"', () => {
+            expect(service.wordsMatch('twenty five', '25')).toBe(true);
+        });
+
+        it('should match hyphenated "twenty-five" to target "25"', () => {
+            expect(service.wordsMatch('twenty-five', '25')).toBe(true);
+        });
+
+        it('should match array of alternatives containing "twenty five" to target "25"', () => {
+            expect(service.wordsMatch(['twenty five', 'twenty-five'], '25')).toBe(true);
+        });
+
+        it('should match target "twenty five" when recognized is "25"', () => {
+            expect(service.wordsMatch('25', 'twenty five')).toBe(true);
+        });
+
+        it('should match large compound numbers like "one hundred forty four" to "144"', () => {
+            expect(service.wordsMatch('one hundred forty four', '144')).toBe(true);
+            expect(service.wordsMatch('one hundred and forty four', '144')).toBe(true);
+        });
+
+        it('should match negative numbers like "negative five" and "minus five" to "-5"', () => {
+            expect(service.wordsMatch('negative five', '-5')).toBe(true);
+            expect(service.wordsMatch('minus five', '-5')).toBe(true);
+        });
+
+        it('should reject incorrect spoken numbers', () => {
+            expect(service.wordsMatch('twenty four', '25')).toBe(false);
+            expect(service.wordsMatch('twenty five', '5')).toBe(false);
+            expect(service.wordsMatch('5', '25')).toBe(false);
+        });
+    });
 });
+
 
