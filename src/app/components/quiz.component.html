@@ -61,6 +61,12 @@
         <h3>Spell Mode</h3>
         <p>Hear the word, then spell it</p>
       </mat-card>
+
+      <mat-card class="mode-card" (click)="startWithMode('scramble')">
+        <mat-icon class="mode-icon">shuffle</mat-icon>
+        <h3>Scramble Mode</h3>
+        <p>Hear the word, then tap the letters to spell it</p>
+      </mat-card>
     </div>
   </div>
 
@@ -196,6 +202,67 @@
       <div class="action-buttons">
         <button mat-fab extended color="primary" class="check-btn" (click)="submitKeypad()"
           [disabled]="!keypadInput || keypadInput === '-'">
+          <mat-icon>check</mat-icon>
+          Check
+        </button>
+
+        <button mat-fab extended color="accent" (click)="onDontKnow()" class="action-btn">
+          <mat-icon>help_outline</mat-icon>
+          Don't Know
+        </button>
+      </div>
+    </div>
+
+    <!-- Scramble Mode UI -->
+    <div class="scramble-interface"
+      *ngIf="interactionMode === 'scramble' && currentQuestion && !feedbackVisible">
+
+      <div class="word-display">
+        <button mat-fab extended color="primary" (click)="isPlaying ? onStopSpeaking() : playWord()" class="speak-btn">
+          <mat-icon>{{ isPlaying ? 'stop' : 'volume_up' }}</mat-icon>
+          {{ isPlaying ? 'Stop' : 'Play Word' }}
+        </button>
+      </div>
+
+      <div class="scramble-answer-container">
+        <div class="scramble-slots">
+          <button type="button"
+                  *ngFor="let slot of scrambleAnswerSlots; let i = index"
+                  class="scramble-slot"
+                  [class.filled]="slot !== null"
+                  [disabled]="slot === null"
+                  (click)="slot && deselectScrambleTile(slot)"
+                  [attr.aria-label]="slot ? 'Remove letter ' + slot.letter : 'Empty letter slot'">
+            <span class="slot-letter">{{ slot ? slot.letter : '' }}</span>
+          </button>
+        </div>
+
+        <button *ngIf="selectedScrambleTiles.length > 0"
+                type="button"
+                mat-icon-button
+                class="scramble-backspace-btn"
+                (click)="backspaceScramble()"
+                aria-label="Backspace">
+          <mat-icon>backspace</mat-icon>
+        </button>
+      </div>
+
+      <div class="scramble-pool">
+        <button type="button"
+                mat-raised-button
+                *ngFor="let tile of scrambleTiles; trackBy: trackByTileId"
+                class="scramble-tile"
+                [class.used]="isTileSelected(tile)"
+                [disabled]="isTileSelected(tile)"
+                (click)="selectScrambleTile(tile)"
+                [attr.aria-label]="'Letter tile ' + tile.letter">
+          {{ tile.letter }}
+        </button>
+      </div>
+
+      <div class="action-buttons">
+        <button mat-fab extended color="primary" class="check-btn" (click)="submitScramble()"
+          [disabled]="selectedScrambleTiles.length === 0">
           <mat-icon>check</mat-icon>
           Check
         </button>

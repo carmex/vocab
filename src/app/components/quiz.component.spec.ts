@@ -160,6 +160,15 @@ describe('QuizComponent (Manual Instantiation)', () => {
             expect(mockSpeechService.prefetchAudio).toHaveBeenCalled();
         });
 
+        it('should preload audio for Sight Word Scramble mode', () => {
+            component.isMathQuiz = false;
+            component.isSightWordQuiz = true;
+            component.startWithMode('scramble');
+
+            expect(component.shouldPreloadAudio).toBe(true);
+            expect(mockSpeechService.prefetchAudio).toHaveBeenCalled();
+        });
+
         it('should NOT preload audio for other list types (e.g. Word/Def)', () => {
             component.isMathQuiz = false;
             component.isSightWordQuiz = false; // Implies other type
@@ -311,6 +320,239 @@ describe('QuizComponent (Manual Instantiation)', () => {
         it('should trigger playWord in displayNextQuestion if autoPlayEnabled is true', () => {
             jest.useFakeTimers();
             component.autoPlayEnabled = true;
+
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 'w2', word: 'banana', imageUrl: '', type: 'sight_word', definition: '' },
+                options: [],
+                correctAnswer: 'banana'
+            });
+
+            component.onNext();
+
+            // Should be playing *immediately*
+            expect(component.isPlaying).toBe(true);
+
+            jest.advanceTimersByTime(500);
+
+            expect(mockSpeechService.speak).toHaveBeenCalledWith('banana', 'en');
+            jest.useRealTimers();
+        });
+    });
+
+    describe('Scramble Mode Logic', () => {
+        beforeEach(() => {
+            component.currentQuestion = {
+                wordToQuiz: { id: 'w1', word: 'apple', imageUrl: '', type: 'sight_word', definition: '' },
+                options: [],
+                correctAnswer: 'apple'
+            };
+            component.quizStarted = true;
+            component.isSightWordQuiz = true;
+            component.interactionMode = 'scramble';
+            component.activeMode = 'scramble';
+            component.setupScrambleWord();
+        });
+
+        it('should switch mode correctly and enable auto-play', () => {
+            component.startWithMode('scramble');
+            expect(component.interactionMode).toBe('scramble');
+            expect(component.activeMode).toBe('scramble');
+            expect(component.autoPlayEnabled).toBe(true);
+        });
+
+        it('should generate scrambled letter tiles for the question', () => {
+            expect(component.scrambleTiles.length).toBe(5);
+            const letters = component.scrambleTiles.map(t => t.letter).sort();
+            expect(letters).toEqual(['a', 'e', 'l', 'p', 'p']);
+            expect(component.selectedScrambleTiles).toEqual([]);
+        });
+
+        it('should ensure tiles are not in original order when possible', () => {
+            // For a multi-letter word with distinct letters, scrambled tiles shouldn't spell the word identically
+            const spelled = component.scrambleTiles.map(t => t.letter).join('');
+            expect(spelled).not.toBe('apple');
+        });
+
+        it('should select an available tile and update selectedScrambleTiles', () => {
+            const tile = component.scrambleTiles[0];
+            component.selectScrambleTile(tile);
+
+            expect(component.selectedScrambleTiles).toContain(tile);
+            expect(component.isTileSelected(tile)).toBe(true);
+        });
+
+        it('should not select a tile that is already selected', () => {
+            const tile = component.scrambleTiles[0];
+            component.selectScrambleTile(tile);
+            component.selectScrambleTile(tile);
+
+            expect(component.selectedScrambleTiles.length).toBe(1);
+        });
+
+        it('should deselect a tile from selectedScrambleTiles', () => {
+            const tile1 = component.scrambleTiles[0];
+            const tile2 = component.scrambleTiles[1];
+            component.selectScrambleTile(tile1);
+            component.selectScrambleTile(tile2);
+
+            component.deselectScrambleTile(tile1);
+
+            expect(component.selectedScrambleTiles).toEqual([tile2]);
+            expect(component.isTileSelected(tile1)).toBe(false);
+            expect(component.isTileSelected(tile2)).toBe(true);
+        });
+
+        it('should backspace the last selected tile', () => {
+            const tile1 = component.scrambleTiles[0];
+            const tile2 = component.scrambleTiles[1];
+            component.selectScrambleTile(tile1);
+            component.selectScrambleTile(tile2);
+
+            component.backspaceScramble();
+
+            expect(component.selectedScrambleTiles).toEqual([tile1]);
+            expect(component.isTileSelected(tile2)).toBe(false);
+        });
+
+        it('should clear all selected tiles', () => {
+            component.scrambleTiles.forEach(t => component.selectScrambleTile(t));
+            expect(component.selectedScrambleTiles.length).toBe(5);
+
+            component.clearScramble();
+
+            expect(component.selectedScrambleTiles.length).toBe(0);
+            component.scrambleTiles.forEach(t => {
+                expect(component.isTileSelected(t)).toBe(false);
+            });
+        });
+
+        it('should return answer slots properly via getter scrambleAnswerSlots', () => {
+            expect(component.scrambleAnswerSlots.length).toBe(5);
+            expect(component.scrambleAnswerSlots.every(s => s === null)).toBe(true);
+
+            const tile = component.scrambleTiles[0];
+            component.selectScrambleTile(tile);
+
+            expect(component.scrambleAnswerSlots[0]).toBe(tile);
+            expect(component.scrambleAnswerSlots[1]).toBeNull();
+        });
+
+        it('should submit correct scrambled word as correct', () => {
+            // Find tiles to spell 'apple' in exact order
+            const targetLetters = ['a', 'p', 'p', 'l', 'e'];
+            const usedIndices = new Set<number>();
+            for (const ch of targetLetters) {
+                const idx = component.scrambleTiles.findIndex((t, i) => t.letter === ch && !usedIndices.has(i));
+                usedIndices.add(idx);
+                component.selectScrambleTile(component.scrambleTiles[idx]);
+            }
+
+            component.submitScramble();
+
+            expect(component.isCorrect).toBe(true);
+            expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('w1', true, 'apple');
+            expect(component.feedbackVisible).toBe(true);
+            expect(component.selectedAnswer).toBe('apple');
+        });
+
+        it('should submit correct scrambled word case-insensitively and accent-insensitively', () => {
+            component.currentQuestion!.correctAnswer = 'Café';
+            (component as any).setupScrambleWord();
+
+            // Select all tiles in order of café
+            const targetLetters = ['c', 'a', 'f', 'e'];
+            const usedIndices = new Set<number>();
+            for (const ch of targetLetters) {
+                const idx = component.scrambleTiles.findIndex((t, i) =>
+                    t.letter.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === ch && !usedIndices.has(i)
+                );
+                usedIndices.add(idx);
+                component.selectScrambleTile(component.scrambleTiles[idx]);
+            }
+
+            component.submitScramble();
+
+            expect(component.isCorrect).toBe(true);
+            expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('w1', true, 'apple');
+        });
+
+        it('should submit incorrect scrambled word as incorrect', () => {
+            // Select all tiles in reverse/incorrect order
+            const targetLetters = ['e', 'l', 'p', 'p', 'a'];
+            const usedIndices = new Set<number>();
+            for (const ch of targetLetters) {
+                const idx = component.scrambleTiles.findIndex((t, i) => t.letter === ch && !usedIndices.has(i));
+                usedIndices.add(idx);
+                component.selectScrambleTile(component.scrambleTiles[idx]);
+            }
+
+            component.submitScramble();
+
+            expect(component.isCorrect).toBe(false);
+            expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('w1', false, 'apple');
+            expect(component.feedbackVisible).toBe(true);
+            expect(component.selectedAnswer).toBe('elppa');
+        });
+
+        it('should ignore submit when no tiles are selected', () => {
+            component.submitScramble();
+
+            expect(mockQuizService.submitAnswer).not.toHaveBeenCalled();
+            expect(component.feedbackVisible).toBe(false);
+        });
+
+        it('should ignore submit or selection when feedback is already visible', () => {
+            component.feedbackVisible = true;
+            const tile = component.scrambleTiles[0];
+
+            component.selectScrambleTile(tile);
+            expect(component.selectedScrambleTiles.length).toBe(0);
+
+            component.submitScramble();
+            expect(mockQuizService.submitAnswer).not.toHaveBeenCalled();
+        });
+
+        it('should handle keyboard events in scramble mode', () => {
+            // Type 'a'
+            const eventA = new KeyboardEvent('keydown', { key: 'a' });
+            component.handleKeydown(eventA);
+            expect(component.selectedScrambleTiles.length).toBe(1);
+            expect(component.selectedScrambleTiles[0].letter).toBe('a');
+
+            // Backspace
+            const eventBs = new KeyboardEvent('keydown', { key: 'Backspace' });
+            component.handleKeydown(eventBs);
+            expect(component.selectedScrambleTiles.length).toBe(0);
+
+            // Escape clears
+            component.selectScrambleTile(component.scrambleTiles[0]);
+            const eventEsc = new KeyboardEvent('keydown', { key: 'Escape' });
+            component.handleKeydown(eventEsc);
+            expect(component.selectedScrambleTiles.length).toBe(0);
+
+            // Enter submits
+            component.selectScrambleTile(component.scrambleTiles[0]);
+            const eventEnter = new KeyboardEvent('keydown', { key: 'Enter' });
+            component.handleKeydown(eventEnter);
+            expect(component.feedbackVisible).toBe(true);
+        });
+    });
+
+    describe('Auto-Play Logic in Scramble Mode', () => {
+        beforeEach(() => {
+            component.activeMode = 'scramble';
+            component.isSightWordQuiz = true;
+            component.quizStarted = true;
+            component.currentQuestion = {
+                wordToQuiz: { id: 'w1', word: 'apple', imageUrl: '', type: 'sight_word', definition: '' },
+                options: [],
+                correctAnswer: 'apple'
+            };
+            component.autoPlayEnabled = true;
+        });
+
+        it('should trigger playWord in displayNextQuestion if autoPlayEnabled is true', () => {
+            jest.useFakeTimers();
 
             mockQuizService.getNextQuestion.mockReturnValue({
                 wordToQuiz: { id: 'w2', word: 'banana', imageUrl: '', type: 'sight_word', definition: '' },
@@ -621,6 +863,20 @@ describe('QuizComponent (Manual Instantiation)', () => {
             component.startWithMode('spell');
 
             expect(component.interactionMode).toBe('spell');
+            expect(component.delayingAnswers).toBe(false);
+        });
+
+        it('should NOT start delay timer for sight words in scramble mode', () => {
+            component.isSightWordQuiz = true;
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 'sw1', word: 'cat', imageUrl: '', type: 'sight_word', definition: 'cat' },
+                options: [],
+                correctAnswer: 'cat'
+            });
+
+            component.startWithMode('scramble');
+
+            expect(component.interactionMode).toBe('scramble');
             expect(component.delayingAnswers).toBe(false);
         });
 
