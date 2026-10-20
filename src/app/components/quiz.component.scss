@@ -706,3 +706,156 @@
     color: #bbb !important;
   }
 }
+
+// Scramble Interface Styles
+.scramble-interface {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: 10px auto;
+  width: 100%;
+  max-width: 440px;
+
+  .scramble-answer-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 64px;
+
+    .scramble-slots {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .scramble-slot {
+      width: 48px;
+      height: 56px;
+      border-radius: 12px;
+      border: 2px dashed #bbb;
+      background: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+
+      .slot-letter {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1a237e;
+        line-height: 1;
+        text-transform: lowercase;
+      }
+
+      &.filled {
+        border: 2px solid #3f51b5;
+        background: #fff;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(63, 81, 181, 0.15);
+
+        &:hover {
+          border-color: #f44336;
+          background: #ffebee;
+
+          .slot-letter {
+            color: #d32f2f;
+          }
+        }
+
+        &:active {
+          transform: scale(0.95);
+        }
+      }
+    }
+
+    .scramble-backspace-btn {
+      color: #777;
+
+      &:hover {
+        color: #d32f2f;
+      }
+    }
+  }
+
+  .scramble-pool {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin: 8px 0 16px;
+
+    .scramble-tile {
+      min-width: 48px;
+      height: 56px;
+      padding: 0 14px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      border-radius: 12px;
+      background-color: #fff;
+      color: #1a237e;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+      text-transform: lowercase;
+
+      &:hover:not([disabled]) {
+        transform: translateY(-2px);
+      }
+
+      &:active:not([disabled]) {
+        transform: scale(0.95);
+      }
+
+      &.used,
+      &[disabled] {
+        opacity: 0.2;
+        box-shadow: none;
+      }
+    }
+  }
+}
+
+:host-context(body.dark-mode) {
+  .scramble-slot {
+    background: #252525;
+    border-color: #555;
+
+    .slot-letter {
+      color: #9fa8da;
+    }
+
+    &.filled {
+      border-color: #7986cb;
+      background: #2d2d2d;
+
+      &:hover {
+        border-color: #ef5350;
+        background: #3e2723;
+
+        .slot-letter {
+          color: #ef5350;
+        }
+      }
+    }
+  }
+
+  .scramble-backspace-btn {
+    color: #aaa;
+
+    &:hover {
+      color: #ef5350;
+    }
+  }
+
+  .scramble-tile {
+    background-color: #333;
+    color: #e8eaf6;
+
+    &.used,
+    &[disabled] {
+      background-color: #222;
+      opacity: 0.15;
+    }
+  }
+}

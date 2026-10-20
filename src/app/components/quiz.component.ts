@@ -23,6 +23,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
+export interface ScrambleTile {
+  id: number;
+  letter: string;
+}
+
 @Component({
   selector: 'app-quiz',
   standalone: true,
@@ -45,12 +50,14 @@ export class QuizComponent implements OnInit, OnDestroy {
   isProcessing = false;
   isPreparing = false; // New state for initial delay
   isPlaying = false; // Audio playback state
-  interactionMode: 'multiple-choice' | 'speak' | 'spell' | 'keypad' = 'multiple-choice';
-  activeMode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | 'keypad' | null = null;
+  interactionMode: 'multiple-choice' | 'speak' | 'spell' | 'keypad' | 'scramble' = 'multiple-choice';
+  activeMode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | 'keypad' | 'scramble' | null = null;
   recognizedText = '';
   recognizedAlternatives: string[] = []
   spellingInput = ''; // For Spell Mode
   keypadInput = ''; // For Keypad Mode
+  scrambleTiles: ScrambleTile[] = []; // For Scramble Mode
+  selectedScrambleTiles: ScrambleTile[] = []; // For Scramble Mode
   speechSupported = false;
   autoRecordEnabled = false; // Auto-record after first Record press
   autoPlayEnabled = false; // Auto-play after first Play press
@@ -160,13 +167,13 @@ export class QuizComponent implements OnInit, OnDestroy {
 
   get shouldPreloadAudio(): boolean {
     if (this.isSightWordQuiz) {
-      return this.activeMode === 'listen' || this.activeMode === 'spell';
+      return this.activeMode === 'listen' || this.activeMode === 'spell' || this.activeMode === 'scramble';
     }
     if (this.isSentencesQuiz) return true;
     return false; // Default for all other types (Math, Word/Def, Image/Def)
   }
 
-  startWithMode(mode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | 'keypad') {
+  startWithMode(mode: 'multiple-choice' | 'speak' | 'read' | 'listen' | 'spell' | 'keypad' | 'scramble') {
     this.activeMode = mode;
 
     // Map Sight Words "Read" -> Speak Mode, "Listen" -> Multiple Choice Mode
@@ -178,6 +185,9 @@ export class QuizComponent implements OnInit, OnDestroy {
       this.interactionMode = 'spell';
     } else if (mode === 'keypad') {
       this.interactionMode = 'keypad';
+    } else if (mode === 'scramble') {
+      this.interactionMode = 'scramble';
+      this.autoPlayEnabled = true;
     } else {
       this.interactionMode = mode as 'multiple-choice' | 'speak';
     }
@@ -407,6 +417,8 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.recognizedText = '';
     this.spellingInput = '';
     this.keypadInput = '';
+    this.scrambleTiles = [];
+    this.selectedScrambleTiles = [];
 
     this.currentQuestion = this.quizService.getNextQuestion();
 
@@ -441,10 +453,14 @@ export class QuizComponent implements OnInit, OnDestroy {
       this.startAutoRecording();
     }
 
-    // Auto-play for listen or spell mode
-    if ((this.activeMode === 'listen' || this.activeMode === 'spell') && this.autoPlayEnabled && this.currentQuestion) {
+    // Auto-play for listen, spell, or scramble mode
+    if ((this.activeMode === 'listen' || this.activeMode === 'spell' || this.activeMode === 'scramble') && this.autoPlayEnabled && this.currentQuestion) {
       this.isPlaying = true; // Show "Pause/Stop" immediately during delay
       setTimeout(() => this.playWord(), 500);
+    }
+
+    if (this.interactionMode === 'scramble' && this.currentQuestion) {
+      this.setupScrambleWord();
     }
 
     // Populate sentence words for clickable display
@@ -878,27 +894,162 @@ export class QuizComponent implements OnInit, OnDestroy {
     }
   }
 
-  @HostListener('window:keydown', ['$event'])
-  handleKeydown(event: KeyboardEvent): void {
-    if (this.interactionMode !== 'keypad' || !this.quizStarted || this.feedbackVisible) {
+  // Scramble Mode Methods
+  setupScrambleWord(): void {
+    this.selectedScrambleTiles = [];
+    const target = (this.currentQuestion?.correctAnswer || this.currentQuestion?.wordToQuiz?.word || '').trim();
+    if (!target) {
+      this.scrambleTiles = [];
       return;
     }
 
-    if (event.key >= '0' && event.key <= '9') {
-      event.preventDefault();
-      this.appendKeypad(event.key);
-    } else if (event.key === 'Backspace') {
-      event.preventDefault();
-      this.backspaceKeypad();
-    } else if (event.key === 'Enter') {
-      event.preventDefault();
-      this.submitKeypad();
-    } else if (event.key === '-' || event.key === 'Minus') {
-      event.preventDefault();
-      this.toggleNegative();
-    } else if (event.key === 'Escape' || event.key === 'c' || event.key === 'C') {
-      event.preventDefault();
-      this.clearKeypad();
+    const chars = target.split('');
+    const tiles: ScrambleTile[] = chars.map((char, index) => ({
+      id: index,
+      letter: char
+    }));
+
+    if (tiles.length > 1) {
+      const distinct = new Set(chars.map(c => c.toLowerCase())).size > 1;
+      let shuffled = this.shuffleTiles(tiles);
+      let attempts = 0;
+      while (distinct && shuffled.map(t => t.letter).join('').toLowerCase() === target.toLowerCase() && attempts < 10) {
+        shuffled = this.shuffleTiles(tiles);
+        attempts++;
+      }
+      if (distinct && shuffled.map(t => t.letter).join('').toLowerCase() === target.toLowerCase()) {
+        for (let i = 0; i < shuffled.length - 1; i++) {
+          if (shuffled[i].letter.toLowerCase() !== shuffled[i + 1].letter.toLowerCase()) {
+            [shuffled[i], shuffled[i + 1]] = [shuffled[i + 1], shuffled[i]];
+            break;
+          }
+        }
+      }
+      this.scrambleTiles = shuffled;
+    } else {
+      this.scrambleTiles = tiles;
+    }
+  }
+
+  private shuffleTiles(tiles: ScrambleTile[]): ScrambleTile[] {
+    const arr = [...tiles];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  get scrambleAnswerSlots(): (ScrambleTile | null)[] {
+    const total = this.scrambleTiles.length;
+    const slots: (ScrambleTile | null)[] = [];
+    for (let i = 0; i < total; i++) {
+      slots.push(this.selectedScrambleTiles[i] || null);
+    }
+    return slots;
+  }
+
+  isTileSelected(tile: ScrambleTile): boolean {
+    return this.selectedScrambleTiles.some(t => t.id === tile.id);
+  }
+
+  selectScrambleTile(tile: ScrambleTile): void {
+    if (this.feedbackVisible || this.isTileSelected(tile)) return;
+    this.selectedScrambleTiles.push(tile);
+  }
+
+  deselectScrambleTile(tile: ScrambleTile): void {
+    if (this.feedbackVisible) return;
+    this.selectedScrambleTiles = this.selectedScrambleTiles.filter(t => t.id !== tile.id);
+  }
+
+  backspaceScramble(): void {
+    if (this.feedbackVisible || this.selectedScrambleTiles.length === 0) return;
+    this.selectedScrambleTiles.pop();
+  }
+
+  clearScramble(): void {
+    if (this.feedbackVisible) return;
+    this.selectedScrambleTiles = [];
+  }
+
+  trackByTileId(index: number, tile: ScrambleTile): number {
+    return tile.id;
+  }
+
+  submitScramble(): void {
+    if (this.feedbackVisible || !this.currentQuestion) return;
+    const userAnswer = this.selectedScrambleTiles.map(t => t.letter).join('').trim();
+    if (!userAnswer) return;
+
+    this.feedbackVisible = true;
+    this.selectedAnswer = userAnswer;
+    this.recognizedText = userAnswer;
+
+    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    this.isCorrect = normalize(userAnswer) === normalize(this.currentQuestion.correctAnswer);
+
+    if (this.currentQuestion.wordToQuiz.id) {
+      this.quizService.submitAnswer(
+        this.currentQuestion.wordToQuiz.id,
+        this.isCorrect,
+        this.currentQuestion.wordToQuiz.word
+      );
+    }
+    this.updateProgress();
+
+    const settings = this.settingsService.getSettings();
+    if (settings.autoAdvance) {
+      this.totalTime = this.isCorrect ? settings.correctAnswerTimer * 1000 : settings.incorrectAnswerTimer * 1000;
+      this.remainingTime = this.totalTime;
+      this.startTimer();
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeydown(event: KeyboardEvent): void {
+    if (!this.quizStarted || this.feedbackVisible) {
+      return;
+    }
+
+    if (this.interactionMode === 'keypad') {
+      if (event.key >= '0' && event.key <= '9') {
+        event.preventDefault();
+        this.appendKeypad(event.key);
+      } else if (event.key === 'Backspace') {
+        event.preventDefault();
+        this.backspaceKeypad();
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        this.submitKeypad();
+      } else if (event.key === '-' || event.key === 'Minus') {
+        event.preventDefault();
+        this.toggleNegative();
+      } else if (event.key === 'Escape' || event.key === 'c' || event.key === 'C') {
+        event.preventDefault();
+        this.clearKeypad();
+      }
+    } else if (this.interactionMode === 'scramble') {
+      if (event.key === 'Backspace') {
+        event.preventDefault();
+        this.backspaceScramble();
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        this.submitScramble();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        this.clearScramble();
+      } else if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+        const normalizeChar = (c: string) => c.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const targetKey = normalizeChar(event.key);
+        const matchingTile = this.scrambleTiles.find(t =>
+          !this.isTileSelected(t) && normalizeChar(t.letter) === targetKey
+        );
+        if (matchingTile) {
+          event.preventDefault();
+          this.selectScrambleTile(matchingTile);
+        }
+      }
     }
   }
 
