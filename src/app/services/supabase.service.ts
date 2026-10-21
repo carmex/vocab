@@ -22,7 +22,10 @@ export class SupabaseService {
             auth: {
                 persistSession: true,
                 autoRefreshToken: true,
-                detectSessionInUrl: true
+                detectSessionInUrl: false,
+                lock: async <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>): Promise<R> => {
+                    return await fn();
+                }
             }
         });
     }

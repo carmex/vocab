@@ -23,31 +23,40 @@ import { AuthService } from '../../services/auth.service';
           <mat-icon>settings</mat-icon>
         </button>
         
-        <div class="profile-icon" [matMenuTriggerFor]="profileMenu">
+        <button type="button"
+                class="profile-icon"
+                [matMenuTriggerFor]="profileMenu"
+                (click)="$event.stopPropagation()"
+                aria-label="Profile menu">
           <img *ngIf="avatarUrl" [src]="avatarUrl" alt="Profile" class="avatar-img">
           <span *ngIf="!avatarUrl">{{ initials }}</span>
-        </div>
+        </button>
         
         <mat-menu #profileMenu="matMenu">
-          <ng-container *ngIf="auth.user$ | async as user">
-            <button mat-menu-item disabled *ngIf="!user.is_anonymous">
-              <span>{{ user.email }}</span>
-            </button>
+          <ng-template matMenuContent>
+            <ng-container *ngIf="(auth.user$ | async) as user; else anonMenu">
+              <ng-container *ngIf="!user.is_anonymous && user.email; else anonMenu">
+                <button mat-menu-item disabled>
+                  <span>{{ user.email }}</span>
+                </button>
+                <button mat-menu-item (click)="auth.signOut()">
+                  <mat-icon>logout</mat-icon>
+                  <span>Logout</span>
+                </button>
+              </ng-container>
+            </ng-container>
 
-            <button mat-menu-item routerLink="/login" *ngIf="user.is_anonymous">
-              <mat-icon>login</mat-icon>
-              <span>Login</span>
-            </button>
-            <button mat-menu-item routerLink="/signup" *ngIf="user.is_anonymous">
-              <mat-icon>person_add</mat-icon>
-              <span>Sign Up</span>
-            </button>
-
-            <button mat-menu-item (click)="auth.signOut()" *ngIf="!user.is_anonymous">
-              <mat-icon>logout</mat-icon>
-              <span>Logout</span>
-            </button>
-          </ng-container>
+            <ng-template #anonMenu>
+              <button mat-menu-item routerLink="/login">
+                <mat-icon>login</mat-icon>
+                <span>Login</span>
+              </button>
+              <button mat-menu-item routerLink="/signup">
+                <mat-icon>person_add</mat-icon>
+                <span>Sign Up</span>
+              </button>
+            </ng-template>
+          </ng-template>
         </mat-menu>
       </div>
     </div>
@@ -93,6 +102,13 @@ import { AuthService } from '../../services/auth.service';
       user-select: none;
       transition: transform 0.2s;
       overflow: hidden;
+      border: none;
+      padding: 0;
+      margin: 0;
+      outline: none;
+      font-family: inherit;
+      line-height: normal;
+      box-sizing: border-box;
 
       &:hover {
         transform: scale(1.1);

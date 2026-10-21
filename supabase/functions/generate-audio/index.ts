@@ -61,7 +61,13 @@ serve(async (req) => {
         }
 
         if (cacheHit) {
-            console.log(`Cache hit for ${word} (${language})`)
+            console.log(`Cache hit for ${word} (${language})`);
+            await supabaseAdmin
+                .from('audio_generation_queue')
+                .update({ status: 'completed', updated_at: new Date().toISOString() })
+                .eq('word', trimmedWord)
+                .eq('language', language);
+
             return new Response(
                 JSON.stringify({ url: existingData.publicUrl }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -118,6 +124,7 @@ serve(async (req) => {
 
         const ttsResponse = await fetch(ttsUrl, {
             method: 'POST',
+            signal: AbortSignal.timeout(15000),
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
@@ -177,7 +184,14 @@ serve(async (req) => {
             throw new Error(`Storage upload error: ${uploadError.message}`)
         }
 
-        // 7. Return URL
+        // 7. Update queue
+        await supabaseAdmin
+            .from('audio_generation_queue')
+            .update({ status: 'completed', updated_at: new Date().toISOString() })
+            .eq('word', trimmedWord)
+            .eq('language', language);
+
+        // 8. Return URL
         const { data: publicUrlData } = supabaseAdmin
             .storage
             .from('quiz-audio')

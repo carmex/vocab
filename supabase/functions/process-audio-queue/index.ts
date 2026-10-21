@@ -22,6 +22,61 @@ serve(async (req) => {
 
         console.log('[Queue] Starting audio processing...');
 
+        // 0. Auto-recover stuck processing items (older than 2 minutes)
+        const staleThreshold = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+        const { data: stuckItems } = await supabaseAdmin
+            .from('audio_generation_queue')
+            .select('*')
+            .eq('status', 'processing')
+            .lt('updated_at', staleThreshold);
+
+        if (stuckItems && stuckItems.length > 0) {
+            console.log(`[Queue] Found ${stuckItems.length} stuck processing items. Reconciling...`);
+            for (const item of stuckItems) {
+                const trimmedWord = item.word.toLowerCase().trim();
+                const encoder = new TextEncoder();
+                const data = encoder.encode(trimmedWord);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const wordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                const filename = `audio/${item.language}-${wordHash}.wav`;
+
+                const { data: existingData } = await supabaseAdmin
+                    .storage
+                    .from('quiz-audio')
+                    .getPublicUrl(filename);
+
+                let exists = false;
+                if (existingData?.publicUrl) {
+                    try {
+                        const check = await fetch(existingData.publicUrl, { method: 'HEAD' });
+                        if (check.ok) exists = true;
+                    } catch {}
+                }
+
+                if (exists) {
+                    console.log(`[Queue] Stuck item "${item.word}" exists in storage. Marking completed.`);
+                    await supabaseAdmin
+                        .from('audio_generation_queue')
+                        .update({ status: 'completed', updated_at: new Date().toISOString() })
+                        .eq('id', item.id);
+                } else {
+                    const attempts = (item.attempts || 0) + 1;
+                    const newStatus = attempts >= 3 ? 'failed' : 'pending';
+                    console.log(`[Queue] Stuck item "${item.word}" not in storage. Setting to ${newStatus} (attempt ${attempts}).`);
+                    await supabaseAdmin
+                        .from('audio_generation_queue')
+                        .update({ 
+                            status: newStatus, 
+                            attempts: attempts,
+                            error_message: 'Timed out during previous processing',
+                            updated_at: new Date().toISOString() 
+                        })
+                        .eq('id', item.id);
+                }
+            }
+        }
+
         // 1. Fetch pending items
         // Use LIMIT to process a batch (e.g., 5 items per run to keep duration short)
         // We will loop through them.
@@ -124,6 +179,7 @@ serve(async (req) => {
 
                 const ttsResponse = await fetch(ttsUrl, {
                     method: 'POST',
+                    signal: AbortSignal.timeout(15000),
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`,

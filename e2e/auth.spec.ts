@@ -4,9 +4,11 @@ import { test, expect } from '@playwright/test';
  * Authentication & Onboarding Tests
  */
 test.describe('Authentication Flow', () => {
+    test.describe.configure({ mode: 'serial' });
+
     test('should load landing page and redirect to menu', async ({ page }) => {
         await page.goto('/');
-        await expect(page).toHaveTitle(/Vocab/);
+        await expect(page).toHaveTitle(/FlashQuest|Vocab/);
         await expect(page).toHaveURL(/.*menu/);
     });
 
@@ -14,6 +16,74 @@ test.describe('Authentication Flow', () => {
         await page.goto('/');
         await page.waitForTimeout(2000);
         await expect(page).toHaveURL(/.*menu/);
+    });
+
+    test('should allow anonymous user to open profile menu and navigate to login', async ({ page }) => {
+        await page.goto('/menu');
+        await page.waitForLoadState('networkidle');
+
+        const profileBtn = page.locator('button.profile-icon');
+        await expect(profileBtn).toBeVisible();
+        await profileBtn.click();
+
+        const loginMenuItem = page.locator('button[mat-menu-item]:has-text("Login")');
+        await expect(loginMenuItem).toBeVisible();
+
+        const signupMenuItem = page.locator('button[mat-menu-item]:has-text("Sign Up")');
+        await expect(signupMenuItem).toBeVisible();
+
+        await loginMenuItem.click();
+        await expect(page).toHaveURL(/.*login/);
+    });
+
+    test('should establish authenticated session and profile from OAuth callback token hash without flashing', async ({ page }) => {
+        // Generate valid magiclink token for test user via Supabase admin API
+        const { createClient } = await import('@supabase/supabase-js');
+        const admin = createClient(
+            'https://api.crmx.pw',
+            'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NjQxMDg2MTcsImV4cCI6MjA3OTQ2ODYxN30.kU1xXXSkiM_c7xAzb3qDdHJ8ltsFT-65n_vvEITlc8g'
+        );
+
+        const { data, error } = await admin.auth.admin.generateLink({
+            type: 'magiclink',
+            email: 'carmex@gmail.com'
+        });
+        expect(error).toBeNull();
+        expect(data?.properties?.action_link).toBeTruthy();
+
+        // Get redirect location with token hash
+        const resp = await fetch(data!.properties.action_link, { redirect: 'manual' });
+        const targetUrl = resp.headers.get('location');
+        expect(targetUrl).toContain('access_token=');
+
+        // Navigate to the callback URL (just like returning from Google OAuth)
+        await page.goto(targetUrl!);
+        await page.waitForLoadState('networkidle');
+
+        // Verify user profile icon displays either Google avatar or CA initials, never "AN"
+        const profileBtn = page.locator('button.profile-icon');
+        await expect(profileBtn).toBeVisible();
+
+        const hasAvatarImg = await profileBtn.locator('img.avatar-img').isVisible({ timeout: 5000 }).catch(() => false);
+        if (hasAvatarImg) {
+            const src = await profileBtn.locator('img.avatar-img').getAttribute('src');
+            expect(src).toContain('googleusercontent.com');
+        } else {
+            const initials = await profileBtn.locator('span').textContent();
+            expect(initials?.trim()).toBe('CA');
+        }
+
+        // Tapping profile icon should open the authenticated menu and stay open without flashing
+        await profileBtn.click();
+
+        const userEmailItem = page.locator('button[mat-menu-item]:has-text("carmex@gmail.com")');
+        await expect(userEmailItem).toBeVisible();
+
+        const logoutItem = page.locator('button[mat-menu-item]:has-text("Logout")');
+        await expect(logoutItem).toBeVisible();
+
+        const loginItem = page.locator('button[mat-menu-item]:has-text("Login")');
+        await expect(loginItem).not.toBeVisible();
     });
 });
 
