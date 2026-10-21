@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Optional } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { SwUpdate } from '@angular/service-worker';
 import { SettingsService } from './services/settings.service';
 import { AuthService } from './services/auth.service';
 import { RoleSelectionModalComponent } from './components/role-selection-modal/role-selection-modal.component';
@@ -21,12 +22,27 @@ export class AppComponent implements OnInit {
     private authService: AuthService,
     private dialog: MatDialog,
     private supabase: SupabaseService,
-    private speechService: SpeechService
+    private speechService: SpeechService,
+    @Optional() private swUpdate?: SwUpdate
   ) { }
 
   ngOnInit() {
+    this.checkForUpdates();
     this.settingsService.loadSettings();
     this.checkUserRole();
+  }
+
+  private checkForUpdates() {
+    if (this.swUpdate?.isEnabled) {
+      this.swUpdate.versionUpdates.subscribe(evt => {
+        if (evt.type === 'VERSION_READY') {
+          this.swUpdate?.activateUpdate().then(() => {
+            window.location.reload();
+          });
+        }
+      });
+      this.swUpdate.checkForUpdate().catch(() => {});
+    }
   }
 
   private checkUserRole() {

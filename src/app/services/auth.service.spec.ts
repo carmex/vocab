@@ -23,6 +23,7 @@ const mockSupabaseClient = {
     select: jest.fn().mockReturnThis(),
     eq: jest.fn().mockReturnThis(),
     single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
     update: jest.fn().mockReturnThis()
 };
 
@@ -31,41 +32,137 @@ const mockSupabaseService = {
 };
 
 describe('AuthService', () => {
-    let service: AuthService;
-
     beforeEach(() => {
-        TestBed.configureTestingModule({
-            providers: [
-                AuthService,
-                { provide: SupabaseService, useValue: mockSupabaseService }
-            ]
+        jest.clearAllMocks();
+        sessionStorage.clear();
+        mockSupabaseClient.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+        mockSupabaseClient.auth.onAuthStateChange.mockImplementation((callback) => {
+            return { data: { subscription: { unsubscribe: jest.fn() } } };
         });
-        service = TestBed.inject(AuthService);
+        mockSupabaseClient.auth.signInAnonymously.mockResolvedValue({
+            data: { session: { user: { id: 'anon', is_anonymous: true } } },
+            error: null
+        });
     });
 
     afterEach(() => {
         jest.clearAllMocks();
+        sessionStorage.clear();
     });
 
+    function createService(): AuthService {
+        return new AuthService(mockSupabaseService as any);
+    }
+
     it('should be created', () => {
+        const service = createService();
         expect(service).toBeTruthy();
     });
 
-    it('should sign in anonymously on init if no session exists', async () => {
-        // Re-trigger init by calling private method or just waiting (since it's in constructor)
-        // Actually, constructor runs init(). We can verify mock calls.
-        // wait for async init to potentialy finish? It's not awaited in constructor.
-
-        // We can spy on signInAnonymously before providing? No, provider is already set.
-        // Let's just check if it was called.
-        // Ideally we would extract init logic or make it public for testing, but constructor calls it.
-
-        // Since init is async and not awaited in constructor, we might need a small delay or use fakeAsync (if feasible with jest-preset-angular)
-        // For now, let's just await a tick.
+    it('should sign in anonymously on init if no session exists and not OAuth callback', async () => {
+        createService();
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(mockSupabaseClient.auth.getSession).toHaveBeenCalled();
-        // Expect signInAnonymously to be called because we mocked getSession returning null
         expect(mockSupabaseClient.auth.signInAnonymously).toHaveBeenCalled();
+    });
+
+    it('should register onAuthStateChange listener even when handling implicit OAuth callback', async () => {
+        sessionStorage.setItem('supabase_oauth_hash', '#access_token=test-access-token&refresh_token=test-refresh-token');
+        mockSupabaseClient.auth.setSession.mockResolvedValueOnce({
+            data: { session: { user: { id: 'oauth-user', email: 'oauth@test.com' } } },
+            error: null
+        });
+
+        const oauthService = createService();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(mockSupabaseClient.auth.onAuthStateChange).toHaveBeenCalled();
+        expect(mockSupabaseClient.auth.setSession).toHaveBeenCalledWith({
+            access_token: 'test-access-token',
+            refresh_token: 'test-refresh-token'
+        });
+        expect(mockSupabaseClient.auth.signInAnonymously).not.toHaveBeenCalled();
+        expect(oauthService.currentUser?.email).toBe('oauth@test.com');
+    });
+
+    it('should register onAuthStateChange listener and handle PKCE OAuth callback', async () => {
+        sessionStorage.setItem('supabase_oauth_search', '?code=auth-code-123');
+        mockSupabaseClient.auth.exchangeCodeForSession.mockResolvedValueOnce({
+            data: { session: { user: { id: 'pkce-user', email: 'pkce@test.com' } } },
+            error: null
+        });
+
+        const oauthService = createService();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(mockSupabaseClient.auth.onAuthStateChange).toHaveBeenCalled();
+        expect(mockSupabaseClient.auth.exchangeCodeForSession).toHaveBeenCalledWith('auth-code-123');
+        expect(mockSupabaseClient.auth.signInAnonymously).not.toHaveBeenCalled();
+        expect(oauthService.currentUser?.email).toBe('pkce@test.com');
+    });
+
+    it('should retry setSession on lock timeout and not call signInAnonymously when OAuth is present', async () => {
+        sessionStorage.setItem('supabase_oauth_hash', '#access_token=token-lock&refresh_token=refresh-lock');
+        mockSupabaseClient.auth.setSession
+            .mockRejectedValueOnce(new Error('Acquiring an exclusive Navigator LockManager lock immediately failed'))
+            .mockResolvedValueOnce({
+                data: { session: { user: { id: 'recovered-user', email: 'recovered@test.com' } } },
+                error: null
+            });
+
+        const oauthService = createService();
+        // Wait enough for the retry timeout
+        await new Promise(resolve => setTimeout(resolve, 350));
+
+        expect(mockSupabaseClient.auth.signInAnonymously).not.toHaveBeenCalled();
+        expect(mockSupabaseClient.auth.setSession).toHaveBeenCalledTimes(2);
+        expect(oauthService.currentUser?.email).toBe('recovered@test.com');
+    });
+
+    it('should not call signInAnonymously if OAuth callback fails permanently', async () => {
+        sessionStorage.setItem('supabase_oauth_hash', '#access_token=bad-token&refresh_token=bad-refresh');
+        mockSupabaseClient.auth.setSession.mockResolvedValue({
+            data: { session: null },
+            error: { message: 'Invalid token' }
+        });
+
+        createService();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(mockSupabaseClient.auth.signInAnonymously).not.toHaveBeenCalled();
+    });
+
+    it('should not query profiles table when user is anonymous', async () => {
+        mockSupabaseClient.auth.getSession.mockResolvedValue({
+            data: { session: { user: { id: 'anon-123', is_anonymous: true } } },
+            error: null
+        });
+
+        const service = createService();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(service.currentUser?.id).toBe('anon-123');
+        expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('profiles');
+        expect(service.currentProfile).toBeNull();
+    });
+
+    it('should query profiles table with maybeSingle when user is authenticated', async () => {
+        mockSupabaseClient.auth.getSession.mockResolvedValue({
+            data: { session: { user: { id: 'auth-user', is_anonymous: false } } },
+            error: null
+        });
+        mockSupabaseClient.maybeSingle.mockResolvedValue({
+            data: { id: 'auth-user', role: 'teacher' },
+            error: null
+        });
+
+        const service = createService();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(service.currentUser?.id).toBe('auth-user');
+        expect(mockSupabaseClient.from).toHaveBeenCalledWith('profiles');
+        expect(mockSupabaseClient.maybeSingle).toHaveBeenCalled();
+        expect(service.currentProfile?.role).toBe('teacher');
     });
 });

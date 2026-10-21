@@ -17,6 +17,16 @@ export class AuthService {
     }
 
     private async init() {
+        // Always register auth state change listener to observe session changes, refreshes, and logouts
+        this.supabase.client.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_OUT') {
+                // If signed out, immediately sign back in anonymously
+                await this.signInAnonymously();
+            } else if (session) {
+                this.setUser(session);
+            }
+        });
+
         // Check if we're in the middle of an OAuth callback
         // First try URL params directly, then fall back to sessionStorage (preserved in main.ts before router stripped them)
         let urlHash = window.location.hash;
@@ -35,13 +45,13 @@ export class AuthService {
         }
 
         // Hash params (implicit flow) - tokens in URL hash
-        const hashParams = new URLSearchParams(urlHash.substring(1));
+        const hashParams = new URLSearchParams(urlHash.startsWith('#') ? urlHash.substring(1) : urlHash);
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const errorDescription = hashParams.get('error_description');
 
         // Query params (PKCE flow) - code in URL query string
-        const queryParams = new URLSearchParams(urlSearch);
+        const queryParams = new URLSearchParams(urlSearch.startsWith('?') ? urlSearch.substring(1) : urlSearch);
         const authCode = queryParams.get('code');
 
         // Log OAuth errors (keep this for production debugging)
@@ -49,64 +59,104 @@ export class AuthService {
             console.error('OAuth error:', errorDescription);
         }
 
+        const isOAuthCallback = !!(accessToken && refreshToken) || !!authCode;
+
         // Handle PKCE flow (auth code exchange)
         if (authCode) {
-            const { data, error } = await this.supabase.client.auth.exchangeCodeForSession(authCode);
+            try {
+                let { data, error } = await this.supabase.client.auth.exchangeCodeForSession(authCode);
 
-            if (error) {
-                console.error('OAuth code exchange error:', error.message);
-            }
+                if (error && error.message?.includes('Lock')) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    const retry = await this.supabase.client.auth.exchangeCodeForSession(authCode);
+                    data = retry.data;
+                    error = retry.error;
+                }
 
-            if (data.session) {
-                this.setUser(data.session);
-                window.history.replaceState(null, '', window.location.pathname);
-                return; // Exit early, we're done
+                if (error) {
+                    console.error('OAuth code exchange error:', error.message);
+                }
+
+                if (data?.session) {
+                    this.setUser(data.session);
+                    window.history.replaceState(null, '', window.location.pathname);
+                    return;
+                }
+            } catch (err: any) {
+                console.error('OAuth code exchange exception:', err);
             }
         }
 
         // Handle implicit flow (tokens directly in hash)
         if (accessToken && refreshToken) {
-            const { data, error } = await this.supabase.client.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
-            });
+            try {
+                let { data, error } = await this.supabase.client.auth.setSession({
+                    access_token: accessToken,
+                    refresh_token: refreshToken
+                });
 
-            if (error) {
-                console.error('OAuth session error:', error.message);
-            }
+                if (error && error.message?.includes('Lock')) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    const retry = await this.supabase.client.auth.setSession({
+                        access_token: accessToken,
+                        refresh_token: refreshToken
+                    });
+                    data = retry.data;
+                    error = retry.error;
+                }
 
-            if (data.session) {
-                this.setUser(data.session);
-                window.history.replaceState(null, '', window.location.pathname);
-                return; // Exit early, we're done
+                if (error) {
+                    console.error('OAuth session error:', error.message);
+                }
+
+                if (data?.session) {
+                    this.setUser(data.session);
+                    window.history.replaceState(null, '', window.location.pathname);
+                    return;
+                }
+            } catch (err: any) {
+                console.warn('OAuth setSession caught exception (retrying once):', err);
+                if (err?.message?.includes('Lock') || err?.isAcquireTimeout) {
+                    try {
+                        await new Promise(resolve => setTimeout(resolve, 300));
+                        const retry = await this.supabase.client.auth.setSession({
+                            access_token: accessToken,
+                            refresh_token: refreshToken
+                        });
+                        if (retry.data?.session) {
+                            this.setUser(retry.data.session);
+                            window.history.replaceState(null, '', window.location.pathname);
+                            return;
+                        }
+                    } catch (retryErr) {
+                        console.error('OAuth setSession retry failed:', retryErr);
+                    }
+                }
             }
         }
 
-        // No OAuth callback - check for existing session
-        const { data: { session } } = await this.supabase.client.auth.getSession();
+        // Check for existing session in storage
+        try {
+            const { data: { session } } = await this.supabase.client.auth.getSession();
+            if (session) {
+                this.setUser(session);
+                return;
+            }
+        } catch (err) {
+            console.error('Error fetching existing session:', err);
+        }
 
-        if (session) {
-            this.setUser(session);
-        } else {
-            // No session and not an OAuth callback, sign in anonymously
+        // No session and not an OAuth callback, sign in anonymously
+        if (!isOAuthCallback) {
             await this.signInAnonymously();
         }
-
-        this.supabase.client.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_OUT') {
-                // If signed out, immediately sign back in anonymously
-                await this.signInAnonymously();
-            } else {
-                this.setUser(session);
-            }
-        });
     }
 
     private setUser(session: AuthSession | null) {
         const user = session?.user ?? null;
         this._user.next(user);
 
-        if (user) {
+        if (user && !user.is_anonymous) {
             this.fetchProfile(user.id);
         } else {
             this._profile.next(null);
@@ -187,11 +237,16 @@ export class AuthService {
     }
 
     private async fetchProfile(userId: string) {
+        if (this._user.value?.is_anonymous) {
+            this._profile.next(null);
+            return;
+        }
+
         const { data, error } = await this.supabase.client
             .from('profiles')
             .select('*')
             .eq('id', userId)
-            .single();
+            .maybeSingle();
 
         if (error) {
             console.error('Error fetching profile:', error);

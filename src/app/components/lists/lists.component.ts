@@ -74,11 +74,11 @@ export class ListsComponent implements OnInit {
 
                                 let progress = 100;
                                 if (total > 0) {
-                                    progress = Math.floor(((completed + failed) / total) * 100);
+                                    progress = Math.min(100, Math.floor(((completed + failed) / total) * 100));
                                 }
 
-                                // State: 'generating' if pending > 0
-                                const isGenerating = pending > 0;
+                                // State: 'generating' only if pending > 0 and not all words are accounted for
+                                const isGenerating = pending > 0 && (completed + failed) < total;
 
                                 return {
                                     ...list,
@@ -90,6 +90,9 @@ export class ListsComponent implements OnInit {
                                     }
                                 };
                             });
+                        }).catch(err => {
+                            console.warn('Error fetching audio stats; showing lists without audio stats:', err);
+                            return lists;
                         });
                     })
                 )

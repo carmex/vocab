@@ -8,7 +8,7 @@ export default defineConfig({
     workers: process.env.CI ? 1 : undefined,
     reporter: 'html',
     use: {
-        baseURL: 'http://localhost:4200',
+        baseURL: process.env['PLAYWRIGHT_TEST_BASE_URL'] || 'http://localhost:4200',
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
     },
@@ -17,8 +17,12 @@ export default defineConfig({
             name: 'chromium',
             use: { ...devices['Desktop Chrome'] },
         },
+        {
+            name: 'mobile-chrome',
+            use: { ...devices['Pixel 5'] },
+        },
     ],
-    webServer: {
+    webServer: process.env['PLAYWRIGHT_TEST_BASE_URL'] ? undefined : {
         command: 'npm run start:test',
         url: 'http://localhost:4200',
         reuseExistingServer: !process.env.CI,

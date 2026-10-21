@@ -96,5 +96,10 @@ fi
 echo "Cleaning $WEB_DIR and copying new files..."
 sudo rm -rf "$WEB_DIR"/*
 sudo cp -r "$SOURCE_DIR"/* "$WEB_DIR"/
+if [ -f "$SOURCE_DIR/.htaccess" ]; then
+    sudo cp "$SOURCE_DIR/.htaccess" "$WEB_DIR/.htaccess"
+elif [ -f ".htaccess" ]; then
+    sudo cp ".htaccess" "$WEB_DIR/.htaccess"
+fi
 
 echo "Deployment successful!"
