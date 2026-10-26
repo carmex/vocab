@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { firstValueFrom } from 'rxjs';
 
 import { ListService, ListShare } from '../../../services/list.service';
 import { SupabaseService } from '../../../services/supabase.service';
@@ -283,16 +284,15 @@ export class GenerateSentencesModalComponent implements OnInit {
     this.isGenerating = true;
 
     try {
-      // 1. Fetch words from selected lists
+      // 1. Fetch words from selected lists in a single batched query
       const allWords = new Set<string>();
+      const listIds = this.selectedLists.map(list => list.word_list_id);
+      const words = await firstValueFrom(this.listService.getWordsForLists(listIds));
 
-      for (const list of this.selectedLists) {
-        const words = await this.listService.getWords(list.word_list_id).toPromise();
-        if (words) {
-          words.forEach(w => {
-            if (w.word && w.word.trim()) allWords.add(w.word.trim());
-          });
-        }
+      if (words) {
+        words.forEach(w => {
+          if (w.word && w.word.trim()) allWords.add(w.word.trim());
+        });
       }
 
       const uniqueWords = Array.from(allWords);

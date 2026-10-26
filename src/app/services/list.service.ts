@@ -322,6 +322,24 @@ export class ListService {
         );
     }
 
+    getWordsForLists(listIds: string[]): Observable<any[]> {
+        if (!listIds || listIds.length === 0) {
+            return of([]);
+        }
+
+        const query = this.supabase.client
+            .from('list_words')
+            .select('*')
+            .in('list_id', listIds);
+
+        return from(query).pipe(
+            map(({ data, error }) => {
+                if (error) throw error;
+                return data || [];
+            })
+        );
+    }
+
     /**
      * Generates or retrieves a share code for a list.
      */
