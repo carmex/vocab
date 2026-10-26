@@ -29,6 +29,7 @@ describe('QuizComponent (Manual Instantiation)', () => {
     let mockClassroomService: any;
     let mockAuthService: any;
     let mockSpeechService: any;
+    let mockSupabaseService: any;
     let mockNgZone: any;
 
     beforeEach(() => {
@@ -54,7 +55,7 @@ describe('QuizComponent (Manual Instantiation)', () => {
         mockClassroomService = {};
         mockAuthService = { currentUser: { id: 'u1' } };
         mockSpeechService = new SpeechService() as any;
-        const mockSupabaseService = { uploadUserRecording: jest.fn().mockResolvedValue({ data: {}, error: null }) };
+        mockSupabaseService = { uploadUserRecording: jest.fn().mockResolvedValue({ data: {}, error: null }) };
         mockNgZone = { run: jest.fn().mockImplementation((fn: any) => fn()) };
 
         component = new QuizComponent(
@@ -940,6 +941,69 @@ describe('QuizComponent (Manual Instantiation)', () => {
             expect(component.isCorrect).toBe(false);
             expect(component.feedbackVisible).toBe(true);
             expect(mockQuizService.submitAnswer).toHaveBeenCalledWith('m1', false, '5 x 5');
+        });
+    });
+
+    describe('Sentences Quiz Audio Capture', () => {
+        beforeEach(() => {
+            mockSpeechService.isVoskReady.mockReturnValue(true);
+            component.isSentencesQuiz = true;
+            component.isSightWordQuiz = false;
+            component.isMathQuiz = false;
+            mockQuizService.getRemainingWords.mockReturnValue(['She will relax.']);
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 's1', word: 'She will relax.', imageUrl: '', type: 'sentence', definition: '' },
+                options: [],
+                correctAnswer: 'She will relax.'
+            });
+            component.startWithMode('read');
+        });
+
+        it('should pass captureAudio=true to speechService.listen and upload recording on onRecord for Sentences quiz', () => {
+            const listenSubject = new Subject<any>();
+            mockSpeechService.listen.mockReturnValue(listenSubject.asObservable());
+            mockSpeechService.wordsMatch.mockReturnValue(false);
+
+            component.onRecord();
+
+            expect(mockSpeechService.listen).toHaveBeenCalledWith(
+                'She will relax.',
+                'en',
+                undefined,
+                true
+            );
+
+            const fakeBlob = new Blob(['audio-data'], { type: 'audio/webm' });
+            listenSubject.next({ result: 'she were very lax', audioBlob: fakeBlob });
+
+            expect(mockSupabaseService.uploadUserRecording).toHaveBeenCalledWith(
+                fakeBlob,
+                expect.stringContaining('en-US-She will relax.-')
+            );
+        });
+
+        it('should pass captureAudio=true to speechService.listen and upload recording on startAutoRecording for Sentences quiz', () => {
+            const listenSubject = new Subject<any>();
+            mockSpeechService.listen.mockReturnValue(listenSubject.asObservable());
+            mockSpeechService.wordsMatch.mockReturnValue(true);
+
+            component.autoRecordEnabled = true;
+            component.onNext();
+
+            expect(mockSpeechService.listen).toHaveBeenCalledWith(
+                'She will relax.',
+                'en',
+                undefined,
+                true
+            );
+
+            const fakeBlob = new Blob(['audio-data'], { type: 'audio/webm' });
+            listenSubject.next({ result: 'she will relax', audioBlob: fakeBlob });
+
+            expect(mockSupabaseService.uploadUserRecording).toHaveBeenCalledWith(
+                fakeBlob,
+                expect.stringContaining('en-US-She will relax.-')
+            );
         });
     });
 });
