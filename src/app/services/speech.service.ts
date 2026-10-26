@@ -955,7 +955,7 @@ export class SpeechService {
                 if (observer.closed) return; // Handle quick cancel
                 this.startVoskAudioCapture((status) => {
                     this.ngZone.run(() => observer.next({ status }));
-                }).then(stream => {
+                }, targetWord).then(stream => {
                     // Emit listening IMMEDIATELY so UI shows controls
                     this.ngZone.run(() => observer.next({ status: 'listening' }));
 
@@ -992,8 +992,9 @@ export class SpeechService {
         this.debugInputStream = stream;
     }
 
-    private async startVoskAudioCapture(onStatus?: (status: string) => void): Promise<MediaStream> {
+    private async startVoskAudioCapture(onStatus?: (status: string) => void, targetWord?: string): Promise<MediaStream> {
         const captureSessionId = this.voskSessionId; // CAPTURE ID to prevent race conditions
+        const isSentence = !!targetWord && targetWord.trim().split(/\s+/).length > 1;
         let stream: MediaStream;
 
         if (this.debugInputStream) {
@@ -1066,9 +1067,9 @@ export class SpeechService {
             }
 
             // PRODUCTION BALANCE:
-            // Using 3x repetitions with 500ms silence padding
-            // This is a good balance between accuracy and performance for real users
-            const repetitions = 3;
+            // Using 3x repetitions with 500ms silence padding for single words,
+            // and 1x repetition for multi-word sentences so sentences are not transcribed 3 times.
+            const repetitions = isSentence ? 1 : 3;
             const silenceSamples = 8000; // 0.5s of silence before and after
             console.log(`[SpeechService] Processed audio: ${amplification.toFixed(2)}x gain, ${repetitions}x repetitions, 0.5s padding`);
 
@@ -1172,9 +1173,9 @@ export class SpeechService {
             const elapsed = Date.now() - recordingStartTime;
 
             // Minimum recording time fallback (for continuous audio streams like looped test files)
-            // If we've been recording for 2+ seconds and detected speech, process audio
-            const MIN_RECORDING_TIME = 2000; // 2 seconds minimum before processing
-            if (isSpeaking && elapsed > MIN_RECORDING_TIME) {
+            // Only apply 2s cutoff when using debugInputStream; real mic users rely on silence detection or max timeout
+            const MIN_RECORDING_TIME = 2000; // 2 seconds minimum before processing looped test streams
+            if (this.debugInputStream && isSpeaking && elapsed > MIN_RECORDING_TIME) {
                 console.log(`[SpeechService] Min recording time (${MIN_RECORDING_TIME}ms) reached, processing...`);
                 processAndSendAudio();
                 return;
@@ -1849,6 +1850,132 @@ export class SpeechService {
     wordsMatch(recognized: string | string[], target: string): boolean {
         // Use a regex that preserves letters (including Japanese) and numbers, stripping common punctuation
         const cleanTarget = target.toLowerCase().replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '').trim();
+        const targetWords = cleanTarget.split(/\s+/).filter(Boolean);
+
+        // Helper to check if a single recognized word/token matches a single target word/token
+        const singleWordMatches = (recWord: string, targetWord: string): boolean => {
+            if (!recWord || !targetWord) return false;
+            if (recWord === targetWord) return true;
+
+            const targetNum = wordsToNumber(targetWord);
+            const recNum = wordsToNumber(recWord);
+            if (targetNum !== null && recNum !== null) {
+                return targetNum === recNum;
+            }
+
+            // Check homophones - if target has homophones, check if recognized matches any
+            const targetHomophones = this.homophones[targetWord];
+            if (targetHomophones && targetHomophones.some(h => h.toLowerCase() === recWord)) {
+                return true;
+            }
+
+            // Also check the reverse - if recognized is a homophone of the target
+            for (const [key, values] of Object.entries(this.homophones)) {
+                if (key === recWord && values.some(v => v.toLowerCase() === targetWord)) {
+                    return true;
+                }
+                if (values.includes(recWord) && (key === targetWord || values.includes(targetWord))) {
+                    return true;
+                }
+            }
+
+            // Calculate simple similarity for near-matches
+            const similarity = this.calculateSimilarity(recWord, targetWord);
+            if (similarity >= 0.8) return true;
+
+            // Allow 1 edit distance for words >= 4 length
+            if (targetWord.length >= 4) {
+                const dist = this.levenshteinDistance(recWord, targetWord);
+                if (dist <= 1) return true;
+            }
+
+            // Check Phonetic Match (Double Metaphone)
+            try {
+                const [tgtPri, tgtSec] = doubleMetaphone(targetWord);
+                const [recPri, recSec] = doubleMetaphone(recWord);
+
+                console.log(`[SpeechService] DM Check: "${targetWord}" [${tgtPri}, ${tgtSec}] vs "${recWord}" [${recPri}, ${recSec}]`);
+
+                const codesMatch = (c1: string, c2: string, label: string) => {
+                    if (!c1 || !c2) return false;
+                    if (c1 === c2) {
+                        console.log(`[SpeechService] DM MATCH (${label}): Exact match "${c1}"`);
+                        return true;
+                    }
+                    if (c1.length > 1 && c2.length > 1) {
+                        const dist = this.levenshteinDistance(c1, c2);
+                        console.log(`[SpeechService] DM Dist (${label}): "${c1}" vs "${c2}" = ${dist}`);
+                        if (dist <= 1) {
+                            console.log(`[SpeechService] DM MATCH (${label}): Fuzzy match (dist <= 1)`);
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
+                if (codesMatch(tgtPri, recPri, 'Pri-Pri')) return true;
+                if (codesMatch(tgtPri, recSec, 'Pri-Sec')) return true;
+                if (codesMatch(tgtSec, recPri, 'Sec-Pri')) return true;
+                if (codesMatch(tgtSec, recSec, 'Sec-Sec')) return true;
+            } catch (e) {
+                console.warn('[SpeechService] Double Metaphone check failed:', e);
+            }
+
+            return false;
+        };
+
+        // Helper to align recognized word sequences against multi-word sentence targets
+        const sentenceWordsMatch = (cleanRec: string): boolean => {
+            const recWords = cleanRec.split(/\s+/).filter(Boolean);
+            if (recWords.length === 0) return false;
+
+            const align = (windowWords: string[], tIdx: number, rIdx: number): boolean => {
+                if (tIdx === targetWords.length && rIdx === windowWords.length) return true;
+                if (tIdx >= targetWords.length || rIdx >= windowWords.length) return false;
+
+                // 1. Direct 1-to-1 word match
+                if (singleWordMatches(windowWords[rIdx], targetWords[tIdx]) && align(windowWords, tIdx + 1, rIdx + 1)) {
+                    return true;
+                }
+
+                // 2. 2-to-1 merged word match (e.g. Vosk splits "relax" into "very lax" or "re lax")
+                if (rIdx + 1 < windowWords.length && targetWords[tIdx].length >= 4) {
+                    const mergedRec = windowWords[rIdx] + windowWords[rIdx + 1];
+                    if (singleWordMatches(mergedRec, targetWords[tIdx]) && align(windowWords, tIdx + 1, rIdx + 2)) {
+                        return true;
+                    }
+                }
+
+                // 3. 1-to-2 split target match (e.g. "cannot" vs "can not")
+                if (tIdx + 1 < targetWords.length && windowWords[rIdx].length >= 4) {
+                    const mergedTarget = targetWords[tIdx] + targetWords[tIdx + 1];
+                    if (
+                        Math.abs(windowWords[rIdx].length - mergedTarget.length) <= 1 &&
+                        singleWordMatches(windowWords[rIdx], mergedTarget) &&
+                        align(windowWords, tIdx + 2, rIdx + 1)
+                    ) {
+                        return true;
+                    }
+                }
+
+                // 4. Duplicate stutter skip (e.g. "well well")
+                if (rIdx + 1 < windowWords.length && windowWords[rIdx] === windowWords[rIdx + 1]) {
+                    if (align(windowWords, tIdx, rIdx + 1)) return true;
+                }
+
+                return false;
+            };
+
+            const minLen = Math.max(1, targetWords.length - 1);
+            const maxLen = Math.min(recWords.length, targetWords.length * 2);
+            for (let start = 0; start <= recWords.length - minLen; start++) {
+                for (let len = minLen; len <= Math.min(maxLen, recWords.length - start); len++) {
+                    const slice = recWords.slice(start, start + len);
+                    if (align(slice, 0, 0)) return true;
+                }
+            }
+            return false;
+        };
 
         // Helper to check single string match
         const checkSingleMatch = (rec: string): boolean => {
@@ -1869,75 +1996,16 @@ export class SpeechService {
                 return targetNum === recNum;
             }
 
+            // Multi-word sentence matching (when target is a sentence, not a spoken number)
+            if (targetWords.length > 1) {
+                if (cleanRecognized.includes(cleanTarget)) return true;
+                return sentenceWordsMatch(cleanRecognized);
+            }
+
             // Check if target is contained in recognized (for words like "a" that might be recognized as "a a")
             if (cleanRecognized.includes(cleanTarget)) return true;
 
-            // Check homophones - if target has homophones, check if recognized matches any
-            const targetHomophones = this.homophones[cleanTarget];
-            if (targetHomophones && targetHomophones.some(h => h.toLowerCase() === cleanRecognized)) {
-                return true;
-            }
-
-            // Also check the reverse - if recognized is a homophone of the target
-            for (const [key, values] of Object.entries(this.homophones)) {
-                if (key === cleanRecognized && values.some(v => v.toLowerCase() === cleanTarget)) {
-                    return true;
-                }
-                if (values.includes(cleanRecognized) && (key === cleanTarget || values.includes(cleanTarget))) {
-                    return true;
-                }
-            }
-
-            // Calculate simple similarity for near-matches
-            const similarity = this.calculateSimilarity(cleanRecognized, cleanTarget);
-            if (similarity >= 0.8) return true;
-
-            // New: Allow 1 edit distance for words >= 4 length
-            // This catches "seer" vs "see" (4 chars vs 3 chars, 1 edit)
-            if (cleanTarget.length >= 4) {
-                const dist = this.levenshteinDistance(cleanRecognized, cleanTarget);
-                if (dist <= 1) return true;
-            }
-
-            // check Phonetic Match (Double Metaphone)
-            try {
-                // doubleMetaphone returns [primary, secondary]
-                const [tgtPri, tgtSec] = doubleMetaphone(cleanTarget);
-                const [recPri, recSec] = doubleMetaphone(cleanRecognized);
-
-                console.log(`[SpeechService] DM Check: "${cleanTarget}" [${tgtPri}, ${tgtSec}] vs "${cleanRecognized}" [${recPri}, ${recSec}]`);
-
-                // Helper to check distance between any two codes
-                const codesMatch = (c1: string, c2: string, label: string) => {
-                    if (!c1 || !c2) return false;
-                    // Exact code match
-                    if (c1 === c2) {
-                        console.log(`[SpeechService] DM MATCH (${label}): Exact match "${c1}"`);
-                        return true;
-                    }
-                    // Fuzzy code match (Levenshtein distance <= 1)
-                    // Only allow fuzzy if code length > 1
-                    if (c1.length > 1 && c2.length > 1) {
-                        const dist = this.levenshteinDistance(c1, c2);
-                        console.log(`[SpeechService] DM Dist (${label}): "${c1}" vs "${c2}" = ${dist}`);
-                        if (dist <= 1) {
-                            console.log(`[SpeechService] DM MATCH (${label}): Fuzzy match (dist <= 1)`);
-                            return true;
-                        }
-                    }
-                    return false;
-                };
-
-                if (codesMatch(tgtPri, recPri, 'Pri-Pri')) return true;
-                if (codesMatch(tgtPri, recSec, 'Pri-Sec')) return true;
-                if (codesMatch(tgtSec, recPri, 'Sec-Pri')) return true;
-                if (codesMatch(tgtSec, recSec, 'Sec-Sec')) return true;
-
-            } catch (e) {
-                console.warn('[SpeechService] Double Metaphone check failed:', e);
-            }
-
-            return false;
+            return singleWordMatches(cleanRecognized, cleanTarget);
         };
 
         // Handle array of alternatives

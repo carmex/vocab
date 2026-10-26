@@ -455,6 +455,163 @@ describe('SpeechService (Angular)', () => {
             expect(service.wordsMatch('5', '25')).toBe(false);
         });
     });
+
+    describe('wordsMatch with sentences', () => {
+        it('should match exact sentence ignoring punctuation and case', () => {
+            expect(service.wordsMatch('she will relax', 'She will relax.')).toBe(true);
+        });
+
+        it('should match sentence when Vosk splits a word or produces phonetic equivalents', () => {
+            expect(service.wordsMatch('she were very lax', 'She will relax.')).toBe(true);
+            expect(service.wordsMatch('she will re lax', 'She will relax.')).toBe(true);
+            expect(service.wordsMatch('she well relax', 'She will relax.')).toBe(true);
+        });
+
+        it('should match sentence even when recognition contains repeated 3x transcript', () => {
+            expect(
+                service.wordsMatch(
+                    'she were very lax she were very lax she well well lack',
+                    'She will relax.'
+                )
+            ).toBe(true);
+        });
+
+        it('should match sentence containing word-level homophones', () => {
+            expect(service.wordsMatch('eye sea too cats', 'I see two cats.')).toBe(true);
+        });
+
+        it('should reject sentences with different meaning or wrong words', () => {
+            expect(service.wordsMatch('he will relax', 'She will relax.')).toBe(false);
+            expect(service.wordsMatch('she will jump', 'She will relax.')).toBe(false);
+            expect(service.wordsMatch('she were very sad', 'She will relax.')).toBe(false);
+            expect(service.wordsMatch('the dog ran fast', 'She will relax.')).toBe(false);
+        });
+    });
+
+    describe('Vosk audio capture for sentences vs single words', () => {
+        let mockAudioMessages: any[];
+        let workletMessageHandler: ((event: any) => void) | null;
+        let originalAudioContext: any;
+        let originalAudioWorkletNode: any;
+        let originalMediaDevices: any;
+
+        beforeEach(() => {
+            mockAudioMessages = [];
+            workletMessageHandler = null;
+            originalAudioContext = (window as any).AudioContext;
+            originalAudioWorkletNode = (window as any).AudioWorkletNode;
+            originalMediaDevices = navigator.mediaDevices;
+
+            (service as any).voskWorker = {
+                postMessage: jest.fn((msg: any) => {
+                    if (msg.type === 'audio') {
+                        mockAudioMessages.push(msg);
+                    }
+                }),
+                addEventListener: jest.fn(),
+                removeEventListener: jest.fn()
+            };
+            (service as any).voskModelReady = true;
+
+            (window as any).AudioContext = jest.fn().mockImplementation(() => ({
+                sampleRate: 16000,
+                state: 'running',
+                currentTime: 0,
+                destination: {},
+                createMediaStreamSource: jest.fn().mockReturnValue({ connect: jest.fn() }),
+                createOscillator: jest.fn().mockReturnValue({
+                    connect: jest.fn(),
+                    frequency: { setValueAtTime: jest.fn(), linearRampToValueAtTime: jest.fn() },
+                    start: jest.fn(),
+                    stop: jest.fn()
+                }),
+                createGain: jest.fn().mockReturnValue({
+                    connect: jest.fn(),
+                    gain: { setValueAtTime: jest.fn(), exponentialRampToValueAtTime: jest.fn() }
+                }),
+                audioWorklet: {
+                    addModule: jest.fn().mockResolvedValue(undefined)
+                },
+                close: jest.fn()
+            }));
+
+            (window as any).AudioWorkletNode = jest.fn().mockImplementation(() => ({
+                port: {
+                    set onmessage(fn: any) {
+                        workletMessageHandler = fn;
+                    },
+                    get onmessage() {
+                        return workletMessageHandler;
+                    }
+                },
+                connect: jest.fn(),
+                disconnect: jest.fn()
+            }));
+
+            Object.defineProperty(navigator, 'mediaDevices', {
+                value: {
+                    getUserMedia: jest.fn().mockResolvedValue({
+                        getTracks: () => [{ stop: jest.fn() }]
+                    })
+                },
+                configurable: true
+            });
+        });
+
+        afterEach(() => {
+            (window as any).AudioContext = originalAudioContext;
+            (window as any).AudioWorkletNode = originalAudioWorkletNode;
+            Object.defineProperty(navigator, 'mediaDevices', {
+                value: originalMediaDevices,
+                configurable: true
+            });
+            jest.useRealTimers();
+        });
+
+        it('should NOT repeat buffered audio 3x when target is a multi-word sentence', async () => {
+            jest.useFakeTimers();
+
+            await (service as any).startVoskAudioCapture(undefined, 'She will relax.');
+            expect(workletMessageHandler).toBeDefined();
+
+            // Send 1 chunk of speech (4000 samples)
+            const speechChunk = new Float32Array(4000).fill(0.1);
+            workletMessageHandler!({ data: speechChunk });
+
+            // Send silence chunks after > 600ms to trigger processing
+            const silenceChunk = new Float32Array(4000).fill(0);
+            jest.advanceTimersByTime(100);
+            workletMessageHandler!({ data: silenceChunk });
+            jest.advanceTimersByTime(700);
+            workletMessageHandler!({ data: silenceChunk });
+
+            // Advance timers to flush all chunks to voskWorker
+            jest.advanceTimersByTime(5000);
+
+            const totalSentSamples = mockAudioMessages.reduce((acc, m) => acc + m.audio.length, 0);
+            // 3 chunks of 4000 = 12000 samples.
+            // With 1x repetition + 2 * 8000 silence padding = 28000 samples.
+            // (If repeated 3x, it would be 3 * 12000 + 16000 = 52000 samples).
+            expect(totalSentSamples).toBe(28000);
+        });
+
+        it('should NOT cut off real microphone recording at 2000ms while user is still speaking', async () => {
+            jest.useFakeTimers();
+
+            await (service as any).startVoskAudioCapture(undefined, 'She will relax.');
+            expect(workletMessageHandler).toBeDefined();
+
+            const speechChunk = new Float32Array(4000).fill(0.1);
+            // User starts speaking at t=1500ms and continues past t=2500ms
+            jest.advanceTimersByTime(1500);
+            workletMessageHandler!({ data: speechChunk });
+            jest.advanceTimersByTime(1000); // t=2500ms (elapsed > 2000ms, still speaking)
+            workletMessageHandler!({ data: speechChunk });
+
+            // Should NOT have started streaming to Vosk yet because user is still speaking!
+            expect((service as any).isVoskProcessing).toBe(false);
+        });
+    });
 });
 
 

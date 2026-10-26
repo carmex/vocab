@@ -518,7 +518,7 @@ export class QuizComponent implements OnInit, OnDestroy {
       : undefined;
     const language = this.quizService.currentLanguage || 'en';
     this.speechSubscription?.unsubscribe();
-    const captureAudio = this.isSightWordQuiz || this.isMathQuiz;
+    const captureAudio = this.isSightWordQuiz || this.isMathQuiz || this.isSentencesQuiz;
     this.speechSubscription = this.speechService.listen(this.currentQuestion.correctAnswer, language, vocabulary, captureAudio).subscribe({
       next: (result) => {
         this.ngZone.run(() => {
@@ -665,7 +665,7 @@ export class QuizComponent implements OnInit, OnDestroy {
       : undefined;
     const language = this.quizService.currentLanguage || 'en';
     this.speechSubscription?.unsubscribe();
-    const captureAudio = this.isSightWordQuiz || this.isMathQuiz; // Always debug audio for now if speech used
+    const captureAudio = this.isSightWordQuiz || this.isMathQuiz || this.isSentencesQuiz; // Always debug audio for now if speech used
     this.speechSubscription = this.speechService.listen(this.currentQuestion.correctAnswer, language, vocabulary, captureAudio).subscribe({
       next: (result) => {
         console.log('[Quiz] Received from speech service:', result);
