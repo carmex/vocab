@@ -950,7 +950,10 @@ describe('QuizComponent (Manual Instantiation)', () => {
             component.isSentencesQuiz = true;
             component.isSightWordQuiz = false;
             component.isMathQuiz = false;
-            mockQuizService.getRemainingWords.mockReturnValue(['She will relax.']);
+            mockQuizService.getRemainingWords.mockReturnValue([
+                'She will relax.',
+                'Do you see the tiger?'
+            ]);
             mockQuizService.getNextQuestion.mockReturnValue({
                 wordToQuiz: { id: 's1', word: 'She will relax.', imageUrl: '', type: 'sentence', definition: '' },
                 options: [],
@@ -959,7 +962,7 @@ describe('QuizComponent (Manual Instantiation)', () => {
             component.startWithMode('read');
         });
 
-        it('should pass captureAudio=true to speechService.listen and upload recording on onRecord for Sentences quiz', () => {
+        it('should pass undefined vocabulary and captureAudio=true to speechService.listen and upload recording on onRecord for Sentences quiz', () => {
             const listenSubject = new Subject<any>();
             mockSpeechService.listen.mockReturnValue(listenSubject.asObservable());
             mockSpeechService.wordsMatch.mockReturnValue(false);
@@ -978,11 +981,11 @@ describe('QuizComponent (Manual Instantiation)', () => {
 
             expect(mockSupabaseService.uploadUserRecording).toHaveBeenCalledWith(
                 fakeBlob,
-                expect.stringContaining('en-US-She will relax.-')
+                expect.stringContaining('en-US-She will relax-')
             );
         });
 
-        it('should pass captureAudio=true to speechService.listen and upload recording on startAutoRecording for Sentences quiz', () => {
+        it('should pass undefined vocabulary and captureAudio=true to speechService.listen and upload recording on startAutoRecording for Sentences quiz', () => {
             const listenSubject = new Subject<any>();
             mockSpeechService.listen.mockReturnValue(listenSubject.asObservable());
             mockSpeechService.wordsMatch.mockReturnValue(true);
@@ -1002,7 +1005,53 @@ describe('QuizComponent (Manual Instantiation)', () => {
 
             expect(mockSupabaseService.uploadUserRecording).toHaveBeenCalledWith(
                 fakeBlob,
-                expect.stringContaining('en-US-She will relax.-')
+                expect.stringContaining('en-US-She will relax-')
+            );
+        });
+
+        it('should strip question marks and unsafe characters from debug audio filename', () => {
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 's2', word: 'Do you see the tiger?', imageUrl: '', type: 'sentence', definition: '' },
+                options: [],
+                correctAnswer: 'Do you see the tiger?'
+            });
+            component.onNext();
+
+            const listenSubject = new Subject<any>();
+            mockSpeechService.listen.mockReturnValue(listenSubject.asObservable());
+            mockSpeechService.wordsMatch.mockReturnValue(true);
+
+            component.onRecord();
+
+            const fakeBlob = new Blob(['audio-data'], { type: 'audio/webm' });
+            listenSubject.next({ result: 'do you see the tiger', audioBlob: fakeBlob });
+
+            expect(mockSupabaseService.uploadUserRecording).toHaveBeenCalledWith(
+                fakeBlob,
+                expect.stringMatching(/^en-US-Do you see the tiger-[^?]+\.webm$/)
+            );
+        });
+
+        it('should NOT constrain vocabulary for single-word Sight Words quizzes to prevent forced false positives', () => {
+            component.isSentencesQuiz = false;
+            component.isSightWordQuiz = true;
+            mockQuizService.getNextQuestion.mockReturnValue({
+                wordToQuiz: { id: 'sw1', word: 'relax', imageUrl: '', type: 'sight', definition: '' },
+                options: [],
+                correctAnswer: 'relax'
+            });
+            component.onNext();
+
+            const listenSubject = new Subject<any>();
+            mockSpeechService.listen.mockReturnValue(listenSubject.asObservable());
+
+            component.onRecord();
+
+            expect(mockSpeechService.listen).toHaveBeenCalledWith(
+                'relax',
+                'en',
+                undefined,
+                true
             );
         });
     });

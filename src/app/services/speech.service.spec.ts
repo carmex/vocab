@@ -480,11 +480,235 @@ describe('SpeechService (Angular)', () => {
             expect(service.wordsMatch('eye sea too cats', 'I see two cats.')).toBe(true);
         });
 
+        it('should match real child sentence recordings with minor function-word drops or substitutions', () => {
+            expect(service.wordsMatch("i'll see the robot", 'I see the robot.')).toBe(true);
+            expect(service.wordsMatch('listen to that music', 'Listen to the music.')).toBe(true);
+            expect(service.wordsMatch('listen do the music', 'Listen to the music.')).toBe(true);
+            expect(service.wordsMatch('do you see tiger', 'Do you see the tiger?')).toBe(true);
+            expect(service.wordsMatch('has a donut', 'He has a donut.')).toBe(true);
+            expect(service.wordsMatch('he was a donut', 'He has a donut.')).toBe(true);
+            expect(service.wordsMatch('love rabbit is funny', 'The rabbit is funny.')).toBe(true);
+            expect(service.wordsMatch('rabbit is funny', 'The rabbit is funny.')).toBe(true);
+            expect(service.wordsMatch('love grass is fresh', 'The grass is fresh.')).toBe(true);
+            expect(service.wordsMatch('grass is fresh', 'The grass is fresh.')).toBe(true);
+        });
+
         it('should reject sentences with different meaning or wrong words', () => {
             expect(service.wordsMatch('he will relax', 'She will relax.')).toBe(false);
             expect(service.wordsMatch('she will jump', 'She will relax.')).toBe(false);
             expect(service.wordsMatch('she were very sad', 'She will relax.')).toBe(false);
             expect(service.wordsMatch('the dog ran fast', 'She will relax.')).toBe(false);
+            expect(service.wordsMatch('the rabbit is sad', 'The rabbit is funny.')).toBe(false);
+            expect(service.wordsMatch('i see the tiger', 'I see the robot.')).toBe(false);
+            expect(service.wordsMatch('he has a muffin', 'He has a donut.')).toBe(false);
+            expect(service.wordsMatch('the grass is green', 'The grass is fresh.')).toBe(false);
+            expect(service.wordsMatch('my dog was frozen', 'My muffin was frozen.')).toBe(false);
+            expect(service.wordsMatch('the cat is funny', 'The rabbit is funny.')).toBe(false);
+            expect(service.wordsMatch('the water is fresh', 'The grass is fresh.')).toBe(false);
+            expect(service.wordsMatch('do you like the tiger', 'Do you see the tiger?')).toBe(false);
+            // Spliced wrong-word outputs from Whisper + Wav2Vec2
+            expect(service.wordsMatch(['my bundle was frozen', 'my bundle white frerygan'], 'My muffin was frozen.')).toBe(false);
+            expect(service.wordsMatch(['she will bundle', 'se wel bundle'], 'She will relax.')).toBe(false);
+            expect(service.wordsMatch(['my battle was frozen', 'my batle whas frozen'], 'My muffin was frozen.')).toBe(false);
+            expect(service.wordsMatch(['she will battle', 'se you round batle'], 'She will relax.')).toBe(false);
+            expect(service.wordsMatch(['my mama was frozen', 'my comical whas frozin'], 'My muffin was frozen.')).toBe(false);
+            expect(service.wordsMatch(['she will', 'se you welcomical'], 'She will relax.')).toBe(false);
+        });
+
+        it('should not falsely match single-letter or short sight words as substrings of unrelated words', () => {
+            expect(service.wordsMatch('banana', 'a')).toBe(false);
+            expect(service.wordsMatch('cat', 'a')).toBe(false);
+            expect(service.wordsMatch('static', 'at')).toBe(false);
+            expect(service.wordsMatch('winter', 'in')).toBe(false);
+            expect(service.wordsMatch('im in for it usually', 'in')).toBe(false);
+            // Repeated single words should still match
+            expect(service.wordsMatch('a a', 'a')).toBe(true);
+            expect(service.wordsMatch('comfortable comfortable', 'comfortable')).toBe(true);
+            expect(service.wordsMatch('aunt aunt', 'aunt')).toBe(true);
+            expect(service.wordsMatch(['im a cool', 'amical'], 'comical')).toBe(true);
+        });
+
+        it('should match all 18 real Supabase sentence recordings (Whisper + Wav2Vec2 outputs) and reject all 162 cross-sentence pairs', () => {
+            const allSentences = [
+                'Do you see the tiger?',
+                'He has a donut.',
+                'He will open it.',
+                'I see the robot.',
+                'Listen to the music.',
+                'My muffin was frozen.',
+                'She will relax.',
+                'The grass is fresh.',
+                'The rabbit is funny.',
+                'We love music.'
+            ];
+
+            // Real Whisper-base.en + Wav2Vec2-base-960h outputs from the 18 user recordings
+            const realRecordings: { file: string; target: string; alternatives: string[] }[] = [
+                {
+                    file: 'en-US-Do you see the tiger',
+                    target: 'Do you see the tiger?',
+                    alternatives: ['do you see that tiger?', 'do you se that diker']
+                },
+                {
+                    file: 'en-US-He has a donut.-2026-10-27T00-00-58-878Z.webm',
+                    target: 'He has a donut.',
+                    alternatives: ['he has a donut!', 'has a donat u']
+                },
+                {
+                    file: 'en-US-He has a donut.-2026-10-27T00-08-54-335Z.webm',
+                    target: 'He has a donut.',
+                    alternatives: ['he has a donut.', 'he has a donat']
+                },
+                {
+                    file: 'en-US-He will open it.-2026-10-26T23-59-33-460Z.webm',
+                    target: 'He will open it.',
+                    alternatives: ['he will open it.', 'he wil open it']
+                },
+                {
+                    file: 'en-US-He will open it.-2026-10-27T00-09-51-081Z.webm',
+                    target: 'He will open it.',
+                    alternatives: ['be well-open it.', 'we wil open ect']
+                },
+                {
+                    file: 'en-US-I see the robot.-2026-10-27T00-01-28-485Z.webm',
+                    target: 'I see the robot.',
+                    alternatives: ['i see the robot.', 'i she dont no bat']
+                },
+                {
+                    file: 'en-US-I see the robot.-2026-10-27T00-06-58-922Z.webm',
+                    target: 'I see the robot.',
+                    alternatives: ['i see the robot.', 'i se the roit']
+                },
+                {
+                    file: 'en-US-Listen to the music.-2026-10-27T00-00-41-557Z.webm',
+                    target: 'Listen to the music.',
+                    alternatives: ['listen to the music.', 'liten to tha music']
+                },
+                {
+                    file: 'en-US-Listen to the music.-2026-10-27T00-08-19-304Z.webm',
+                    target: 'Listen to the music.',
+                    alternatives: ['listen to the music!', 'lisen to them music']
+                },
+                {
+                    file: 'en-US-My muffin was frozen.-2026-10-26T23-59-51-930Z.webm',
+                    target: 'My muffin was frozen.',
+                    alternatives: ['my mother was frozen', 'my mufen was frozin']
+                },
+                {
+                    file: 'en-US-My muffin was frozen.-2026-10-27T00-04-55-439Z.webm',
+                    target: 'My muffin was frozen.',
+                    alternatives: ['my muffin was frozen.', 'my mufin wods froze in']
+                },
+                {
+                    file: 'en-US-She will relax.-2026-10-27T00-04-30-914Z.webm',
+                    target: 'She will relax.',
+                    alternatives: ['she will relax.', 'she wil relax']
+                },
+                {
+                    file: 'en-US-The grass is fresh.-2026-10-27T00-01-06-683Z.webm',
+                    target: 'The grass is fresh.',
+                    alternatives: ['the grass is fresh.', 'the gras is fresh']
+                },
+                {
+                    file: 'en-US-The grass is fresh.-2026-10-27T00-06-42-054Z.webm',
+                    target: 'The grass is fresh.',
+                    alternatives: ['the grass is fresh.', 'the gras is rash']
+                },
+                {
+                    file: 'en-US-The rabbit is funny.-2026-10-26T23-59-43-172Z.webm',
+                    target: 'The rabbit is funny.',
+                    alternatives: ['the rabbit is funny.', 'the rabit gis funy']
+                },
+                {
+                    file: 'en-US-The rabbit is funny.-2026-10-27T00-09-10-261Z.webm',
+                    target: 'The rabbit is funny.',
+                    alternatives: ['the rabbit is funny.', 'ba a rabit egtrine']
+                },
+                {
+                    file: 'en-US-We love music.-2026-10-27T00-00-50-715Z.webm',
+                    target: 'We love music.',
+                    alternatives: ['we love music.', 'we love music']
+                },
+                {
+                    file: 'en-US-We love music.-2026-10-27T00-06-17-423Z.webm',
+                    target: 'We love music.',
+                    alternatives: ['we love music.', 'we love usic']
+                }
+            ];
+
+            for (const rec of realRecordings) {
+                expect({ file: rec.file, target: rec.target, matched: service.wordsMatch(rec.alternatives, rec.target) })
+                    .toEqual({ file: rec.file, target: rec.target, matched: true });
+                for (const otherSentence of allSentences) {
+                    if (otherSentence !== rec.target) {
+                        expect({ file: rec.file, otherSentence, matched: service.wordsMatch(rec.alternatives, otherSentence) })
+                            .toEqual({ file: rec.file, otherSentence, matched: false });
+                    }
+                }
+            }
+        });
+    });
+
+    describe('listenWithVosk intermediate result accumulation', () => {
+        let workerMessageHandler: ((event: any) => void) | null;
+
+        beforeEach(() => {
+            workerMessageHandler = null;
+            (service as any).voskWorker = {
+                postMessage: jest.fn(),
+                addEventListener: jest.fn((type: string, handler: any) => {
+                    if (type === 'message') workerMessageHandler = handler;
+                }),
+                removeEventListener: jest.fn()
+            };
+            (service as any).voskModelReady = true;
+            jest.spyOn(service as any, 'playListeningSound').mockImplementation(() => {});
+            jest.spyOn(service as any, 'playStopSound').mockImplementation(() => {});
+            jest.spyOn(service as any, 'startVoskAudioCapture').mockResolvedValue(null as any);
+            jest.spyOn(service as any, 'stopAudioCapture').mockImplementation(() => {});
+        });
+
+        it('should wait for final result when an intermediate result arrives while isVoskProcessing is true and does not match targetWord', () => {
+            const emitted: any[] = [];
+            (service as any).isVoskProcessing = true;
+
+            (service as any).listenWithVosk('I see the robot.', undefined, false).subscribe((val: any) => {
+                emitted.push(val);
+            });
+
+            expect(workerMessageHandler).toBeDefined();
+            const sessionId = (service as any).voskSessionId;
+
+            // Intermediate result (first half of sentence before pause) arrives while chunks are still streaming (isVoskProcessing = true)
+            workerMessageHandler!({
+                data: {
+                    type: 'result',
+                    text: 'i see',
+                    alternatives: ['i see'],
+                    isFinal: false,
+                    sessionId
+                }
+            });
+
+            // Should NOT have emitted final result yet because isVoskProcessing is true and it didn't match
+            expect(emitted.filter(e => 'result' in e).length).toBe(0);
+
+            // Final result arrives from stop handler with full sentence alternatives
+            (service as any).isVoskProcessing = false;
+            workerMessageHandler!({
+                data: {
+                    type: 'result',
+                    text: 'i see the robot',
+                    alternatives: ['i see', 'i see the robot'],
+                    isFinal: true,
+                    sessionId
+                }
+            });
+
+            const finalEmissions = emitted.filter(e => 'result' in e);
+            expect(finalEmissions.length).toBe(1);
+            expect(finalEmissions[0].alternatives).toContain('i see the robot');
+            expect(finalEmissions[0].alternatives).toContain('i see');
         });
     });
 
