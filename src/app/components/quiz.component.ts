@@ -513,9 +513,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.recognizedText = '';
     this.speechErrorMessage = ''; // Clear any previous error
 
-    const vocabulary = this.isMathQuiz
-      ? this.mathVocabulary
-      : undefined;
+    const vocabulary = this.getSpeechVocabulary();
     const language = this.quizService.currentLanguage || 'en';
     this.speechSubscription?.unsubscribe();
     const captureAudio = this.isSightWordQuiz || this.isMathQuiz || this.isSentencesQuiz;
@@ -659,10 +657,7 @@ export class QuizComponent implements OnInit, OnDestroy {
 
     // Listen for the correct answer
     // For Math, correct answer is usually a digit (e.g. "6") or word ("six")
-    // For Math, correct answer is usually a digit (e.g. "6") or word ("six")
-    const vocabulary = this.isMathQuiz
-      ? this.mathVocabulary
-      : undefined;
+    const vocabulary = this.getSpeechVocabulary();
     const language = this.quizService.currentLanguage || 'en';
     this.speechSubscription?.unsubscribe();
     const captureAudio = this.isSightWordQuiz || this.isMathQuiz || this.isSentencesQuiz; // Always debug audio for now if speech used
@@ -1153,6 +1148,14 @@ export class QuizComponent implements OnInit, OnDestroy {
     return vocab;
   }
 
+  private getSpeechVocabulary(): string[] | undefined {
+    if (this.isMathQuiz) {
+      return this.mathVocabulary;
+    }
+
+    return undefined;
+  }
+
   private uploadDebugAudio(blob: Blob, word: string) {
     if (!this.auth.currentUser) {
       console.warn('[Quiz] Cannot upload audio: No user logged in');
@@ -1165,7 +1168,8 @@ export class QuizComponent implements OnInit, OnDestroy {
     let lang = this.quizService.currentLanguage || 'en-US';
     if (lang === 'en') lang = 'en-US';
     if (lang === 'es') lang = 'es-US';
-    const filename = `${lang}-${word}-${timestamp}.webm`;
+    const safeWord = word.replace(/[?#/\\*"<>|:.]/g, '').trim();
+    const filename = `${lang}-${safeWord}-${timestamp}.webm`;
 
     this.supabaseService.uploadUserRecording(blob, filename)
       .then(({ data, error }) => {

@@ -819,6 +819,7 @@ export class SpeechService {
             this.currentProvider = 'vosk';
             let hasEmitted = false;
             let bestResult = '';
+            let bestAlternatives: string[] = [];
 
             // Increment session ID for this new listening session
             this.voskSessionId++;
@@ -867,9 +868,28 @@ export class SpeechService {
                     console.log('[SpeechService] Vosk result:', text);
                     if (alternatives) console.log('[SpeechService] Vosk alternatives:', alternatives);
 
-                    if (text && text.trim()) {
-                        bestResult = text;
-                        emitResult(text, alternatives || [text], 1.0);
+                    const incomingAlts: string[] = Array.isArray(alternatives) && alternatives.length > 0
+                        ? alternatives.filter((a: string) => !!a && !!a.trim())
+                        : (text && text.trim() ? [text.trim()] : []);
+
+                    if (incomingAlts.length > 0) {
+                        for (const alt of incomingAlts) {
+                            if (!bestAlternatives.includes(alt)) {
+                                bestAlternatives.push(alt);
+                            }
+                        }
+                        if (text && text.trim()) {
+                            bestResult = text.trim();
+                        } else if (!bestResult) {
+                            bestResult = bestAlternatives[0];
+                        }
+
+                        const isFinal = !!event.data.isFinal || !this.isVoskProcessing;
+                        const matchesTarget = !!targetWord && this.wordsMatch(bestAlternatives, targetWord);
+
+                        if (isFinal || matchesTarget) {
+                            emitResult(bestResult, bestAlternatives, 1.0);
+                        }
                     }
                 } else if (type === 'stopped') {
                     console.log('[SpeechService] Vosk stopped (session #' + currentSessionId + ')');
@@ -877,8 +897,8 @@ export class SpeechService {
                     cleanup();
                     if (!hasEmitted) {
                         if (bestResult) {
-                            // If we had a stored result but didn't emit yet (rare)
-                            emitResult(bestResult, [bestResult], 1.0);
+                            // If we had a stored result but didn't emit yet
+                            emitResult(bestResult, bestAlternatives.length > 0 ? bestAlternatives : [bestResult], 1.0);
                         } else {
                             hasEmitted = true;
                             this.ngZone.run(() => {
@@ -1066,10 +1086,8 @@ export class SpeechService {
                 normalizedAudio[i] = Math.max(-1, Math.min(1, fullAudio[i] * amplification));
             }
 
-            // PRODUCTION BALANCE:
-            // Using 3x repetitions with 500ms silence padding for single words,
-            // and 1x repetition for multi-word sentences so sentences are not transcribed 3 times.
-            const repetitions = isSentence ? 1 : 3;
+            // Send 1x normalized audio with 0.5s silence padding before and after
+            const repetitions = 1;
             const silenceSamples = 8000; // 0.5s of silence before and after
             console.log(`[SpeechService] Processed audio: ${amplification.toFixed(2)}x gain, ${repetitions}x repetitions, 0.5s padding`);
 
@@ -1092,7 +1110,7 @@ export class SpeechService {
                 onStatus('processing');
             }
 
-            // Tell worker to start recognizer with vocabulary
+            // Tell worker to start recognizer session
             this.voskWorker?.postMessage({
                 type: 'start',
                 sampleRate: 16000,
@@ -1100,48 +1118,19 @@ export class SpeechService {
                 sessionId: captureSessionId // Use captured ID
             });
 
-            // Stream processed audio at real-time rate using setTimeout
-            // This gives Vosk time to process each chunk properly
-            const CHUNK_SIZE = 4096;
-            const CHUNK_DURATION_MS = (CHUNK_SIZE / 16000) * 1000; // ~256ms per chunk
-            let chunkIndex = 0;
+            // Send full buffered audio immediately
+            this.voskWorker?.postMessage({
+                type: 'audio',
+                audio: finalAudio,
+                sampleRate: 16000,
+                sessionId: captureSessionId // Use captured ID
+            });
 
-            const sendNextChunk = () => {
-                if (chunkIndex * CHUNK_SIZE >= finalAudio.length) {
-                    // All chunks sent - wait for Vosk to process before sending stop
-                    console.log('[SpeechService] All buffered audio sent to Vosk, waiting for processing...');
-
-
-
-                    // Give Vosk time to process the audio queue before sending stop
-                    setTimeout(() => {
-                        console.log('[SpeechService] Sending stop signal to Vosk');
-                        this.voskWorker?.postMessage({ type: 'stop', sessionId: captureSessionId }); // Use captured ID
-                        this.isVoskProcessing = false;
-                        // DO NOT call stopAudioCapture() here - it kills the global context which might be used by a new session!
-                    }, 1000); // Wait 1 second for Vosk to process
-
-                    return;
-                }
-
-                const start = chunkIndex * CHUNK_SIZE;
-                const end = Math.min(start + CHUNK_SIZE, finalAudio.length);
-                const chunk = finalAudio.slice(start, end);
-
-                this.voskWorker?.postMessage({
-                    type: 'audio',
-                    audio: chunk,
-                    sampleRate: 16000,
-                    sessionId: captureSessionId // Use captured ID
-                });
-
-                chunkIndex++;
-                // Schedule next chunk at approximately real-time rate
-                setTimeout(sendNextChunk, CHUNK_DURATION_MS * 0.5); // 50% faster than real-time
-            };
-
-            // Start streaming
-            sendNextChunk();
+            setTimeout(() => {
+                console.log('[SpeechService] Sending stop signal to worker');
+                this.voskWorker?.postMessage({ type: 'stop', sessionId: captureSessionId });
+                this.isVoskProcessing = false;
+            }, 0);
         };
 
         // Handle incoming audio chunk
@@ -1793,14 +1782,14 @@ export class SpeechService {
 
         // Common Homophones
         'for': ['4', 'four', 'fore'],
-        'to': ['2', 'two', 'too'],
+        'to': ['2', 'two', 'too', 'do'],
         'won': ['1', 'one'],
         'be': ['b', 'bee'],
         'see': ['c', 'sea'],
         'are': ['r', 'our'],
         'you': ['u', 'ewe'],
         'why': ['y'],
-        'i': ['eye', 'aye'],
+        'i': ['eye', 'aye', "i'll", 'ill'],
         'no': ['know'],
         'know': ['no'],
         'there': ['their', 'theyre', "they're"],
@@ -1819,12 +1808,14 @@ export class SpeechService {
         'your': ["you're", 'youre', 'ur'],
         'were': ['where', 'wear'],
         'where': ['were', 'wear'],
+        'will': ['well', "we'll", 'were'],
 
         // Child Speech Variations (common mispronunciations and phonetic matches)
         'a': ['ah', 'uh', 'ay'],
-        'the': ['da', 'duh', 'tha', 'de', 'thee'],
+        'all': ['aww', 'aw'],
+        'the': ['da', 'duh', 'tha', 'de', 'thee', 'that'],
         'me': ['my', 'mi', 'mee', 'may'],
-        'he': ['hee', 'hi'],
+        'he': ['hee', 'hi', 'be', 'we'],
         'we': ['wee', 'wi'],
         'in': ['an', 'un', 'en'],
         'it': ['at', 'et'],
@@ -1832,8 +1823,8 @@ export class SpeechService {
         'on': ['an', 'un'],
         'or': ['er', 'ore', 'oar'],
         'not': ['nod', 'nat', 'nut'],
-        'do': ['doo', 'dew', 'due'],
-        'has': ['as', 'haz'],
+        'do': ['doo', 'dew', 'due', 'to'],
+        'has': ['as', 'haz', 'was'],
         'is': ['as', 'iz', 'es'],
         'at': ['et', 'uh'],
         'but': ['bud', 'bat'],
@@ -1849,7 +1840,12 @@ export class SpeechService {
      */
     wordsMatch(recognized: string | string[], target: string): boolean {
         // Use a regex that preserves letters (including Japanese) and numbers, stripping common punctuation
-        const cleanTarget = target.toLowerCase().replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '').trim();
+        // and splitting hyphenated words (like "well-open") into space-separated words while preserving negative numbers ("-5")
+        const cleanTarget = target
+            .toLowerCase()
+            .replace(/([a-z])-([a-z])/g, '$1 $2')
+            .replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '')
+            .trim();
         const targetWords = cleanTarget.split(/\s+/).filter(Boolean);
 
         // Helper to check if a single recognized word/token matches a single target word/token
@@ -1925,23 +1921,87 @@ export class SpeechService {
         };
 
         // Helper to align recognized word sequences against multi-word sentence targets
+        const sentenceWordMatches = (recWord: string, targetWord: string): boolean => {
+            if (!recWord || !targetWord) return false;
+            if (recWord === targetWord) return true;
+
+            const targetNum = wordsToNumber(targetWord);
+            const recNum = wordsToNumber(recWord);
+            if (targetNum !== null && recNum !== null) {
+                return targetNum === recNum;
+            }
+
+            // Check homophones
+            const targetHomophones = this.homophones[targetWord];
+            if (targetHomophones && targetHomophones.some(h => h.toLowerCase() === recWord)) {
+                return true;
+            }
+            for (const [key, values] of Object.entries(this.homophones)) {
+                if (key === recWord && values.some(v => v.toLowerCase() === targetWord)) {
+                    return true;
+                }
+                if (values.includes(recWord) && (key === targetWord || values.includes(targetWord))) {
+                    return true;
+                }
+            }
+
+            const similarity = this.calculateSimilarity(recWord, targetWord);
+            if (similarity >= 0.75) return true;
+
+            if (targetWord.length >= 4 && recWord.length >= 4) {
+                const dist = this.levenshteinDistance(recWord, targetWord);
+                if (dist <= 1) return true;
+            }
+
+            // Phonetic check for longer words in sentences (guarded by length & character similarity
+            // so short words like "it" never match "about" and "rabbit" never matches "robot")
+            if (targetWord.length >= 4 && recWord.length >= 3 && Math.abs(targetWord.length - recWord.length) <= 2 && similarity >= 0.55) {
+                try {
+                    const [tgtPri, tgtSec] = doubleMetaphone(targetWord);
+                    const [recPri, recSec] = doubleMetaphone(recWord);
+
+                    const codesMatch = (c1: string, c2: string) => {
+                        if (!c1 || !c2) return false;
+                        if (c1 === c2 && c1.length >= 2) return true;
+                        if (c1.length >= 3 && c2.length >= 3 && this.levenshteinDistance(c1, c2) <= 1) return true;
+                        return false;
+                    };
+
+                    if (codesMatch(tgtPri, recPri) || codesMatch(tgtPri, recSec) || codesMatch(tgtSec, recPri) || codesMatch(tgtSec, recSec)) {
+                        return true;
+                    }
+                } catch (e) {
+                    // Ignore phonetic error
+                }
+            }
+
+            return false;
+        };
+
+        const skippableFunctionWords = new Set([
+            'the', 'a', 'an', 'to', 'is', 'was', 'are', 'were', 'will',
+            'has', 'have', 'had', 'do', 'does', 'did', 'in', 'on', 'at', 'of', 'for'
+        ]);
+
         const sentenceWordsMatch = (cleanRec: string): boolean => {
             const recWords = cleanRec.split(/\s+/).filter(Boolean);
             if (recWords.length === 0) return false;
 
-            const align = (windowWords: string[], tIdx: number, rIdx: number): boolean => {
+            const maxSkips = targetWords.length >= 4 ? 1 : 0;
+
+            const align = (windowWords: string[], tIdx: number, rIdx: number, skipsRemaining: number): boolean => {
                 if (tIdx === targetWords.length && rIdx === windowWords.length) return true;
                 if (tIdx >= targetWords.length || rIdx >= windowWords.length) return false;
 
                 // 1. Direct 1-to-1 word match
-                if (singleWordMatches(windowWords[rIdx], targetWords[tIdx]) && align(windowWords, tIdx + 1, rIdx + 1)) {
+                if (sentenceWordMatches(windowWords[rIdx], targetWords[tIdx]) && align(windowWords, tIdx + 1, rIdx + 1, skipsRemaining)) {
                     return true;
                 }
 
                 // 2. 2-to-1 merged word match (e.g. Vosk splits "relax" into "very lax" or "re lax")
                 if (rIdx + 1 < windowWords.length && targetWords[tIdx].length >= 4) {
                     const mergedRec = windowWords[rIdx] + windowWords[rIdx + 1];
-                    if (singleWordMatches(mergedRec, targetWords[tIdx]) && align(windowWords, tIdx + 1, rIdx + 2)) {
+                    if (sentenceWordMatches(mergedRec, targetWords[tIdx]) && align(windowWords, tIdx + 1, rIdx + 2, skipsRemaining)) {
                         return true;
                     }
                 }
@@ -1951,8 +2011,8 @@ export class SpeechService {
                     const mergedTarget = targetWords[tIdx] + targetWords[tIdx + 1];
                     if (
                         Math.abs(windowWords[rIdx].length - mergedTarget.length) <= 1 &&
-                        singleWordMatches(windowWords[rIdx], mergedTarget) &&
-                        align(windowWords, tIdx + 2, rIdx + 1)
+                        sentenceWordMatches(windowWords[rIdx], mergedTarget) &&
+                        align(windowWords, tIdx + 2, rIdx + 1, skipsRemaining)
                     ) {
                         return true;
                     }
@@ -1960,18 +2020,43 @@ export class SpeechService {
 
                 // 4. Duplicate stutter skip (e.g. "well well")
                 if (rIdx + 1 < windowWords.length && windowWords[rIdx] === windowWords[rIdx + 1]) {
-                    if (align(windowWords, tIdx, rIdx + 1)) return true;
+                    if (align(windowWords, tIdx, rIdx + 1, skipsRemaining)) return true;
+                }
+
+                // 5. For longer sentences (>= 4 words), allow at most 1 unstressed function word
+                // (or a clipped initial <=3-letter word at tIdx === 0) to be dropped or substituted.
+                // Content words (nouns, main verbs, adjectives) are NEVER allowed to be skipped.
+                const canSkipTargetWord =
+                    skipsRemaining > 0 &&
+                    tIdx < targetWords.length - 1 &&
+                    (skippableFunctionWords.has(targetWords[tIdx]) || (tIdx === 0 && targetWords[0].length <= 3));
+
+                if (canSkipTargetWord) {
+                    // Unstressed function word dropped (e.g. "do you see tiger" or "rabbit is funny")
+                    if (align(windowWords, tIdx + 1, rIdx, skipsRemaining - 1)) {
+                        return true;
+                    }
+                    // Unstressed function word substituted (e.g. "love rabbit is funny")
+                    if (align(windowWords, tIdx + 1, rIdx + 1, skipsRemaining - 1)) {
+                        return true;
+                    }
                 }
 
                 return false;
             };
 
-            const minLen = Math.max(1, targetWords.length - 1);
+            // Full utterance alignment (allows 1 non-final function word drop/substitution on >= 4-word sentences)
+            if (align(recWords, 0, 0, maxSkips)) {
+                return true;
+            }
+
+            // Sliding window alignment for repeated multi-pass transcripts (strictly 0 skips allowed)
+            const minLen = targetWords.length;
             const maxLen = Math.min(recWords.length, targetWords.length * 2);
             for (let start = 0; start <= recWords.length - minLen; start++) {
                 for (let len = minLen; len <= Math.min(maxLen, recWords.length - start); len++) {
                     const slice = recWords.slice(start, start + len);
-                    if (align(slice, 0, 0)) return true;
+                    if (align(slice, 0, 0, 0)) return true;
                 }
             }
             return false;
@@ -1979,7 +2064,11 @@ export class SpeechService {
 
         // Helper to check single string match
         const checkSingleMatch = (rec: string): boolean => {
-            const cleanRecognized = rec.toLowerCase().replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '').trim();
+            const cleanRecognized = rec
+                .toLowerCase()
+                .replace(/([a-z])-([a-z])/g, '$1 $2')
+                .replace(/[.,!?;:()"\u3001\u3002\uff01\uff1f]/g, '')
+                .trim();
 
             if (!cleanRecognized || !cleanTarget) {
                 // If either is empty after cleaning, only match if they were already identical (e.g. both empty or same symbols)
@@ -2002,8 +2091,15 @@ export class SpeechService {
                 return sentenceWordsMatch(cleanRecognized);
             }
 
-            // Check if target is contained in recognized (for words like "a" that might be recognized as "a a")
-            if (cleanRecognized.includes(cleanTarget)) return true;
+            // Single-word target: check token-level match (avoiding character substring false positives like "banana" matching "a")
+            const recTokens = cleanRecognized.split(/\s+/).filter(Boolean);
+            const uniqueTokens = Array.from(new Set(recTokens));
+            if (uniqueTokens.length === 1) {
+                return singleWordMatches(uniqueTokens[0], cleanTarget);
+            }
+            if (recTokens.length === 2 && recTokens.some(t => t === cleanTarget)) {
+                return true;
+            }
 
             return singleWordMatches(cleanRecognized, cleanTarget);
         };
