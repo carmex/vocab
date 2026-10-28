@@ -153,7 +153,9 @@ test.describe('Scramble Mode', () => {
         const targetCount = await targetTiles.count();
         expect(targetCount).toBeGreaterThan(0);
 
-        // Verify submitted letter tiles are displayed
+        // Verify submitted letter tiles are displayed in a mixed-orientation wrapping drop list
+        const dropList = page.locator('.correction-tiles-row.submitted-row');
+        await expect(dropList).toHaveAttribute('cdkdroplistorientation', 'mixed');
         const submittedTiles = page.locator('.correction-tiles-row.submitted-row .correction-tile');
         await expect(submittedTiles.first()).toBeVisible();
         expect(await submittedTiles.count()).toBe(targetCount);

@@ -22,7 +22,7 @@ import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, DragDropModule, DropListOrientation, moveItemInArray } from '@angular/cdk/drag-drop';
 
 export interface ScrambleTile {
   id: number;
@@ -63,6 +63,7 @@ export class QuizComponent implements OnInit, OnDestroy {
   isCorrectionComplete = false; // When dragged correction tiles match correct word
   correctTiles: ScrambleTile[] = []; // Target word letter tiles for correction
   correctionTiles: ScrambleTile[] = []; // Draggable submitted letter tiles for correction
+  readonly correctionDropListOrientation: DropListOrientation = 'mixed';
   speechSupported = false;
   autoRecordEnabled = false; // Auto-record after first Record press
   autoPlayEnabled = false; // Auto-play after first Play press
