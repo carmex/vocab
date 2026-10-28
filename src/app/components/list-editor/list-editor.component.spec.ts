@@ -105,4 +105,22 @@ describe('ListEditorComponent', () => {
         // UI Tests - verify buttons exist in template
         // This is hard to test before implementing, but we can try checking logic properties first
     });
+
+    describe('JSON Import', () => {
+        it('should parse imported JSON and retain imageUrl and image_url', () => {
+            const rawData = [
+                { word: 'Pacific Ocean', definition: 'Pacific Ocean', imageUrl: '/images/oceans/pacific-ocean.svg' },
+                { word: 'Atlantic Ocean', definition: 'Atlantic Ocean', image_url: '/images/oceans/atlantic-ocean.svg' },
+                { word: 'Plain Word', definition: 'Plain Definition' }
+            ];
+
+            const parsed = (component as any).parseJsonWords(rawData);
+
+            expect(parsed).toEqual([
+                { word: 'Pacific Ocean', definition: 'Pacific Ocean', imageUrl: '/images/oceans/pacific-ocean.svg' },
+                { word: 'Atlantic Ocean', definition: 'Atlantic Ocean', imageUrl: '/images/oceans/atlantic-ocean.svg' },
+                { word: 'Plain Word', definition: 'Plain Definition', imageUrl: '' }
+            ]);
+        });
+    });
 });
