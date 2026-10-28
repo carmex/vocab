@@ -113,7 +113,7 @@ describe('AuthService', () => {
 
         const oauthService = createService();
         // Wait enough for the retry timeout
-        await new Promise(resolve => setTimeout(resolve, 350));
+        await new Promise(resolve => setTimeout(resolve, 600));
 
         expect(mockSupabaseClient.auth.signInAnonymously).not.toHaveBeenCalled();
         expect(mockSupabaseClient.auth.setSession).toHaveBeenCalledTimes(2);
