@@ -13,6 +13,7 @@ describe('SettingsService Logic Tests', () => {
         speechMode: 'native' | 'whisper' | 'auto';
         enhancedTTS: boolean;
         showHints: boolean;
+        scrambleCorrection: boolean;
     }
 
     const defaultSettings: Settings = {
@@ -22,6 +23,7 @@ describe('SettingsService Logic Tests', () => {
         speechMode: 'auto',
         enhancedTTS: false,
         showHints: true,
+        scrambleCorrection: true,
     };
 
     // Mock localStorage
@@ -130,6 +132,23 @@ describe('SettingsService Logic Tests', () => {
                 const settings = getSettings();
                 expect(settings.speechMode).toBe(mode);
             });
+        });
+    });
+
+    describe('Scramble mode settings', () => {
+        it('should have scrambleCorrection enabled by default', () => {
+            const settings = getSettings();
+            expect(settings.scrambleCorrection).toBe(true);
+        });
+
+        it('should toggle scrambleCorrection setting', () => {
+            saveSettings({ scrambleCorrection: false });
+            let settings = getSettings();
+            expect(settings.scrambleCorrection).toBe(false);
+
+            saveSettings({ scrambleCorrection: true });
+            settings = getSettings();
+            expect(settings.scrambleCorrection).toBe(true);
         });
     });
 });

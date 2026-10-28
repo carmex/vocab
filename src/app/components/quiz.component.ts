@@ -22,6 +22,7 @@ import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 export interface ScrambleTile {
   id: number;
@@ -31,7 +32,7 @@ export interface ScrambleTile {
 @Component({
   selector: 'app-quiz',
   standalone: true,
-  imports: [CommonModule, MatProgressBarModule, MatButtonModule, MatIconModule, MatCardModule, TopNavComponent, TwemojiPipe, FormsModule, MatFormFieldModule, MatInputModule],
+  imports: [CommonModule, MatProgressBarModule, MatButtonModule, MatIconModule, MatCardModule, TopNavComponent, TwemojiPipe, FormsModule, MatFormFieldModule, MatInputModule, DragDropModule],
   templateUrl: './quiz.component.html',
   styleUrls: ['./quiz.component.scss']
 })
@@ -58,6 +59,10 @@ export class QuizComponent implements OnInit, OnDestroy {
   keypadInput = ''; // For Keypad Mode
   scrambleTiles: ScrambleTile[] = []; // For Scramble Mode
   selectedScrambleTiles: ScrambleTile[] = []; // For Scramble Mode
+  isCorrectionActive = false; // For Scramble Mode missed word correction
+  isCorrectionComplete = false; // When dragged correction tiles match correct word
+  correctTiles: ScrambleTile[] = []; // Target word letter tiles for correction
+  correctionTiles: ScrambleTile[] = []; // Draggable submitted letter tiles for correction
   speechSupported = false;
   autoRecordEnabled = false; // Auto-record after first Record press
   autoPlayEnabled = false; // Auto-play after first Play press
@@ -419,6 +424,7 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.keypadInput = '';
     this.scrambleTiles = [];
     this.selectedScrambleTiles = [];
+    this.resetCorrectionState();
 
     this.currentQuestion = this.quizService.getNextQuestion();
 
@@ -994,11 +1000,83 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.updateProgress();
 
     const settings = this.settingsService.getSettings();
+    if (!this.isCorrect && settings.scrambleCorrection) {
+      this.initScrambleCorrection();
+      return;
+    }
+
     if (settings.autoAdvance) {
       this.totalTime = this.isCorrect ? settings.correctAnswerTimer * 1000 : settings.incorrectAnswerTimer * 1000;
       this.remainingTime = this.totalTime;
       this.startTimer();
     }
+  }
+
+  // Scramble Mode Missed Word Correction Methods
+  initScrambleCorrection(): void {
+    if (!this.currentQuestion) return;
+    const target = this.currentQuestion.correctAnswer || this.currentQuestion.wordToQuiz.word || '';
+    this.correctTiles = target.split('').map((char, index) => ({
+      id: index,
+      letter: char
+    }));
+
+    // Start with the submitted tiles in their submitted order
+    const submitted = [...this.selectedScrambleTiles];
+    const submittedIds = new Set(submitted.map(t => t.id));
+
+    // If incomplete, append unselected tiles from scrambleTiles so all letters exist
+    for (const tile of this.scrambleTiles) {
+      if (!submittedIds.has(tile.id)) {
+        submitted.push(tile);
+        submittedIds.add(tile.id);
+      }
+    }
+
+    this.correctionTiles = submitted;
+    this.isCorrectionActive = true;
+    this.checkCorrectionComplete();
+  }
+
+  isCorrectionTileInWrongSpot(index: number): boolean {
+    if (!this.correctionTiles[index] || !this.correctTiles[index]) return true;
+    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return normalize(this.correctionTiles[index].letter) !== normalize(this.correctTiles[index].letter);
+  }
+
+  onCorrectionTileDrop(event: CdkDragDrop<ScrambleTile[]>): void {
+    if (this.isCorrectionComplete) return;
+    moveItemInArray(this.correctionTiles, event.previousIndex, event.currentIndex);
+    this.checkCorrectionComplete();
+  }
+
+  moveCorrectionTile(fromIndex: number, toIndex: number): void {
+    if (this.isCorrectionComplete) return;
+    if (fromIndex < 0 || fromIndex >= this.correctionTiles.length) return;
+    const targetIndex = Math.max(0, Math.min(this.correctionTiles.length - 1, toIndex));
+    if (fromIndex === targetIndex) return;
+    moveItemInArray(this.correctionTiles, fromIndex, targetIndex);
+    this.checkCorrectionComplete();
+  }
+
+  checkCorrectionComplete(): boolean {
+    if (this.correctionTiles.length !== this.correctTiles.length) {
+      this.isCorrectionComplete = false;
+      return false;
+    }
+    const normalize = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const allMatch = this.correctionTiles.every((tile, idx) =>
+      normalize(tile.letter) === normalize(this.correctTiles[idx].letter)
+    );
+    this.isCorrectionComplete = allMatch;
+    return allMatch;
+  }
+
+  resetCorrectionState(): void {
+    this.isCorrectionActive = false;
+    this.isCorrectionComplete = false;
+    this.correctTiles = [];
+    this.correctionTiles = [];
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -1070,6 +1148,9 @@ export class QuizComponent implements OnInit, OnDestroy {
   }
 
   onNext() {
+    if (this.isCorrectionActive && !this.isCorrectionComplete) {
+      return;
+    }
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.displayNextQuestion();
   }

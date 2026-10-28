@@ -11,6 +11,7 @@ export interface AppSettings {
   enhancedTTS: boolean;
   usePremiumVoice: boolean;
   ttsVoice: string;
+  scrambleCorrection: boolean;
 }
 
 @Injectable({
@@ -27,7 +28,8 @@ export class SettingsService {
     darkMode: false,
     enhancedTTS: false, // Default to false since we prefer Premium now
     usePremiumVoice: true, // Default to TRUE for everyone
-    ttsVoice: 'cmu_us_slt_arctic-wav-arctic_a0001'
+    ttsVoice: 'cmu_us_slt_arctic-wav-arctic_a0001',
+    scrambleCorrection: true
   };
 
   constructor(private supabase: SupabaseService) { }
