@@ -309,12 +309,60 @@
           {{ isCorrect ? 'Great Job!' : 'Keep Practicing!' }}
         </div>
 
-        <div *ngIf="!isCorrect" class="correction-details">
+        <div *ngIf="!isCorrect && !isCorrectionActive" class="correction-details">
           <p>Correct Answer: <strong>{{ currentQuestion?.correctAnswer }}</strong></p>
           <p *ngIf="recognizedText" class="you-said">{{ interactionMode === 'speak' ? 'You said:' : 'Your Answer:' }} "{{ recognizedText }}"</p>
           <div *ngIf="recognizedAlternatives && recognizedAlternatives.length > 1" class="debug-alternatives"
             style="margin-top: 8px; font-size: 0.8rem; color: #666;">
             <strong>Heard Details:</strong> {{ recognizedAlternatives.join(', ') }}
+          </div>
+        </div>
+
+        <!-- Scramble Missed Word Drag-Correction UI -->
+        <div *ngIf="!isCorrect && isCorrectionActive" class="scramble-correction-section">
+          <div class="correction-group target-group">
+            <span class="correction-label">Correct Spelling:</span>
+            <div class="correction-tiles-row target-row">
+              <div *ngFor="let tile of correctTiles" class="scramble-tile target-tile" [attr.aria-label]="'Correct letter ' + tile.letter">
+                {{ tile.letter }}
+              </div>
+            </div>
+          </div>
+
+          <div class="correction-group drag-group">
+            <span class="correction-label">
+              <ng-container *ngIf="!isCorrectionComplete">Your Submission (drag to fix):</ng-container>
+              <span *ngIf="isCorrectionComplete" class="matched-badge">
+                <mat-icon>check_circle</mat-icon> Words Match!
+              </span>
+            </span>
+
+            <div cdkDropList
+                 cdkDropListOrientation="horizontal"
+                 (cdkDropListDropped)="onCorrectionTileDrop($event)"
+                 class="correction-tiles-row submitted-row"
+                 [class.all-matched]="isCorrectionComplete">
+              <div *ngFor="let tile of correctionTiles; let i = index; trackBy: trackByTileId"
+                   cdkDrag
+                   class="scramble-tile correction-tile"
+                   [class.wrong-spot]="isCorrectionTileInWrongSpot(i)"
+                   [class.correct-spot]="!isCorrectionTileInWrongSpot(i)"
+                   [cdkDragDisabled]="isCorrectionComplete"
+                   tabindex="0"
+                   (keydown.arrowleft)="moveCorrectionTile(i, i - 1)"
+                   (keydown.arrowright)="moveCorrectionTile(i, i + 1)"
+                   [attr.aria-label]="'Letter ' + tile.letter + (isCorrectionTileInWrongSpot(i) ? ' in wrong spot' : ' in right spot')">
+                <span class="tile-letter">{{ tile.letter }}</span>
+                <span class="spot-indicator">
+                  <mat-icon *ngIf="!isCorrectionTileInWrongSpot(i)">check</mat-icon>
+                  <mat-icon *ngIf="isCorrectionTileInWrongSpot(i)">close</mat-icon>
+                </span>
+              </div>
+            </div>
+
+            <p *ngIf="!isCorrectionComplete" class="correction-drag-instruction">
+              <mat-icon>drag_indicator</mat-icon> Drag letters left or right to get them in the right spot
+            </p>
           </div>
         </div>
       </div>
@@ -326,7 +374,7 @@
         <button mat-stroked-button color="primary" *ngIf="!isPaused && timerProgress > 0" (click)="onPause()">
           <mat-icon>pause</mat-icon> Pause
         </button>
-        <button mat-flat-button color="primary" (click)="onNext()">
+        <button mat-flat-button color="primary" (click)="onNext()" [disabled]="isCorrectionActive && !isCorrectionComplete">
           Next <mat-icon>arrow_forward</mat-icon>
         </button>
       </div>

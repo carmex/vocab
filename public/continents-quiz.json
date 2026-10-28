@@ -1,0 +1,37 @@
+[
+  {
+    "word": "Africa",
+    "definition": "Africa",
+    "imageUrl": "/images/continents/africa.svg"
+  },
+  {
+    "word": "Antarctica",
+    "definition": "Antarctica",
+    "imageUrl": "/images/continents/antarctica.svg"
+  },
+  {
+    "word": "Asia",
+    "definition": "Asia",
+    "imageUrl": "/images/continents/asia.svg"
+  },
+  {
+    "word": "Europe",
+    "definition": "Europe",
+    "imageUrl": "/images/continents/europe.svg"
+  },
+  {
+    "word": "North America",
+    "definition": "North America",
+    "imageUrl": "/images/continents/north-america.svg"
+  },
+  {
+    "word": "South America",
+    "definition": "South America",
+    "imageUrl": "/images/continents/south-america.svg"
+  },
+  {
+    "word": "Australia / Oceania",
+    "definition": "Australia / Oceania",
+    "imageUrl": "/images/continents/australia-oceania.svg"
+  }
+]

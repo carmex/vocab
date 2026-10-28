@@ -494,6 +494,14 @@ export class ListEditorComponent implements OnInit {
     }
   }
 
+  parseJsonWords(json: any[]): WordRow[] {
+    return json.map((item: any) => ({
+      word: item.word || '',
+      definition: item.definition || '',
+      imageUrl: item.imageUrl || item.image_url || ''
+    }));
+  }
+
   onFileSelected(event: any) {
     const file = event.target.files[0];
     if (file) {
@@ -524,10 +532,7 @@ export class ListEditorComponent implements OnInit {
           try {
             const json = JSON.parse(e.target.result);
             if (Array.isArray(json)) {
-              const newWords = json.map((item: any) => ({
-                word: item.word || '',
-                definition: item.definition || ''
-              }));
+              const newWords = this.parseJsonWords(json);
               this.handleImportResult(newWords);
             } else {
               alert('Invalid JSON format.');

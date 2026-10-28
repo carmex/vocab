@@ -14,7 +14,8 @@ addEventListener('message', ({ data }) => {
                 const item = json[i];
                 processedWords.push({
                     word: item.word || '',
-                    definition: item.definition || ''
+                    definition: item.definition || '',
+                    imageUrl: item.imageUrl || item.image_url || ''
                 });
 
                 // Report progress every batch or at the end

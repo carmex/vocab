@@ -537,6 +537,156 @@ describe('QuizComponent (Manual Instantiation)', () => {
             component.handleKeydown(eventEnter);
             expect(component.feedbackVisible).toBe(true);
         });
+
+        describe('Scramble Mode Missed Word Correction', () => {
+            beforeEach(() => {
+                mockSettingsService.getSettings.mockReturnValue({
+                    autoAdvance: false,
+                    correctAnswerTimer: 1,
+                    incorrectAnswerTimer: 5,
+                    scrambleCorrection: true,
+                    usePremiumVoice: true
+                });
+            });
+
+            it('should activate correction mode and set up letter tiles when a word is missed', () => {
+                const targetLetters = ['e', 'l', 'p', 'p', 'a'];
+                const usedIndices = new Set<number>();
+                for (const ch of targetLetters) {
+                    const idx = component.scrambleTiles.findIndex((t, i) => t.letter === ch && !usedIndices.has(i));
+                    usedIndices.add(idx);
+                    component.selectScrambleTile(component.scrambleTiles[idx]);
+                }
+
+                component.submitScramble();
+
+                expect(component.isCorrect).toBe(false);
+                expect(component.isCorrectionActive).toBe(true);
+                expect(component.isCorrectionComplete).toBe(false);
+                expect(component.correctTiles.map(t => t.letter)).toEqual(['a', 'p', 'p', 'l', 'e']);
+                expect(component.correctionTiles.map(t => t.letter)).toEqual(['e', 'l', 'p', 'p', 'a']);
+            });
+
+            it('should highlight letters in the wrong spot and right spot', () => {
+                const targetLetters = ['e', 'l', 'p', 'p', 'a'];
+                const usedIndices = new Set<number>();
+                for (const ch of targetLetters) {
+                    const idx = component.scrambleTiles.findIndex((t, i) => t.letter === ch && !usedIndices.has(i));
+                    usedIndices.add(idx);
+                    component.selectScrambleTile(component.scrambleTiles[idx]);
+                }
+
+                component.submitScramble();
+
+                // 'e' !== 'a'
+                expect(component.isCorrectionTileInWrongSpot(0)).toBe(true);
+                // 'l' !== 'p'
+                expect(component.isCorrectionTileInWrongSpot(1)).toBe(true);
+                // 'p' === 'p' -> in the right spot!
+                expect(component.isCorrectionTileInWrongSpot(2)).toBe(false);
+                // 'p' !== 'l'
+                expect(component.isCorrectionTileInWrongSpot(3)).toBe(true);
+                // 'a' !== 'e'
+                expect(component.isCorrectionTileInWrongSpot(4)).toBe(true);
+            });
+
+            it('should update tile order and complete correction when tiles match target', () => {
+                const targetLetters = ['e', 'l', 'p', 'p', 'a'];
+                const usedIndices = new Set<number>();
+                for (const ch of targetLetters) {
+                    const idx = component.scrambleTiles.findIndex((t, i) => t.letter === ch && !usedIndices.has(i));
+                    usedIndices.add(idx);
+                    component.selectScrambleTile(component.scrambleTiles[idx]);
+                }
+
+                component.submitScramble();
+                expect(component.isCorrectionComplete).toBe(false);
+
+                // Move tiles into correct order: 'a', 'p', 'p', 'l', 'e'
+                // Currently 'e', 'l', 'p', 'p', 'a'
+                // Move 'a' (index 4) to index 0 -> 'a', 'e', 'l', 'p', 'p'
+                component.moveCorrectionTile(4, 0);
+                // Move 'e' (index 1) to index 4 -> 'a', 'l', 'p', 'p', 'e'
+                component.moveCorrectionTile(1, 4);
+                // Move 'l' (index 1) to index 3 -> 'a', 'p', 'p', 'l', 'e'
+                component.moveCorrectionTile(1, 3);
+
+                expect(component.correctionTiles.map(t => t.letter)).toEqual(['a', 'p', 'p', 'l', 'e']);
+                expect(component.isCorrectionComplete).toBe(true);
+                for (let i = 0; i < 5; i++) {
+                    expect(component.isCorrectionTileInWrongSpot(i)).toBe(false);
+                }
+            });
+
+            it('should prevent onNext until words match, and allow onNext once matched', () => {
+                const targetLetters = ['e', 'l', 'p', 'p', 'a'];
+                const usedIndices = new Set<number>();
+                for (const ch of targetLetters) {
+                    const idx = component.scrambleTiles.findIndex((t, i) => t.letter === ch && !usedIndices.has(i));
+                    usedIndices.add(idx);
+                    component.selectScrambleTile(component.scrambleTiles[idx]);
+                }
+
+                component.submitScramble();
+                expect(component.isCorrectionActive).toBe(true);
+                expect(component.isCorrectionComplete).toBe(false);
+
+                // Attempt onNext while incomplete - should not advance
+                const currentQ = component.currentQuestion;
+                component.onNext();
+                expect(component.currentQuestion).toBe(currentQ);
+                expect(component.feedbackVisible).toBe(true);
+
+                // Now rearrange to match
+                component.correctionTiles = [...component.correctTiles];
+                component.checkCorrectionComplete();
+                expect(component.isCorrectionComplete).toBe(true);
+
+                // Now onNext should succeed
+                component.onNext();
+                expect(component.isCorrectionActive).toBe(false);
+            });
+
+            it('should not activate correction mode when scrambleCorrection setting is false', () => {
+                mockSettingsService.getSettings.mockReturnValue({
+                    autoAdvance: false,
+                    correctAnswerTimer: 1,
+                    incorrectAnswerTimer: 5,
+                    scrambleCorrection: false,
+                    usePremiumVoice: true
+                });
+
+                const targetLetters = ['e', 'l', 'p', 'p', 'a'];
+                const usedIndices = new Set<number>();
+                for (const ch of targetLetters) {
+                    const idx = component.scrambleTiles.findIndex((t, i) => t.letter === ch && !usedIndices.has(i));
+                    usedIndices.add(idx);
+                    component.selectScrambleTile(component.scrambleTiles[idx]);
+                }
+
+                component.submitScramble();
+                expect(component.isCorrect).toBe(false);
+                expect(component.isCorrectionActive).toBe(false);
+            });
+
+            it('should include unselected remaining tiles when a partial word is submitted', () => {
+                // Select only 'p' and 'a'
+                const pTile = component.scrambleTiles.find(t => t.letter === 'p')!;
+                const aTile = component.scrambleTiles.find(t => t.letter === 'a')!;
+                component.selectScrambleTile(pTile);
+                component.selectScrambleTile(aTile);
+
+                component.submitScramble();
+                expect(component.isCorrectionActive).toBe(true);
+                // All 5 tiles should be present in correctionTiles
+                expect(component.correctionTiles.length).toBe(5);
+                expect(component.correctionTiles[0].letter).toBe('p');
+                expect(component.correctionTiles[1].letter).toBe('a');
+                // The set of letters should still match 'apple'
+                const letters = component.correctionTiles.map(t => t.letter).sort();
+                expect(letters).toEqual(['a', 'e', 'l', 'p', 'p']);
+            });
+        });
     });
 
     describe('Auto-Play Logic in Scramble Mode', () => {

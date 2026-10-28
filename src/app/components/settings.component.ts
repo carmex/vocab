@@ -168,6 +168,17 @@ import { TopNavComponent } from './top-nav/top-nav.component';
  
 
 
+      <div class="settings-section">
+        <h3>Scramble Mode</h3>
+
+        <div class="setting-item">
+          <mat-slide-toggle [(ngModel)]="scrambleCorrection" (ngModelChange)="autoSave()" color="primary">
+            Correct Missed Words
+          </mat-slide-toggle>
+          <p class="setting-description">When a word is missed in Scramble Mode, drag letters to match the correct spelling before proceeding</p>
+        </div>
+      </div>
+
       <div class="settings-actions">
         <button mat-button (click)="onReset()">
           Reset to Default
@@ -317,6 +328,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   enhancedTTS = false;
   usePremiumVoice = false;
   ttsVoice = 'cmu_us_slt_arctic-wav-arctic_a0001';
+  scrambleCorrection = true;
   loading = false;
   loadingProgress = 0;
   private progressSub?: Subscription;
@@ -393,7 +405,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
       darkMode: this.darkMode,
       enhancedTTS: this.enhancedTTS,
       usePremiumVoice: this.usePremiumVoice,
-      ttsVoice: this.ttsVoice
+      ttsVoice: this.ttsVoice,
+      scrambleCorrection: this.scrambleCorrection
     };
 
     // Silent save
@@ -415,6 +428,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.enhancedTTS = defaultSettings.enhancedTTS;
     this.usePremiumVoice = defaultSettings.usePremiumVoice;
     this.ttsVoice = defaultSettings.ttsVoice;
+    this.scrambleCorrection = defaultSettings.scrambleCorrection ?? true;
     this.autoSave(); // Save defaults immediately
   }
 
@@ -429,5 +443,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.enhancedTTS = settings.enhancedTTS;
     this.usePremiumVoice = settings.usePremiumVoice;
     this.ttsVoice = settings.ttsVoice;
+    this.scrambleCorrection = settings.scrambleCorrection ?? true;
   }
 }

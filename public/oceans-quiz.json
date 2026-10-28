@@ -1,0 +1,27 @@
+[
+  {
+    "word": "Pacific Ocean",
+    "definition": "Pacific Ocean",
+    "imageUrl": "/images/oceans/pacific-ocean.svg"
+  },
+  {
+    "word": "Atlantic Ocean",
+    "definition": "Atlantic Ocean",
+    "imageUrl": "/images/oceans/atlantic-ocean.svg"
+  },
+  {
+    "word": "Indian Ocean",
+    "definition": "Indian Ocean",
+    "imageUrl": "/images/oceans/indian-ocean.svg"
+  },
+  {
+    "word": "Southern Ocean",
+    "definition": "Southern Ocean",
+    "imageUrl": "/images/oceans/southern-ocean.svg"
+  },
+  {
+    "word": "Arctic Ocean",
+    "definition": "Arctic Ocean",
+    "imageUrl": "/images/oceans/arctic-ocean.svg"
+  }
+]
