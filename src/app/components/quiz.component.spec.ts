@@ -1,6 +1,8 @@
 import { QuizComponent } from './quiz.component';
 import { of, Subject } from 'rxjs';
 import { ListType } from '../models/list-type.enum';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Mock the speech service module
 jest.mock('../services/speech.service', () => ({
@@ -685,6 +687,48 @@ describe('QuizComponent (Manual Instantiation)', () => {
                 // The set of letters should still match 'apple'
                 const letters = component.correctionTiles.map(t => t.letter).sort();
                 expect(letters).toEqual(['a', 'e', 'l', 'p', 'p']);
+            });
+
+            it('should configure the correction drop list with mixed orientation to support sliding between wrapped lines', () => {
+                expect((component as any).correctionDropListOrientation).toBe('mixed');
+                const template = fs.readFileSync(path.join(__dirname, 'quiz.component.html'), 'utf8');
+                expect(template).toMatch(/cdkDropListOrientation="mixed"|\[cdkDropListOrientation\]="correctionDropListOrientation"/);
+            });
+
+            it('should support reordering tiles across multiple lines for long words', () => {
+                const longWord = 'understand';
+                component.currentQuestion = {
+                    wordToQuiz: { id: 'w-long', word: longWord, definition: 'to comprehend', imageUrl: '', type: 'sight_word' },
+                    options: [longWord],
+                    correctAnswer: longWord
+                };
+                component.scrambleTiles = 'adunserntd'.split('').map((ch, idx) => ({ id: idx, letter: ch }));
+                component.selectedScrambleTiles = [...component.scrambleTiles];
+                component.submitScramble();
+
+                expect(component.isCorrectionActive).toBe(true);
+                expect(component.correctionTiles.length).toBe(10);
+                expect(component.isCorrectionComplete).toBe(false);
+
+                // Simulate moving tile from wrapped line 2 to line 1 (e.g. index 8 to index 0)
+                component.onCorrectionTileDrop({
+                    previousIndex: 8,
+                    currentIndex: 0,
+                    item: {} as any,
+                    container: {} as any,
+                    previousContainer: {} as any,
+                    isPointerOverContainer: true,
+                    distance: { x: 0, y: 0 },
+                    dropPoint: { x: 0, y: 0 },
+                    event: new MouseEvent('drop')
+                });
+
+                expect(component.correctionTiles[0].letter).toBe('t');
+
+                // Moving all tiles into correct spelling order completes correction
+                component.correctionTiles = [...component.correctTiles];
+                component.checkCorrectionComplete();
+                expect(component.isCorrectionComplete).toBe(true);
             });
         });
     });

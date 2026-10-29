@@ -516,6 +516,19 @@
         text-transform: lowercase;
       }
 
+      @media (max-width: 600px) {
+        gap: 6px;
+        padding: 4px;
+
+        .target-tile,
+        .correction-tile {
+          min-width: 36px;
+          height: 46px;
+          padding: 0 6px;
+          font-size: 1.35rem;
+        }
+      }
+
       &.target-row .target-tile {
         background: #e8f5e9;
         color: #1b5e20;
@@ -543,6 +556,7 @@
           position: relative;
           cursor: grab;
           user-select: none;
+          touch-action: none;
           transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 
           &:active {
@@ -1057,10 +1071,18 @@
   font-weight: 700;
   color: #1a237e;
   text-transform: lowercase;
+  pointer-events: none !important;
+
+  * {
+    pointer-events: none !important;
+  }
 }
 
 .cdk-drag-placeholder {
-  opacity: 0.2;
+  opacity: 0.3;
+  border: 2px dashed #3f51b5 !important;
+  background: rgba(63, 81, 181, 0.08) !important;
+  border-radius: 10px;
 }
 
 .cdk-drag-animating {
