@@ -497,6 +497,38 @@ describe('QuizComponent (Manual Instantiation)', () => {
             expect(component.selectedAnswer).toBe('elppa');
         });
 
+        it('should report canSubmitScramble as false when not all letters are placed, and true when all letters are placed', () => {
+            expect(component.canSubmitScramble).toBe(false);
+
+            // Select only 1 tile
+            component.selectScrambleTile(component.scrambleTiles[0]);
+            expect(component.canSubmitScramble).toBe(false);
+
+            // Select some but not all tiles
+            component.selectScrambleTile(component.scrambleTiles[1]);
+            expect(component.canSubmitScramble).toBe(false);
+
+            // Select remaining tiles
+            for (let i = 2; i < component.scrambleTiles.length; i++) {
+                component.selectScrambleTile(component.scrambleTiles[i]);
+            }
+            expect(component.canSubmitScramble).toBe(true);
+        });
+
+        it('should ignore submit when not all letters are placed', () => {
+            // Select only 1 tile
+            component.selectScrambleTile(component.scrambleTiles[0]);
+            component.submitScramble();
+
+            expect(mockQuizService.submitAnswer).not.toHaveBeenCalled();
+            expect(component.feedbackVisible).toBe(false);
+        });
+
+        it('should disable check button until all letters have been placed in the template', () => {
+            const template = fs.readFileSync(path.join(__dirname, 'quiz.component.html'), 'utf8');
+            expect(template).toMatch(/class="check-btn"[^>]*\[disabled\]="!canSubmitScramble"|\[disabled\]="!canSubmitScramble"[^>]*class="check-btn"/);
+        });
+
         it('should ignore submit when no tiles are selected', () => {
             component.submitScramble();
 
@@ -533,8 +565,16 @@ describe('QuizComponent (Manual Instantiation)', () => {
             component.handleKeydown(eventEsc);
             expect(component.selectedScrambleTiles.length).toBe(0);
 
-            // Enter submits
+            // Enter should not submit when incomplete
             component.selectScrambleTile(component.scrambleTiles[0]);
+            const eventEnterIncomplete = new KeyboardEvent('keydown', { key: 'Enter' });
+            component.handleKeydown(eventEnterIncomplete);
+            expect(component.feedbackVisible).toBe(false);
+
+            // Enter submits when all tiles are placed
+            for (let i = 1; i < component.scrambleTiles.length; i++) {
+                component.selectScrambleTile(component.scrambleTiles[i]);
+            }
             const eventEnter = new KeyboardEvent('keydown', { key: 'Enter' });
             component.handleKeydown(eventEnter);
             expect(component.feedbackVisible).toBe(true);
@@ -671,14 +711,14 @@ describe('QuizComponent (Manual Instantiation)', () => {
                 expect(component.isCorrectionActive).toBe(false);
             });
 
-            it('should include unselected remaining tiles when a partial word is submitted', () => {
+            it('should include unselected remaining tiles when correction is initialized with partial tiles', () => {
                 // Select only 'p' and 'a'
                 const pTile = component.scrambleTiles.find(t => t.letter === 'p')!;
                 const aTile = component.scrambleTiles.find(t => t.letter === 'a')!;
                 component.selectScrambleTile(pTile);
                 component.selectScrambleTile(aTile);
 
-                component.submitScramble();
+                component.initScrambleCorrection();
                 expect(component.isCorrectionActive).toBe(true);
                 // All 5 tiles should be present in correctionTiles
                 expect(component.correctionTiles.length).toBe(5);

@@ -135,12 +135,22 @@ test.describe('Scramble Mode', () => {
         const poolTiles = page.locator('.scramble-pool .scramble-tile');
         await expect(poolTiles.first()).toBeVisible({ timeout: 10000 });
 
-        // 5. Select only the first tile (partial / intentionally incorrect answer)
+        // 5. Verify Check button is disabled initially and after a single tile is placed
+        const checkBtn = page.locator('button.check-btn');
+        await expect(checkBtn).toBeDisabled();
+
+        const poolCount = await poolTiles.count();
         const firstTile = poolTiles.first();
         await firstTile.click();
+        await expect(checkBtn).toBeDisabled();
 
-        // 6. Submit the answer with "Check"
-        const checkBtn = page.locator('button.check-btn');
+        // Select remaining tiles so all letters are placed (in scrambled/incorrect order)
+        for (let i = 1; i < poolCount; i++) {
+            await poolTiles.nth(i).click();
+        }
+
+        // 6. Submit the answer with "Check" (now enabled since all letters are placed)
+        await expect(checkBtn).toBeEnabled();
         await checkBtn.click();
 
         // 7. Verify the Scramble Missed Word Correction interface appears

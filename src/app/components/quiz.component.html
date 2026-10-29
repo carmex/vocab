@@ -262,7 +262,7 @@
 
       <div class="action-buttons">
         <button mat-fab extended color="primary" class="check-btn" (click)="submitScramble()"
-          [disabled]="selectedScrambleTiles.length === 0">
+          [disabled]="!canSubmitScramble">
           <mat-icon>check</mat-icon>
           Check
         </button>

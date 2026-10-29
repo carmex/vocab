@@ -975,12 +975,17 @@ export class QuizComponent implements OnInit, OnDestroy {
     this.selectedScrambleTiles = [];
   }
 
+  get canSubmitScramble(): boolean {
+    return this.scrambleTiles.length > 0 && this.selectedScrambleTiles.length === this.scrambleTiles.length;
+  }
+
   trackByTileId(index: number, tile: ScrambleTile): number {
     return tile.id;
   }
 
   submitScramble(): void {
     if (this.feedbackVisible || !this.currentQuestion) return;
+    if (!this.canSubmitScramble) return;
     const userAnswer = this.selectedScrambleTiles.map(t => t.letter).join('').trim();
     if (!userAnswer) return;
 
